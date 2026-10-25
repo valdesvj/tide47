@@ -95,7 +95,7 @@ DOT, M × r, MOD); new here: **LN** (of a number and of a matrix, element by ele
 | `programs_rem/TIDE47.txt` | the commented source (STRUCT, named labels) |
 | `tools/build_tide47.py` | writes `programs/`, `build/` and `listings/`: TIDE47 and the data programs |
 | `tools/make_stations.py` | writes `python/stations.py` from XTide's NOAA data and TICON-3 (LAT computed) |
-| `tools/make_private.py`, `tools/compare_tables.py` | a private region from typed tide tables, and the comparison with them (docs/ARAMCO.md) |
+| `tools/aramco_pdf.py`, `tools/make_private.py`, `tools/compare_tables.py` | a private region from the Aramco tables' PDF or typed tables, and the comparison with them (docs/ARAMCO.md) |
 | `python/tide47ref.py` | the engine in Python, step for step as the program (`python3 python/tide47ref.py Bahrain 2026-10-25`) |
 | `python/tide47sim.py` | runs the programs in the simulator and writes the screens in `docs/` |
 | `python/c47sim.py`, `stdfont.py`, `tinyfont.py` | the C47 simulator and fonts, from Almanac 47 |
