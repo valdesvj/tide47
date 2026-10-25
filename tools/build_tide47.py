@@ -11,7 +11,9 @@ The data programs TIDEME, TIDEUS, TIDELA (one a region) are written from python/
 sea level above the datum, and the matrix HG (a number a constituent: H in 0.1 mm x 100000 + g in 0.01 deg).
 Files: programs/ and build/ TIDE47.txt TIDEME.txt TIDEUS.txt TIDELA.txt (the calculator files, to convert with
 rejig), listings/TIDE47_doc.txt (numbered steps with comments), listings/TIDE47_labels.txt.
-  python3 tools/build_tide47.py"""
+  python3 tools/build_tide47.py              the public build (3 regions)
+  python3 tools/build_tide47.py --private    private/build/: TIDE47 with the regions of python/stations_private.py
+                                             too (+ cycles through them) and their data programs (never in git)"""
 import os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -144,7 +146,30 @@ def source_steps(lines):
     return [ln.strip() for ln in lines if ln.strip() and not ln.lstrip().startswith('REM')]
 
 
-def fill(lines):
+def regions(private=False):
+    """The regions: python/stations.py, and with private=True also python/stations_private.py (not in git: data
+    that may not be published, such as constants worked out from Aramco's tables; tools/make_private.py)."""
+    sys.path.insert(0, os.path.join(ROOT, 'python'))
+    import stations
+    out = list(stations.REGIONS)
+    if private:
+        try:
+            import stations_private
+        except ImportError:
+            raise SystemExit('no python/stations_private.py: run tools/make_private.py first')
+        out += list(stations_private.REGIONS)
+    return out
+
+
+def region_steps(regs):
+    """LBL :REG:'s body: one IF a region (X = the port's number in R90)."""
+    out = []
+    for i, (code, label, title, ports) in enumerate(regs, 1):
+        out += [str(i), 'RCL 20', 'X=Y?', 'IF', '  RCL 90', '  XEQ "%s"' % label, 'ENDIF']
+    return out
+
+
+def fill(lines, regs):
     """The markers and the {NAME} constants."""
     sys.path.insert(0, os.path.join(ROOT, 'python'))
     import tide47ref as R
@@ -156,6 +181,11 @@ def fill(lines):
             out += [ind + st for st in cons_steps(R)]
         elif ln.strip() == 'REM ==== NCONS':
             out.append(ind + str(len(R.CONS)))
+        elif ln.strip() == 'REM ==== REGIONS':
+            out.append(ind + 'REM the regions %s (written by the build)' % ' '.join(r[1] for r in regs))
+            out += [ind + st for st in region_steps(regs)]
+        elif ln.strip() == 'REM ==== NREG':
+            out.append(ind + str(len(regs)))
         else:
             for k, v in R.K.items():
                 ln = ln.replace('{%s}' % k, repr(v))
@@ -207,14 +237,13 @@ def data_program(code, label, title, ports):
     return st
 
 
-def build_data():
-    sys.path.insert(0, os.path.join(ROOT, 'python'))
-    import stations
+def build_data(regs, dirs):
     out = []
-    for code, label, title, ports in stations.REGIONS:
+    for code, label, title, ports in regs:
         st = data_program(code, label, title, ports)
-        for d in ('programs', 'build'):
-            with open(os.path.join(ROOT, d, label + '.txt'), 'w', encoding='utf-8') as fh:
+        for d in dirs:
+            os.makedirs(d, exist_ok=True)
+            with open(os.path.join(d, label + '.txt'), 'w', encoding='utf-8') as fh:
                 fh.write('\n'.join(st) + '\n')
         out.append((label, len(st), estimate(st), len(ports)))
     return out
@@ -234,9 +263,9 @@ def labels_text(lines, num):
     return '\n'.join(out) + '\n'
 
 
-def build():
+def build(regs, dirs, listings=True):
     src = os.path.join(ROOT, 'programs_rem', NAME + '.txt')
-    lines = fill([ln.rstrip() for ln in open(src, encoding='utf-8')])
+    lines = fill([ln.rstrip() for ln in open(src, encoding='utf-8')], regs)
     steps = source_steps(lines)
     numeric, num = resolve(steps)
     numeric = structures(numeric)
@@ -253,11 +282,13 @@ def build():
             extra = '' if numeric[n] == steps[n] else '    (%s)' % numeric[n].split(' ', 1)[1]
             listing.append('%4d  %s' % (n + 1, ind + steps[n] + extra))
             n += 1
-    for d in ('programs', 'build', 'listings'):
-        os.makedirs(os.path.join(ROOT, d), exist_ok=True)
-    for d in ('programs', 'build'):
-        with open(os.path.join(ROOT, d, NAME + '.txt'), 'w', encoding='utf-8') as fh:
+    for d in dirs:
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, NAME + '.txt'), 'w', encoding='utf-8') as fh:
             fh.write('\n'.join(numeric) + '\n')
+    if not listings:
+        return numeric
+    os.makedirs(os.path.join(ROOT, 'listings'), exist_ok=True)
     with open(os.path.join(ROOT, 'listings', NAME + '_doc.txt'), 'w', encoding='utf-8') as fh:
         fh.write('\n'.join(listing) + '\n')
     with open(os.path.join(ROOT, 'listings', NAME + '_labels.txt'), 'w', encoding='utf-8') as fh:
@@ -266,9 +297,18 @@ def build():
 
 
 if __name__ == '__main__':
-    st = build()
+    private = '--private' in sys.argv
+    regs = regions(private)
+    if private:                                            # private/build/: TIDE47 with the private regions, and theirs
+        dirs = [os.path.join(ROOT, 'private', 'build')]
+        st = build(regs, dirs, listings=False)
+        data = build_data(regs[3:], dirs)
+    else:
+        dirs = [os.path.join(ROOT, 'programs'), os.path.join(ROOT, 'build')]
+        st = build(regs, dirs)
+        data = build_data(regs, dirs)
     print('%s %5d steps, %2d local labels, about %d bytes (.p47, estimated); IF %d, DO %d' % (
         NAME, len(st), sum(1 for s in st if re.match(r'LBL \d\d', s)), estimate(st),
         sum(1 for s in st if s.startswith('IF ')), sum(1 for s in st if s.startswith('DO '))))
-    for label, n, b, ports in build_data():
+    for label, n, b, ports in data:
         print('%-7s %5d steps, %2d ports, about %d bytes' % (label, n, ports, b))

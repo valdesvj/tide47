@@ -21,6 +21,7 @@
   python3 tests/test_tide47.py.
 - python/c47sim.py, stdfont.py, tinyfont.py come from Almanac 47 (LN and e^x added here, marked tide47): a fix is
   made there first, then copied here.
-- The data's terms (NOTICE): NOAA public domain (attribution), TICON-3 CC-BY 4.0. No Admiralty (UKHO) data in the repo.
+- The data's terms (NOTICE): NOAA public domain (attribution), TICON-3 CC-BY 4.0. No Admiralty (UKHO) or Aramco data in
+  the repo: private stations stay in private/ and python/stations_private.py (git-ignored; docs/ARAMCO.md).
 - Work in one repository at a time (this one); the other 47 repositories are for reference only.
 - Ask before anything that can't be undone. Pull requests only for tide47.
