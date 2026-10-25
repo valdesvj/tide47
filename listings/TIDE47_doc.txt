@@ -527,9 +527,11 @@
  488  LN
  489  STO "LH"
  490  RTN
-      ; ---- LBL :REG: X = the port's number (0: the region's count and title) to the data program of the region R20 ----
+      ; ---- LBL :REG: X = the port's number (0: the region's count and title) to the data program of the region R20 (the
+      ; build writes one IF a region: TIDEME TIDEUS TIDELA, and TIDEAR in the private build) ----
  491  LBL :REG:    (04)
  492  STO 90
+      ; the regions TIDEME TIDEUS TIDELA (written by the build)
  493  1
  494  RCL 20
  495  X=Y?

@@ -230,30 +230,11 @@ RCL "ONES"
 LN
 STO "LH"
 RTN
-REM ---- LBL :REG: X = the port's number (0: the region's count and title) to the data program of the region R20 ----
+REM ---- LBL :REG: X = the port's number (0: the region's count and title) to the data program of the region R20 (the
+REM build writes one IF a region: TIDEME TIDEUS TIDELA, and TIDEAR in the private build) ----
 LBL :REG:
 STO 90
-1
-RCL 20
-X=Y?
-IF
-  RCL 90
-  XEQ "TIDEME"
-ENDIF
-2
-RCL 20
-X=Y?
-IF
-  RCL 90
-  XEQ "TIDEUS"
-ENDIF
-3
-RCL 20
-X=Y?
-IF
-  RCL 90
-  XEQ "TIDELA"
-ENDIF
+REM ==== REGIONS
 RTN
 REM ======== the day ========
 REM ---- LBL :DAY: the day R25 at the port: the time zone, the start JD0 = R25 - 0.5 - tz / 24 (UT), the angles, the
@@ -1785,7 +1766,7 @@ X=Y?
 IF
   1
   STO+ 20
-  3
+  REM ==== NREG
   RCL 20
   X>Y?
   IF

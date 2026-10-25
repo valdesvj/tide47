@@ -57,6 +57,13 @@ standard time; the US ports follow US daylight time (the whole day, from the sec
 Sunday of November). `python3 tools/make_stations.py` writes the ports (`python/stations.py`); more ports can be added
 from TICON-3's 3 363 gauges.
 
+### Your own stations (Aramco)
+
+Stations whose tables may not be published, such as Saudi Aramco's, can be added as a private region on your own
+computer: type the tables' high and low waters, `tools/make_private.py` works out the constants, `tools/compare_tables.py`
+compares Tide 47 with the tables, and `tools/build_tide47.py --private` makes a TIDE47 with a 4th region, ARAMCO.
+Nothing from the tables goes into git. See [docs/ARAMCO.md](docs/ARAMCO.md).
+
 ## Accuracy
 
 - The astronomy (V0 + u and f) agrees with NOAA's tables (as XTide has them) within 0.07 degrees and 0.0003 for the
@@ -88,6 +95,7 @@ DOT, M × r, MOD); new here: **LN** (of a number and of a matrix, element by ele
 | `programs_rem/TIDE47.txt` | the commented source (STRUCT, named labels) |
 | `tools/build_tide47.py` | writes `programs/`, `build/` and `listings/`: TIDE47 and the data programs |
 | `tools/make_stations.py` | writes `python/stations.py` from XTide's NOAA data and TICON-3 (LAT computed) |
+| `tools/make_private.py`, `tools/compare_tables.py` | a private region from typed tide tables, and the comparison with them (docs/ARAMCO.md) |
 | `python/tide47ref.py` | the engine in Python, step for step as the program (`python3 python/tide47ref.py Bahrain 2026-10-25`) |
 | `python/tide47sim.py` | runs the programs in the simulator and writes the screens in `docs/` |
 | `python/c47sim.py`, `stdfont.py`, `tinyfont.py` | the C47 simulator and fonts, from Almanac 47 |

@@ -29,6 +29,21 @@
 - Times in the simulator: the start 40 000 steps (6.8 s), a day 19 000 (3.3 s), a port 21 000 (3.5 s).
 - c47sim: LN (a number, a matrix) and e^x of a number added (marked tide47): to be taken into Almanac 47.
 
+## Oct 25, 2026 - a private region: Aramco's stations (branch claude/tide47-aramco)
+
+- Saudi Aramco's tide tables are Aramco's copyright and TICON-3 has no Saudi gauge: the constants are worked out on
+  Victor's computer from the typed tables (private/aramco/*.txt), never in git (private/, python/stations_private.py).
+- tools/make_private.py: least squares with tide47ref's astronomy (no convention to convert): unknowns Z0, H cos g,
+  H sin g; a high / low water gives its height and h' = 0 at its time (weight 1 h). The constituents the record
+  separates (Rayleigh 1, in NOAA's order). UTide on the heights alone was tried first: 58 min / 10 cm rms on the
+  months left out; with h' = 0: 5 min / 4 cm with 9 months; two years: 2 min rms (worst 9) and 0.9 cm rms on the
+  third year (a synthetic table from Mina Salman, rounded to the minute and the cm).
+- tools/compare_tables.py: each table event against Tide 47's of the same kind that day (tide47ref.day = the C47's
+  numbers); --test-from in make_private.py keeps the compared rows out of the fit. private/COMPARE.md.
+- The build: REM ==== REGIONS and NREG from the regions (public 3; --private adds stations_private's) ->
+  private/build/TIDE47.txt and TIDEAR.txt. The public build is unchanged (the same steps). Checked in c47sim: + four
+  times reaches ARAMCO.
+
 ## Plans
 
 - Tidal streams (a branch of its own): harmonic analysis of the vessel's own ADCP / current-meter logs (least squares,

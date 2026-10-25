@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 *.p47
+private/
+python/stations_private.py
