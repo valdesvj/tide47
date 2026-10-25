@@ -7,9 +7,9 @@ computer from the tables you type, and keeps them out of git (`private/` and `py
 
 ## 1. Type the tables
 
-Start from the ready files of Aramco's 17 stations (names and positions from the GLOSS report *Saudi Arabia*, GE-XIII
+Start from the ready files of Aramco's 18 stations (names and positions from the GLOSS report *Saudi Arabia*, GE-XIII
 2013): Quraiyah Pier, Ras Tanura (N. Pier), Juaymah Pier, Abu Safah, Abu Ali Pier, Arabiyah Island, Tanajib Pier,
-Lawhah, Marjan, Safaniya Pier, Zuluf, Safaniyah in the Gulf; Duba, Yanbu, Rabigh, Jeddah, Jazan on the Red Sea:
+Lawhah, Marjan, Safaniya Pier, Zuluf, Safaniyah and Berri (its position approximate) in the Gulf; Duba, Yanbu, Rabigh, Jeddah, Jazan on the Red Sea:
 
 ```bash
 mkdir -p private/aramco && cp docs/aramco_templates/*.txt private/aramco/
