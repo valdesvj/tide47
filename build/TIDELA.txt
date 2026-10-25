@@ -23,7 +23,7 @@ STO 29
 STO 95
 0.266
 STO 24
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -190,6 +190,24 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 02
 "Santa Marta, Colombia"
@@ -204,7 +222,7 @@ STO 29
 STO 95
 0.291
 STO 24
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -371,6 +389,24 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 03
 "Cristobal, Panama"
@@ -385,7 +421,7 @@ STO 29
 STO 95
 0.274
 STO 24
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -552,6 +588,24 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 04
 "Balboa, Panama"
@@ -566,7 +620,7 @@ STO 29
 STO 95
 3.419
 STO 24
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -733,6 +787,24 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 05
 "Buenaventura, Col."
@@ -747,7 +819,7 @@ STO 29
 STO 95
 2.541
 STO 24
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -914,6 +986,24 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 06
 "Tumaco, Colombia"
@@ -928,7 +1018,7 @@ STO 29
 STO 95
 2.05
 STO 24
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -1095,6 +1185,24 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 07
 "La Libertad, Ecuador"
@@ -1109,7 +1217,7 @@ STO 29
 STO 95
 1.392
 STO 24
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -1247,6 +1355,24 @@ J+
 STOEL
 J+
 1127963
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
 STOEL
 J+
 0

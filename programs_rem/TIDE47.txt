@@ -1,14 +1,14 @@
 REM TIDE47 v0.2.0 - Tide 47: tide and tidal-stream predictions for the C47 / R47 (and the DM42n with the C47 firmware)
 REM The harmonic method of NOAA and the Admiralty (Schureman, US C&GS Special Publication 98):
 REM   h(t) = Z0 + sum f H cos(V + u - g + w t)
-REM over 54 constituents (NOAA's 37, 8 of TICON's, 9 for the Aramco tables), with the 18.6-year nodal corrections f and u, as whole
+REM over 60 constituents (NOAA's 37, 8 of TICON's, 15 for the Aramco tables), with the 18.6-year nodal corrections f and u, as whole
 REM matrices (the firmware works on every element: SIN COS LN e^x, M + M, M - M, M x r, M MOD r):
-REM   P = DM x AV + UM x BV - G  (MOD 360)     the phases at the day's start: DM the Doodson numbers (54 x 7), AV
+REM   P = DM x AV + UM x BV - G  (MOD 360)     the phases at the day's start: DM the Doodson numbers (60 x 7), AV
 REM                                            the angles tau s h p N' p1 90; UM the u combinations, BV xi nu nu'
 REM                                            2nu'' Q R p
-REM   A = e^(EM x LF + LH)                     the amplitudes f H: EM the node-factor powers (54 x 10), LF the logs of
+REM   A = e^(EM x LF + LH)                     the amplitudes f H: EM the node-factor powers (60 x 10), LF the logs of
 REM                                            the 10 basic factors, LH the logs of the port's H (no loop for f x H)
-REM   h(t) = Z0 + A . COS(W t + P)            one height: one COS of a 54-vector and one DOT
+REM   h(t) = Z0 + A . COS(W t + P)            one height: one COS of a 60-vector and one DOT
 REM High and low waters: the hourly signs of h'(t) = -AW . SIN(W t + P), then Newton (h'' = -AW2 . COS) in the
 REM hour. python/tide47ref.py is the same, step for step (tests/test_tide47.py compares them).
 REM The ports are in the data programs TIDEME, TIDEUS, TIDELA, TIDECU (load all four): XEQ "TIDEME" with X = the

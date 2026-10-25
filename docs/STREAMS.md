@@ -1,6 +1,6 @@
 # Tidal streams
 
-Tide 47 v0.2 predicts tidal streams (tidal currents) on the C47 with the same engine as the tides: the same 54
+Tide 47 v0.2 predicts tidal streams (tidal currents) on the C47 with the same engine as the tides: the same 60
 constituents, the same astronomy and nodal corrections, the same matrices. A stream station is one of two kinds:
 
 | kind | constants | the curve | the events |

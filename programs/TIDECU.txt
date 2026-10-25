@@ -25,7 +25,7 @@ STO 95
 STO 24
 35.225
 STO 79
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -192,6 +192,24 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 02
 "Charleston Harbor SC"
@@ -208,7 +226,7 @@ STO 95
 STO 24
 313.127
 STO 79
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -375,6 +393,24 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 03
 "Tampa Bay entrance FL"
@@ -391,7 +427,7 @@ STO 95
 STO 24
 118.297
 STO 79
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -558,6 +594,24 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 04
 "Bolivar Roads TX"
@@ -574,7 +628,7 @@ STO 95
 STO 24
 296.123
 STO 79
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -741,6 +795,24 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 05
 "San Diego Bay ent. CA"
@@ -757,7 +829,7 @@ STO 95
 STO 24
 355.175
 STO 79
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -924,6 +996,24 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 06
 "Admiralty Inlet WA"
@@ -940,7 +1030,7 @@ STO 95
 STO 24
 180.347
 STO 79
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -1107,6 +1197,24 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 07
 "Deception Pass WA"
@@ -1123,7 +1231,7 @@ STO 95
 STO 24
 108.277
 STO 79
-54
+60
 1
 NEWMAT
 STO "HG"
@@ -1237,6 +1345,24 @@ J+
 STOEL
 J+
 31011450
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
 STOEL
 J+
 0

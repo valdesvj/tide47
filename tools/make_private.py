@@ -33,7 +33,8 @@ import tide47ref as R
 PRIORITY = ['M2', 'S2', 'N2', 'K1', 'O1', 'K2', 'P1', 'Q1', 'NU2', 'MU2', '2N2', 'L2', 'T2', 'J1', 'M4', 'MS4', 'MN4',
             'LAM2', 'OO1', 'M3', 'MK3', '2MK3', 'M6', 'S4', 'RHO1', '2Q1', 'EPS2', 'MKS2', 'SA', 'SSA', 'MF', 'MM',
             'MSF', 'M1', '2SM2', 'N4', 'S1', 'R2', 'M8', 'S6',
-            'STA', 'TAU1', 'PSI1', 'SO1', 'MSSA2', 'MSN2', 'PHI1', 'MSM', 'SIG1']
+            'STA', 'TAU1', 'PSI1', 'SO1', 'MSSA2', 'MSN2', 'PHI1', 'MSM', 'SIG1', 'MA2', 'MB2', 'MTM', 'MSQM', 'S3',
+            'O1SA', 'O1SB', 'Q1SA', 'SA4', 'MFSA', 'MTSA']
 
 
 def read_station(fn):

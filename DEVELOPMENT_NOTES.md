@@ -52,6 +52,13 @@
   constituents). Added to the engine (54 constituents; M2 + SSA is MKS2): 0.7-1.9 cm rms, worst 2.4-6.3 cm, for all
   13. Held out Oct-Dec with a Jan-Sep fit (no SA / SSA): 3.4-6.5 cm rms (the seasonal level).
 - The C47 with 54: the start 44 000 steps (7.5 s), a day and a port unchanged (3.3-3.5 s).
+- To the tables' rounding: all 92 other standard constituents (UTide's list) gave little (Ras Tanura 1.17 -> 0.89 cm),
+  nor did the nodal corrections held for the year (NOAA's way) or none; the residual was smooth (autocorrelation
+  0.94 at 1 h, 0.88 at 24 h, -0.49 at 7 days): the seasonal sidebands of the diurnals, O1 + SA (13.9841 deg/h, 1.7 cm)
+  first, not in the standard lists. make_private's PRIORITY also missed MA2 MB2 MTM MSQM S3 (never fitted): fixed.
+  Added O1 + SA, O1 - SA, Q1 + SA, 4 SA, MF + SA, MTM + SA (60): all 13 stations 0.4-0.6 cm rms, worst 1.2-2.2 cm (the
+  tables in whole cm: 0.3 cm rms is the floor). Candidates on the frequency of a constituent already there (S2 - SA =
+  T2, M2 + SA = MB2, O1 + 2SA = TAU1) only cancel each other: the engine checks there are none. The start 8.0 s.
 
 ## Oct 25, 2026 - v0.2.0: tidal streams (branch claude/tide47-streams, from claude/tide47-aramco)
 
