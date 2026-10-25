@@ -1,0 +1,12 @@
+# name: Zuluf
+# lat: 28.4
+# lon: 49.2667
+# tz: 3
+# datum: LAT
+# source: Aramco tables
+# Type the rows from the Aramco tide tables (gulf) below, in the tables' local time (UTC+3), metres
+# above LAT: one of
+#   HW 2025-01-01 04:12 2.05        the daily high and low waters (HW / LW)
+#   2025-01-01 04:00 1.97           the hourly predictions (best: 24 rows a day)
+#   CONST M2 0.5821 123.40          harmonic constants (H m, g deg Greenwich) and Z0 1.234, if printed
+# Two years of high and low waters (or one of hourly heights) give the best constants.

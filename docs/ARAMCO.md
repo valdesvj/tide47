@@ -7,7 +7,17 @@ computer from the tables you type, and keeps them out of git (`private/` and `py
 
 ## 1. Type the tables
 
-One file a station in `private/aramco/`, e.g. `private/aramco/ras_tanura.txt`:
+Start from the ready files of Aramco's 17 stations (names and positions from the GLOSS report *Saudi Arabia*, GE-XIII
+2013): Quraiyah Pier, Ras Tanura (N. Pier), Juaymah Pier, Abu Safah, Abu Ali Pier, Arabiyah Island, Tanajib Pier,
+Lawhah, Marjan, Safaniya Pier, Zuluf, Safaniyah in the Gulf; Duba, Yanbu, Rabigh, Jeddah, Jazan on the Red Sea:
+
+```bash
+mkdir -p private/aramco && cp docs/aramco_templates/*.txt private/aramco/
+```
+
+and type each station's rows under its header. A file without rows is left out, so you can do one station at a time.
+The tables give the daily high and low waters and the hourly predictions (on LAT since 1986): hourly heights give the
+best constants with one year; with high and low waters type two years. A station file looks like this:
 
 ```
 # name: Ras Tanura

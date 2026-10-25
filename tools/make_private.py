@@ -133,6 +133,9 @@ def main():
             hts = [(jd_local(t, st['tz']), v) for t, v in hourly if keep(t)]
             ext = [(jd_local(t, st['tz']), v) for _, t, v in ev if keep(t)] if not hourly else []
             fit = hts or ext
+            if not fit:
+                print('%-22s no rows yet: left out' % st['name'])
+                continue
             if len(fit) < 60:
                 raise SystemExit('%s: %d heights to fit, too few (at least a month of tables)' % (f, len(fit)))
             hc, z0, use, days = analyse(st, hts, ext)
@@ -143,6 +146,8 @@ def main():
         print('%-22s %s; Z0 %.3f m; M2 %.3f m %.1f deg, K1 %.3f m %.1f deg' % (
             st['name'], how, z0, hc.get('M2', (0, 0))[0], hc.get('M2', (0, 0))[1], hc.get('K1', (0, 0))[0],
             hc.get('K1', (0, 0))[1]))
+    if not ports:
+        raise SystemExit('no station with rows yet in %s' % folder)
     out = ['"""stations_private.py - the private region ARAMCO (written by tools/make_private.py from private/aramco/;',
            'never in git: the constants come from Saudi Aramco\'s tide tables, Aramco\'s copyright)."""', '',
            'SPLIT = %r' % (split.strftime('%Y-%m-%d') if split else None),
