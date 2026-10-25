@@ -49,8 +49,8 @@ separate the seasonal tide SA from the mean level: the heights then drift by som
 **From the tables' PDF:** `python3 tools/aramco_pdf.py "Arabian_Gulf_Tide_Tables_2026.pdf"` writes the 13 station
 files into `private/aramco/` (it needs `pdftotext`, from poppler-utils). The Aramco tables come with hourly predictions as text, so they need not be typed: the
 hourly heights of the 2026 Arabian Gulf tables (13 stations) were read from the PDF in a few seconds (each month
-checked to have exactly 24 heights a day). Their fit with Tide 47's 54 constituents reproduces the tables within
-0.7-1.9 cm rms (worst 2.4-6.3 cm).
+checked to have exactly 24 heights a day). Their fit with Tide 47's 60 constituents reproduces the tables within
+0.4-0.6 cm rms (worst 1.2-2.2 cm); the tables are rounded to the cm, so 0.3 cm rms is the floor.
 
 ## 2. Work out the constants
 
