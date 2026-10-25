@@ -23,7 +23,7 @@ STO 29
 STO 95
 1.111
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -163,6 +163,33 @@ J+
 1007319
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 02
 "Mina Qaboos, Muscat"
@@ -177,7 +204,7 @@ STO 29
 STO 95
 1.898
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -317,6 +344,33 @@ J+
 627892
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 03
 "Masirah, Oman"
@@ -331,7 +385,7 @@ STO 29
 STO 95
 1.791
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -471,6 +525,33 @@ J+
 817599
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 04
 "Salalah, Oman"
@@ -485,7 +566,7 @@ STO 29
 STO 95
 1.287
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -625,6 +706,33 @@ J+
 231836
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 05
 "Chabahar, Iran"
@@ -639,7 +747,7 @@ STO 29
 STO 95
 1.909
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -779,6 +887,33 @@ J+
 403307
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 06
 "Karachi, Pakistan"
@@ -793,7 +928,7 @@ STO 29
 STO 95
 2.155
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -933,6 +1068,33 @@ J+
 634522
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 07
 "Aden, Yemen"
@@ -947,7 +1109,7 @@ STO 29
 STO 95
 1.663
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -1087,6 +1249,33 @@ J+
 614712
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 08
 "Djibouti"
@@ -1101,7 +1290,7 @@ STO 29
 STO 95
 1.659
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -1239,6 +1428,33 @@ J+
 STOEL
 J+
 1119118
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
 STOEL
 J+
 RTN

@@ -55,6 +55,23 @@ def main():
         if not f.endswith('.txt'):
             continue
         st, ev, hourly, hc, z0 = M.read_station(os.path.join(P.FOLDER, f))
+        if st['name'][:22] not in ports:
+            continue
+        if hourly:                                         # hourly heights: Tide 47's (the C47's curve) at the hour
+            port = ports[st['name'][:22]]
+            days, dh = {}, []
+            for t, h in hourly:
+                if split and t < split:
+                    continue
+                n = R.jdn(t.year, t.month, t.day)
+                if n not in days:
+                    days[n] = R.day(port, n)[2]
+                dh.append((days[n][3 * t.hour] - h) * 100)
+            b = stats(dh)
+            md.append('| %s | Tide 47, hourly heights | %d hours | | %+.1f / %.1f / %+.1f |' % (st['name'], len(dh), *b))
+            print('%-22s %-34s %5d hours  height %+5.1f / %4.1f / %+5.1f cm' % (st['name'], 'Tide 47, hourly', len(dh), *b))
+            if not ev:
+                continue
         if not ev:
             continue
         targets = [('Tide 47 (%s)' % st['name'][:22], ports[st['name'][:22]])]

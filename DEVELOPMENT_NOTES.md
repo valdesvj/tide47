@@ -44,6 +44,15 @@
   private/build/TIDE47.txt and TIDEAR.txt. The public build is unchanged (the same steps). Checked in c47sim: + four
   times reaches ARAMCO.
 
+- The 2026 Aramco tables (Arabian Gulf, 13 stations, attached by Victor): their hourly predictions (cm above LAT,
+  UTC+3) read from the PDF text (pdftotext -layout: two lines of 12 a day, the day label anywhere; every month
+  exactly 2 x its days), private/aramco/*.txt with the tables' coordinates. The fit on the whole year (8 760 hours =
+  364.96 days: Rayleigh 0.9 so that SA and SSA stay) left 2.3-3.2 cm rms; the residual's periodogram: the terannual
+  STA (2 cm), TAU1, PSI1, SO1, M2 - SSA, MSN2, PHI1, MSM, SIG1 (Aramco analysed longer records with more
+  constituents). Added to the engine (54 constituents; M2 + SSA is MKS2): 0.7-1.9 cm rms, worst 2.4-6.3 cm, for all
+  13. Held out Oct-Dec with a Jan-Sep fit (no SA / SSA): 3.4-6.5 cm rms (the seasonal level).
+- The C47 with 54: the start 44 000 steps (7.5 s), a day and a port unchanged (3.3-3.5 s).
+
 ## Plans
 
 - Tidal streams (a branch of its own): harmonic analysis of the vessel's own ADCP / current-meter logs (least squares,

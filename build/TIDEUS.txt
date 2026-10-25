@@ -23,7 +23,7 @@ STO 29
 STO 95
 1.588
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -163,6 +163,33 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 02
 "New York (Battery)"
@@ -177,7 +204,7 @@ STO 29
 STO 95
 0.783
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -317,6 +344,33 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 03
 "Charleston, SC"
@@ -331,7 +385,7 @@ STO 29
 STO 95
 0.89
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -471,6 +525,33 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 04
 "Key West, FL"
@@ -485,7 +566,7 @@ STO 29
 STO 95
 0.271
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -625,6 +706,33 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 05
 "Galveston, TX"
@@ -639,7 +747,7 @@ STO 29
 STO 95
 0.253
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -779,6 +887,33 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 06
 "San Diego, CA"
@@ -793,7 +928,7 @@ STO 29
 STO 95
 0.896
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -933,6 +1068,33 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 07
 "San Francisco, CA"
@@ -947,7 +1109,7 @@ STO 29
 STO 95
 0.951
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -1087,6 +1249,33 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 08
 "Seattle, WA"
@@ -1101,7 +1290,7 @@ STO 29
 STO 95
 2.024
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -1241,6 +1430,33 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 09
 "Honolulu, HI"
@@ -1255,7 +1471,7 @@ STO 29
 STO 95
 0.25
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -1395,6 +1611,33 @@ J+
 0
 STOEL
 J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
 RTN
 LBL 10
 "San Juan, PR"
@@ -1409,7 +1652,7 @@ STO 29
 STO 95
 0.232
 STO 24
-45
+54
 1
 NEWMAT
 STO "HG"
@@ -1517,6 +1760,33 @@ J+
 STOEL
 J+
 6104960
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
+STOEL
+J+
+0
 STOEL
 J+
 0

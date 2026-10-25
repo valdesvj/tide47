@@ -76,6 +76,17 @@ CONS = [
     ('MSQM', (0, 4, -2, 0, 0, 0), 0, {'xi': -2}, {'Mf': 1}),
     ('N4',   (4, -2, 0, 2, 0, 0), 0, {'xi': 4, 'nu': -4}, {'M2': 2}),
     ('S3',   (3, 3, -3, 0, 0, 0), 0, {}, {}),
+    # nine more for the Aramco tables (their year of hourly heights: the terannual tide, the satellites of O1 and K1,
+    # the seasonal sideband M2 - SSA (M2 + SSA is MKS2); Foreman's speeds; the nodal factors of their parents)
+    ('STA',  (0, 0, 3, 0, 0, -1), 0, {}, {}),
+    ('MSM',  (0, 1, -2, 1, 0, 0), 0, {}, {'Mm': 1}),
+    ('SIG1', (1, -3, 2, 0, 0, 0), 1, UO1, {'O1': 1}),
+    ('TAU1', (1, -1, 2, 0, 0, 0), 1, UO1, {'O1': 1}),
+    ('PSI1', (1, 1, 1, 0, 0, -1), -1, {}, {}),
+    ('PHI1', (1, 1, 2, 0, 0, 0), -1, {}, {}),
+    ('SO1',  (1, 3, -2, 0, 0, 0), -1, {'xi': -2, 'nu': 1}, {'O1': 1}),
+    ('MSSA2', (2, 0, -2, 0, 0, 0), 0, UM2, {'M2': 1}),
+    ('MSN2', (2, 3, -2, -1, 0, 0), 0, {}, {'M2': 2}),
 ]
 NOAA37 = 37                                                        # the first 37: NOAA's set
 UB = ['xi', 'nu', 'nup', 'nupp2', 'Q', 'R', 'p']                   # the columns of U (p: NOAA's M1, below)

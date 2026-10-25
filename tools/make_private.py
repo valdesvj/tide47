@@ -22,7 +22,7 @@ Output (never in git): python/stations_private.py (the region ARAMCO, data progr
     python3 tools/build_tide47.py --private      -> private/build/TIDE47.txt and TIDEAR.txt (load them instead of
                                                     the public TIDE47; TIDEME TIDEUS TIDELA as before)
     python3 tools/compare_tables.py              -> private/COMPARE.md: Tide 47 against the tables
-  python3 tools/make_private.py [--test-from YYYY-MM-DD] [folder]
+  python3 tools/make_private.py [--test-from YYYY-MM-DD] [--rayleigh 0.9] [folder]
   --test-from: the rows from that date are left out of the fit (compare_tables.py compares on them: a fair test)."""
 import datetime as dt, math, os, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -32,7 +32,8 @@ import tide47ref as R
 # the order to keep the constituents in (NOAA's importance) when the record is short
 PRIORITY = ['M2', 'S2', 'N2', 'K1', 'O1', 'K2', 'P1', 'Q1', 'NU2', 'MU2', '2N2', 'L2', 'T2', 'J1', 'M4', 'MS4', 'MN4',
             'LAM2', 'OO1', 'M3', 'MK3', '2MK3', 'M6', 'S4', 'RHO1', '2Q1', 'EPS2', 'MKS2', 'SA', 'SSA', 'MF', 'MM',
-            'MSF', 'M1', '2SM2', 'N4', 'S1', 'R2', 'M8', 'S6']
+            'MSF', 'M1', '2SM2', 'N4', 'S1', 'R2', 'M8', 'S6',
+            'STA', 'TAU1', 'PSI1', 'SO1', 'MSSA2', 'MSN2', 'PHI1', 'MSM', 'SIG1']
 
 
 def read_station(fn):
@@ -65,10 +66,15 @@ def jd_local(t, tz):
     return R.jd(t.year, t.month, t.day, t.hour + t.minute / 60 - tz)
 
 
+RAYLEIGH = 0.9          # the separation kept: 0.9 / T (1 / T is the classical rule; the tables are a clean prediction,
+                        # so a year of 8 760 hours, 0.1 % short of SA's period, still gives SA and SSA)
+
+
 def rayleigh(names, days):
-    """The constituents (in PRIORITY order) that a record of `days` separates: each at least 1 / T from the others kept."""
+    """The constituents (in PRIORITY order) that a record of `days` separates: each at least RAYLEIGH / T from the
+    others kept."""
     w = dict(zip([c[0] for c in R.CONS], R.speeds()))
-    need = 360.0 / (days * 24)                               # deg / hour: one cycle over the record
+    need = RAYLEIGH * 360.0 / (days * 24)                    # deg / hour: RAYLEIGH cycles over the record
     keep = []
     for n in PRIORITY:
         if n in names and all(abs(w[n] - w[k]) >= need for k in keep):
@@ -115,6 +121,9 @@ def analyse(st, heights, extremes=()):
 def main():
     args = [a for a in sys.argv[1:]]
     split = None
+    if '--rayleigh' in args:
+        global RAYLEIGH
+        i = args.index('--rayleigh'); RAYLEIGH = float(args[i + 1]); del args[i:i + 2]
     if '--test-from' in args:
         i = args.index('--test-from'); split = dt.datetime.strptime(args[i + 1], '%Y-%m-%d'); del args[i:i + 2]
     folder = args[0] if args else os.path.join(ROOT, 'private', 'aramco')
