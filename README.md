@@ -1,8 +1,9 @@
 # Tide 47 🌊
 
-Tide predictions for the **C47 / R47** RPN calculator (and the DM42n with the C47 firmware): the high and low waters
-and the tide curve of any day, for 25 ports, computed on the calculator by the harmonic method of NOAA and the
-Admiralty.
+Tide and tidal-stream predictions for the **C47 / R47** RPN calculator (and the DM42n with the C47 firmware): the high
+and low waters and the tide curve of any day for 25 ports, and the slack water, maximum flood and ebb (or the rotary
+stream's maxima and minima, with the set) for tidal-stream stations, computed on the calculator by the harmonic method
+of NOAA and the Admiralty.
 
 ![Mina Salman, Bahrain](docs/TIDE47_bahrain.png)
 
@@ -19,10 +20,10 @@ the Admiralty's tables. The work is done with whole matrices, so the firmware do
 
 | | |
 |---|---|
-| Files | `build/TIDE47.txt` (the program) and the data programs `build/TIDEME.txt`, `TIDEUS.txt`, `TIDELA.txt` (convert each with rejig; load all four); commented source `programs_rem/TIDE47.txt` |
+| Files | `build/TIDE47.txt` (the program) and the data programs `build/TIDEME.txt`, `TIDEUS.txt`, `TIDELA.txt`, `TIDECU.txt` (convert each with rejig; load all five); commented source `programs_rem/TIDE47.txt` |
 | Needs | C47 / R47 firmware with STRUCT, ATEXT, GRFNT (00.109.05.00a0.ALPHA, 5 Oct 2026, or later) |
-| Size | TIDE47 2 060 steps (about 8 KB); TIDEME 1 461, TIDEUS 1 823, TIDELA 1 280 steps (about 5-7 KB each) |
-| Speed | the start about 7.5 s, a new day or port about 3.5 s (the simulator's step count) |
+| Size | TIDE47 2 658 steps (about 10 KB); TIDEME 1 461, TIDEUS 1 823, TIDELA 1 280, TIDECU 1 294 steps (about 5-7 KB each) |
+| Speed | the start about 7.5 s, a new day or port about 3.5 s, a stream station about 5 s (the simulator's step count) |
 | At the end (0) | your stack and LASTx as before; R00-R19 untouched, R20-R99 cleared; the matrices deleted; GRMOD 0, GRFNT 20; the angle mode DEG |
 
 ## Using it
@@ -36,7 +37,7 @@ calculator to the port's local time).
 | **1 3** | the week before / after |
 | **5** | today |
 | **8 2** | the port before / after |
-| **+** | the next region: MIDDLE EAST, USA, LATIN AMERICA |
+| **+** | the next region: MIDDLE EAST, USA, LATIN AMERICA, US STREAMS |
 | **0** | the end |
 
 The screen follows Almanac 47's split view: the port and the date, the time zone, the datum and the source; the day's
@@ -56,6 +57,16 @@ over 19 years (2020-2038). The US ports keep NOAA's datum, MLLW, so their height
 standard time; the US ports follow US daylight time (the whole day, from the second Sunday of March to the first
 Sunday of November). `python3 tools/make_stations.py` writes the ports (`python/stations.py`); more ports can be added
 from TICON-3's 3 363 gauges.
+
+## Tidal streams
+
+![Deception Pass](docs/TIDE47_deception.png)
+
+A stream station shows the signed stream (flood above 0, ebb below) or, when the stream turns through the compass, its
+speed; the table gives each slack and maximum flood and ebb (or MAX / MIN) with the time, the speed in knots and the
+set; today, the header shows the stream **NOW** at the calculator's clock. The public region US STREAMS has seven NOAA
+current stations. For the Arabian Gulf fields, GEOSA's Saudi tidal current tables are fitted on your computer and
+kept private (as Aramco's tide tables are): [docs/STREAMS.md](docs/STREAMS.md).
 
 ### Your own stations (Aramco)
 

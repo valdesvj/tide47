@@ -17,7 +17,8 @@ On the C47 the same three matrix products (V = D a, u = U b, log f = E log fb) g
 block of times is one COS of a matrix:  heights = A' COS(W T' + P 1') with W the speeds, T the times (hours),
 P = V + u - g at the block start, A = f H.  High and low waters: Newton on h'(t) = 0 with SIN and DOT.
 
-    python3 python/tide47ref.py [port] [yyyy-mm-dd]     the high and low waters of a day (the port: part of its name)
+    python3 python/tide47ref.py [port] [yyyy-mm-dd]     the high and low waters of a day (the port: part of its name);
+                                                        a stream station: its slacks and maxima (sday, below)
 """
 import math, os
 
@@ -237,13 +238,116 @@ def day(st, n):
     return tz, ev, curve
 
 
+# ---- tidal streams (the C47's LBL :SEVENTS:, :UV:, :SREF:, :VAL:): a stream station st has kind 'rect' or 'rot'
+#   'rect' (rectilinear, NOAA's and most current tables'): hc the constants of the speed along the flood direction
+#          (knots, + flood, - ebb), z0 its mean; flood and ebb the directions (deg true, the set: where it goes)
+#   'rot'  (rotary): hc the east component u, hv the north component v (knots), z0 and v0 their means
+# The events are the turning points of the speed: g = d(s^2)/dt / 2 = u u' + v v' changes sign (the hourly signs, then
+# four Newton steps g / g', g' = u'^2 + v'^2 + u u'' + v v''): a maximum (g' < 0; flood or ebb, or MAX) or a minimum
+# (slack: s = 0 on a rectilinear stream, MIN on a rotary one). ----
+def _vecs(st, j0, hc):
+    """P (deg) and A AW AW2 of one component, as LBL :DAY: makes them."""
+    W = speeds()
+    P, A, AW, AW2 = [], [], [], []
+    for (name, *_), (vu, f), w in zip(CONS, vector(j0), W):
+        H, g = hc.get(name, (0.0, 0.0))
+        a = f * (H + 1e-40)
+        r = w * D2R
+        P.append((vu - g) % 360); A.append(a); AW.append(a * r); AW2.append(a * r * r)
+    return P, A, AW, AW2
+
+
+def sday(st, n):
+    """The day n (JDN of the local date) at the stream station st: (tz, events [(t hours, value kn, set deg,
+    +1 max / -1 min)], the curve [the value every 20 minutes, 73]): value = the signed speed along the flood axis
+    (rect) or the speed (rot), as the C47 computes them."""
+    tz = st['tz'] + dst(st, n)
+    j0 = n - 0.5 - tz / 24
+    W = speeds()
+    rot = st['kind'] == 'rot'
+    E = _vecs(st, j0, st['hc'])
+    N = _vecs(st, j0, st['hv']) if rot else None
+
+    def comp(V, m, t):
+        P, A, AW, AW2 = V
+        z = [(p + w * t) * D2R for p, w in zip(P, W)]
+        c = [math.cos(x) for x in z]; s = [math.sin(x) for x in z]
+        return (m + sum(a * x for a, x in zip(A, c)), -sum(a * x for a, x in zip(AW, s)),
+                -sum(a * x for a, x in zip(AW2, c)))
+
+    def uv(t):
+        u = comp(E, st['z0'], t)
+        v = comp(N, st['v0'], t) if rot else (0.0, 0.0, 0.0)
+        return u, v
+
+    def g(t):
+        (u, u1, _), (v, v1, _) = uv(t)
+        return u * u1 + v * v1
+
+    def val(t):
+        (u, *_), (v, *_) = uv(t)
+        if not rot:
+            return u, (st['flood'] if u >= 0 else st['ebb'])
+        return math.hypot(u, v), math.degrees(math.atan2(u, v)) % 360
+    ev = []
+    g1 = g(0.0)
+    for k in range(1, 25):
+        g2 = g(float(k))
+        if g1 * g2 < 0 and len(ev) < 8:
+            lo, hi = k - 1.0, float(k)
+            x = lo + g1 / (g1 - g2)
+            for _ in range(4):
+                (u, u1, u2), (v, v1, v2) = uv(x)
+                G = u * u1 + v * v1
+                Gp = u1 * u1 + v1 * v1 + u * u2 + v * v2
+                x -= G / Gp
+                x = min(max(x, lo), hi)
+            s, d = val(x)
+            ev.append((x, s, d, -1 if Gp > 0 else 1))
+        g1 = g2
+    curve = [val(k / 3)[0] for k in range(73)]
+    return tz, ev, curve
+
+
+def stream_now(st, n, hour):
+    """The value and set at the local hour of the day n (the C47's NOW)."""
+    tz = st['tz'] + dst(st, n)
+    j0 = n - 0.5 - tz / 24
+    W = speeds()
+
+    def one(hc, m):
+        P, A, _, _ = _vecs(st, j0, hc)
+        return m + sum(a * math.cos((p + w * hour) * D2R) for a, p, w in zip(A, P, W))
+    u = one(st['hc'], st['z0'])
+    if st['kind'] != 'rot':
+        return u, (st['flood'] if u >= 0 else st['ebb'])
+    v = one(st['hv'], st['v0'])
+    return math.hypot(u, v), math.degrees(math.atan2(u, v)) % 360
+
+
 if __name__ == '__main__':
     import sys
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import stations
+    import stations, streams
+    regs = stations.REGIONS + streams.REGIONS
+    for mod in ('stations_private', 'streams_private'):
+        try:
+            regs = regs + __import__(mod).REGIONS
+        except ImportError:
+            pass
     want = sys.argv[1] if len(sys.argv) > 1 else 'Mina Salman'
     y, m, d = map(int, (sys.argv[2] if len(sys.argv) > 2 else '2026-10-25').split('-'))
-    st = [p for _, _, _, ports in stations.REGIONS for p in ports if want.lower() in p['name'].lower()][0]
+    st = [p for _, _, _, ports in regs for p in ports if want.lower() in p['name'].lower()][0]
+    if st.get('kind') in ('rect', 'rot'):
+        tz, ev, _ = sday(st, jdn(y, m, d))
+        print('%s  %04d-%02d-%02d  UTC%+g  %s' % (st['name'], y, m, d, tz, st['datum']))
+        for t, v, s, k in ev:
+            mi = int(t * 60 + 0.5)
+            kind = ('SLACK' if k < 0 else 'FLOOD' if v > 0 else 'EBB') if st['kind'] == 'rect' else ('MIN' if k < 0
+                                                                                                   else 'MAX')
+            print('  %-5s %02d:%02d  %5.2f kn  %s' % (kind, mi // 60, mi % 60, abs(v),
+                                                    '' if kind == 'SLACK' else '%03.0f deg' % s))
+        sys.exit(0)
     tz, ev, _ = day(st, jdn(y, m, d))
     print('%s  %04d-%02d-%02d  UTC%+g  heights above %s' % (st['name'], y, m, d, tz, st['datum']))
     for t, h, k in ev:

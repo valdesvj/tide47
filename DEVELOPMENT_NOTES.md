@@ -53,10 +53,38 @@
   13. Held out Oct-Dec with a Jan-Sep fit (no SA / SSA): 3.4-6.5 cm rms (the seasonal level).
 - The C47 with 54: the start 44 000 steps (7.5 s), a day and a port unchanged (3.3-3.5 s).
 
+## Oct 25, 2026 - v0.2.0: tidal streams (branch claude/tide47-streams, from claude/tide47-aramco)
+
+- Victor: tidal flow at the Aramco fields, as accurate as possible; the data from GEOSA's Saudi Tidal Currents Tables
+  (private, as Aramco's tide tables), all the Gulf fields. TICON-3 and NOAA have no Gulf stream station.
+- Two kinds of station: rectilinear (NOAA's, and tables of slack and max flood / ebb: the speed along the flood axis,
+  + flood, - ebb, with NOAA's flood and ebb sets, not always opposite) and rotary (u east, v north). R28 = DST bit
+  + 2 rotary / + 4 rectilinear (:TZ: takes R28 MOD 2); R79 = flood + ebb / 1000, or V0; HV the north matrix.
+- One event finder for both: g = u u' + v v' (= s s') changes sign in the hour, four Newton steps g / g',
+  g' = u'^2 + v'^2 + u u'' + v v'' (u' = -AW . SIN, u'' = -AW2 . COS as for the tides): a maximum when g' < 0, a
+  minimum (a slack on a rectilinear station) when g' > 0; at most 8 a day into the matrix EV (time, value, set,
+  kind), read with INDEX / RCLEL / J+ (the registers R60-R77 hold only 6). The set: ->POL of (v, u) (Y = u, X = v:
+  atan2(u, v)); rectilinear: the flood or ebb set by the sign of u (a slack's set is not shown: u is 1E-15 there).
+- Refactored without changing the tides' numbers: LBL :UNPK: (a port's matrix -> G, LH), LBL :VEC: (G, LH -> P A AW
+  AW2 from VU = DM AV + UM BV and EL = EM LF, the same sums in the same order). Tests 3: still identical to the twin.
+- The curve: LBL :VAL: (the value without derivatives: 4.8 s a stream day instead of 5.1); the scale steps 0.5 / 1 / 2
+  (2 over a range of 6: Deception Pass, 13 kn); 0 always in a stream's range.
+- The stream variables are made at the start (0 STO "HV" ...) so the end's DELITM never meets a missing one (c47sim
+  does not check that; the firmware might). "C" renamed "CZ" (not to be confused with the lettered register C).
+- tools/make_streams.py: 7 NOAA current stations (knots; Hell Gate is knots^2, hydraulic: left out) -> TIDECU.
+- tools/make_private_streams.py: least squares as make_private.py; rectilinear: SLACK s = 0, FLOOD / EBB s = +-speed
+  and s' = 0 (weight 1 h), timed speeds signed by the set; rotary: u = sp sin set, v = sp cos set and at MAX / MIN
+  u_obs u' + v_obs v' = 0 (linear). The axis from the header or the principal axis of the sets. --test-from compares
+  the rows it left out (private/STREAMS_COMPARE.md).
+- tests/synth_streams.py: tables from Pollock Rip's real constants (clock moved to UTC+3) and from a synthetic rotary
+  station (invented constants, labelled so): a year fitted, the next predicted: rect 0.3 min / 0.03 kn rms, rot
+  1.0 min / 0.03 kn (the tables' 0.1 kn rounding). Tests 5 also run the rotary station on the C47 through a
+  private-style build (identical to the twin: 4E-9 s, 3E-13 kn, 5E-12 deg).
+
 ## Plans
 
-- Tidal streams (a branch of its own): harmonic analysis of the vessel's own ADCP / current-meter logs (least squares,
-  the same constituents, major / minor axes), then the C47 predicts speed and direction with the same engine.
+- Tidal streams: done (v0.2.0). Next: the GEOSA tables (Victor) -> private/streams/; the vessel's own DP / ADCP
+  current logs could be fitted the same way (hourly rows: speed and set).
 - More ports: TICON-3 has 3 363 gauges; a region program per area.
 - The tide at a given time (key 7), the next high / low water from now, spring / neap (the M2 - S2 phase).
 - Free42 / DM42 build later.

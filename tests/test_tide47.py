@@ -10,6 +10,9 @@
     height to 1E-9 m) and the same curve;
  4. the keys: 6 4 3 1 5 (days), 2 8 (ports), + (regions); the end (0): R20-R99 cleared, no matrix left, GRFNT 20,
     GRMOD 0, the stack back; the screens written to docs/.
+ 5. tidal streams: the C47 against the twin (tide47ref.sday) at every NOAA stream station on three days, and at a
+    synthetic rotary station through a private-style build; the end after a stream day; tools/make_private_streams.py
+    on current tables made from known constants (tests/synth_streams.py): a year fitted, the next predicted.
   python3 tests/test_tide47.py"""
 import json, math, os, sys, time
 from decimal import Decimal as D
@@ -17,7 +20,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path[:0] = [os.path.join(ROOT, 'python')]
 import tide47ref as R          # noqa: E402
 import stations                # noqa: E402
+import streams                 # noqa: E402
 import tide47sim as S          # noqa: E402
+sys.path[:0] = [os.path.join(ROOT, 'tools'), os.path.join(ROOT, 'tests')]
+ALLREG = stations.REGIONS + streams.REGIONS
 
 FAIL = []
 
@@ -138,9 +144,9 @@ def test_keys():
     names = [e[3] for e in c.ev]
     me = [p['name'] for p in stations.REGIONS[0][3]]
     check(names == [me[0], me[1], me[2], me[1], me[0], me[-1]], 'ports: %s' % names)
-    shots, c = S.run([S.REGION, S.REGION, S.REGION])
+    shots, c = S.run([S.REGION] * len(ALLREG))
     names = [e[3] for e in c.ev]
-    check(names == [stations.REGIONS[i % 3][3][0]['name'] for i in range(4)], 'regions: %s' % names)
+    check(names == [ALLREG[i % len(ALLREG)][3][0]['name'] for i in range(len(ALLREG) + 1)], 'regions: %s' % names)
     import c47sim
     cc = c47sim.load(S.PROGS)
     cc.s = [D(11), D(22), D(33), D(44)]; cc.pix = []; cc.keys = [S.END]; cc.steps = 0; cc.clock = S.CLOCK; cc.frames = []
@@ -162,10 +168,85 @@ def test_keys():
         c.at_steps[2] - c.at_steps[1], S.secs(c.at_steps[2] - c.at_steps[1])))
 
 
+def test_streams():
+    print('5. tidal streams')
+    import build_tide47 as B, synth_streams as SY, make_private_streams as MPS, c47sim, tempfile, shutil, datetime as dt
+    days = [R.jdn(2026, 10, 25), R.jdn(2027, 3, 21), R.jdn(2028, 6, 30)]
+    ri = len(stations.REGIONS)
+    wt = wv = ws = 0
+    n = 0
+    for pi, st in enumerate(streams.REGIONS[0][3]):
+        for dn in days:
+            shots, c = S.run([S.REGION] * ri + [S.DOWN] * pi, clock=dn + 1 / 24)
+            fr, ev, n25, name = c.ev[-1]
+            tz, tw, cu = R.sday(st, dn)
+            ok = name == st['name'] and n25 == dn and len(ev) == len(tw)
+            for a, b in zip(ev, tw):
+                wt = max(wt, abs(a[0] - b[0]) * 3600); wv = max(wv, abs(a[1] - b[1]))
+                if b[3] > 0:                       # a slack's set is the sign of a speed of 1E-15 (not shown)
+                    ws = max(ws, abs(a[2] - b[2]))
+                ok = ok and a[3] == b[3]
+            if not ok:
+                check(False, '%s %s: %s / %s' % (st['name'], R.cal(dn), ev, tw))
+            n += 1
+    check(wt < 0.01 and wv < 1e-9 and ws < 1e-9, '%d NOAA stream-days: the same slacks and maxima (%.2g s, %.2g kn, '
+          'the sets %.2g deg)' % (n, wt, wv, ws))
+    # a rotary station: TIDE47 and its data program built with a test region (as build_tide47.py --private)
+    tmp = tempfile.mkdtemp()
+    try:
+        rot = SY.rot_station()
+        regs = ALLREG + [('TS', 'TIDETS', 'TEST: SYNTHETIC', [rot])]
+        B.build(regs, [tmp], listings=False)
+        B.build_data(regs, [tmp])
+        progs = [os.path.join(tmp, l + '.txt') for _, l, _, _ in [('', 'TIDE47', '', '')] + regs]
+        wt = wv = ws = 0
+        for dn in days:
+            shots, c = S.run([S.REGION] * (len(regs) - 1), clock=dn + 1 / 24, progs=progs)
+            fr, ev, n25, name = c.ev[-1]
+            tz, tw, cu = R.sday(rot, dn)
+            ok = name == rot['name'] and len(ev) == len(tw)
+            for a, b in zip(ev, tw):
+                wt = max(wt, abs(a[0] - b[0]) * 3600); wv = max(wv, abs(a[1] - b[1]))
+                ws = max(ws, abs((a[2] - b[2] + 180) % 360 - 180)); ok = ok and a[3] == b[3]
+            check(ok, 'rotary %04d-%02d-%02d: %d events' % (R.cal(dn) + (len(ev),)))
+        check(wt < 0.01 and wv < 1e-9 and ws < 1e-9, 'rotary: the same maxima and minima (%.2g s, %.2g kn, %.2g deg)'
+              % (wt, wv, ws))
+        S.png(os.path.join(ROOT, 'docs', 'TIDE47_rotary_test.png'), shots[-1])
+        cc = c47sim.load(progs)
+        cc.s = [D(11), D(22), D(33), D(44)]; cc.pix = []; cc.keys = [S.REGION] * (len(regs) - 1) + [S.END]
+        cc.steps = 0; cc.clock = S.CLOCK; cc.frames = []; cc.lastx = D(55)
+        cc.run('TIDE47', maxsteps=10 ** 9)
+        check(not cc.mats and [int(v) for v in cc.s[:4]] == [11, 22, 33, 44], 'the end after a stream day: no matrix '
+              'left, the stack back %s' % (sorted(cc.mats) or ''))
+        # the fit: a year of tables, the next predicted
+        d = os.path.join(tmp, 'tables')
+        os.makedirs(d)
+        SY.write(SY.rect_station(), SY.table(SY.rect_station(), 2026, 2027), os.path.join(d, 'rect.txt'))
+        SY.write(rot, SY.table(rot, 2026, 2027), os.path.join(d, 'rot.txt'))
+        old = sys.argv
+        sys.argv = ['x', '--test-from', '2027-01-01', d]
+        try:
+            ports, rep = MPS.main()
+        finally:
+            sys.argv = old
+        rc = dict(rep)
+        a, b = rc[SY.rect_station()['name']], rc[rot['name']]
+        check(a['t_rms'] < 1 and a['s_rms'] < 0.05 and a['miss'] == 0, 'rectilinear tables (slack, flood, ebb): the '
+              'next year within %.1f min, %.2f kn rms' % (a['t_rms'], a['s_rms']))
+        check(b['t_rms'] < 2 and b['s_rms'] < 0.05 and b['miss'] < 5, 'rotary tables (max, min, set): the next year '
+              'within %.1f min, %.2f kn rms' % (b['t_rms'], b['s_rms']))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+        priv = os.path.join(ROOT, 'private', 'STREAMS_COMPARE.md')
+        if os.path.exists(priv) and 'TEST ' in open(priv).read():
+            os.remove(priv)
+
+
 if __name__ == '__main__':
     test_astronomy()
     test_utide()
     test_c47()
     test_keys()
+    test_streams()
     print('ALL OK' if not FAIL else '%d FAILED' % len(FAIL))
     sys.exit(1 if FAIL else 0)

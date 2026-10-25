@@ -13,7 +13,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import c47sim
 
-PROGS = [os.path.join(ROOT, 'build', n + '.txt') for n in ('TIDE47', 'TIDEME', 'TIDEUS', 'TIDELA')]
+PROGS = [os.path.join(ROOT, 'build', n + '.txt') for n in ('TIDE47', 'TIDEME', 'TIDEUS', 'TIDELA', 'TIDECU')]
 W, H = 400, 240
 LCD_BG, LCD_ON = (199, 205, 186), (34, 38, 30)
 UP, DOWN, LEFT, RIGHT, TODAY, REGION, WEEKB, WEEKF, END = 53, 73, 62, 64, 63, 85, 72, 74, 82
@@ -21,8 +21,8 @@ STEP_MS = 0.17                                   # ms a step on the C47 (Almanac
 CLOCK = 2461339.0 + 1 / 24                        # 2026-10-25 13:00 (c47sim's clock: a JD of the local time, .0 = noon)
 
 
-def run(ks, clock=CLOCK, maxsteps=10 ** 9):
-    c = c47sim.load(PROGS)
+def run(ks, clock=CLOCK, maxsteps=10 ** 9, progs=None):
+    c = c47sim.load(progs or PROGS)
     c.s = [D(0)] * 4; c.pix = []; c.keys = list(ks) + [END]; c.steps = 0; c.clock = clock
     c.at_steps = []
 
@@ -41,7 +41,12 @@ def run(ks, clock=CLOCK, maxsteps=10 ** 9):
 
 
 def events(c):
+    """The high and low waters [(hours, metres, +1 / -1)]; a stream station (R28 >= 2): the rows of EV [(hours,
+    value kn, set deg, +1 max / -1 min)]."""
     n = int(c.reg.get('78', 0))
+    if float(c.reg.get('28', 0)) >= 2:
+        m = c.mats.get('EV')
+        return [(float(m[i][0]), float(m[i][1]), float(m[i][2]), int(m[i][3])) for i in range(n)] if m else []
     return [(float(c.reg['%d' % (60 + i)]), float(c.reg['%d' % (66 + i)]), int(c.reg['%d' % (72 + i)])) for i in range(n)]
 
 
@@ -78,4 +83,9 @@ if __name__ == '__main__':
     png(os.path.join(ROOT, 'docs', 'TIDE47_boston.png'), shots[-1])
     shots, c = run([REGION, REGION, DOWN, DOWN, DOWN])
     png(os.path.join(ROOT, 'docs', 'TIDE47_balboa.png'), shots[-1])
+    shots, c = run([REGION] * 3)
+    png(os.path.join(ROOT, 'docs', 'TIDE47_pollockrip.png'), shots[-1])
+    shots, c = run([REGION] * 3 + [UP])
+    png(os.path.join(ROOT, 'docs', 'TIDE47_deception.png'), shots[-1])
+    print('a stream station: %d steps (%.1f s)' % (c.at_steps[-1] - c.at_steps[-2], secs(c.at_steps[-1] - c.at_steps[-2])))
     print('docs/TIDE47_*.png written')

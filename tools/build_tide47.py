@@ -6,7 +6,7 @@ numbered, the REM lines and the indentation go. Written by the build into the so
   REM ==== CONS     the matrices DM (Doodson numbers), UM (the nodal u), EM (the node-factor powers x 2), one
                     number a row (two digits a column, + 50: LBL :ROW: unpacks it), from tide47ref.CONS
   REM ==== NCONS    the number of constituents
-The data programs TIDEME, TIDEUS, TIDELA (one a region) are written from python/stations.py: X = the port's number
+The data programs TIDEME, TIDEUS, TIDELA, TIDECU (one a region) are written from python/stations.py and streams.py: X = the port's number
 (0: R96 the number of ports, R97 the region's title); a port: its name, time zone, DST, datum, source, the mean
 sea level above the datum, and the matrix HG (a number a constituent: H in 0.1 mm x 100000 + g in 0.01 deg).
 Files: programs/ and build/ TIDE47.txt TIDEME.txt TIDEUS.txt TIDELA.txt (the calculator files, to convert with
@@ -147,18 +147,26 @@ def source_steps(lines):
 
 
 def regions(private=False):
-    """The regions: python/stations.py, and with private=True also python/stations_private.py (not in git: data
-    that may not be published, such as constants worked out from Aramco's tables; tools/make_private.py)."""
+    """The regions: python/stations.py and python/streams.py (the tidal streams), and with private=True also
+    python/stations_private.py and python/streams_private.py (not in git: data that may not be published, such as
+    constants worked out from Aramco's tide tables or GEOSA's current tables; tools/make_private.py,
+    tools/make_private_streams.py). -> (all the regions, the number of public ones)."""
     sys.path.insert(0, os.path.join(ROOT, 'python'))
-    import stations
-    out = list(stations.REGIONS)
+    import stations, streams
+    out = list(stations.REGIONS) + list(streams.REGIONS)
+    public = len(out)
     if private:
-        try:
-            import stations_private
-        except ImportError:
-            raise SystemExit('no python/stations_private.py: run tools/make_private.py first')
-        out += list(stations_private.REGIONS)
-    return out
+        found = False
+        for mod in ('stations_private', 'streams_private'):
+            try:
+                out += list(__import__(mod).REGIONS)
+                found = True
+            except ImportError:
+                pass
+        if not found:
+            raise SystemExit('no python/stations_private.py or streams_private.py: run tools/make_private.py or '
+                             'tools/make_private_streams.py first')
+    return out, public
 
 
 def region_steps(regs):
@@ -224,14 +232,24 @@ def data_program(code, label, title, ports):
     names = [c[0] for c in R.CONS]
     st = ['LBL "%s"' % label, 'X=0?', 'GTO 99', 'STO 99', 'XEQ IND 99', 'RTN',
           'LBL 99', '"%s"' % title, 'STO 97', str(len(ports)), 'STO 96', 'RTN']
-    for i, p in enumerate(ports, 1):
-        st += ['LBL %02d' % i, '"%s"' % p['name'], 'STO 26', repr(p['tz']), 'STO 27', '1' if p['dst'] == 'US' else '0',
-               'STO 28', '"%s"' % p['datum'], 'STO 29', '"%s"' % p['src'], 'STO 95', repr(p['z0']), 'STO 24',
-               str(len(names)), '1', 'NEWMAT', 'STO "HG"', 'INDEX "HG"']
+    def mat(name, hc):
+        out = [str(len(names)), '1', 'NEWMAT', 'STO "%s"' % name, 'INDEX "%s"' % name]
         for n in names:
-            H, g = p['hc'].get(n, (0.0, 0.0))
+            H, g = hc.get(n, (0.0, 0.0))
             v = int(round(H * 1e4)) * 100000 + int(round(g * 100)) % 36000
-            st += [str(v), 'STOEL', 'J+']
+            out += [str(v), 'STOEL', 'J+']
+        return out
+    for i, p in enumerate(ports, 1):
+        kind = {'rot': 2, 'rect': 4}.get(p.get('kind'), 0) + (1 if p['dst'] == 'US' else 0)
+        st += ['LBL %02d' % i, '"%s"' % p['name'], 'STO 26', repr(p['tz']), 'STO 27', str(kind),
+               'STO 28', '"%s"' % p['datum'], 'STO 29', '"%s"' % p['src'], 'STO 95', repr(p['z0']), 'STO 24']
+        if p.get('kind') == 'rect':
+            st += ['%d.%03d' % (p['flood'], p['ebb']), 'STO 79']
+        elif p.get('kind') == 'rot':
+            st += [repr(p['v0']), 'STO 79']
+        st += mat('HG', p['hc'])
+        if p.get('kind') == 'rot':
+            st += mat('HV', p['hv'])
         st.append('RTN')
     st.append('END')
     return st
@@ -298,11 +316,11 @@ def build(regs, dirs, listings=True):
 
 if __name__ == '__main__':
     private = '--private' in sys.argv
-    regs = regions(private)
+    regs, public = regions(private)
     if private:                                            # private/build/: TIDE47 with the private regions, and theirs
         dirs = [os.path.join(ROOT, 'private', 'build')]
         st = build(regs, dirs, listings=False)
-        data = build_data(regs[3:], dirs)
+        data = build_data(regs[public:], dirs)
     else:
         dirs = [os.path.join(ROOT, 'programs'), os.path.join(ROOT, 'build')]
         st = build(regs, dirs)

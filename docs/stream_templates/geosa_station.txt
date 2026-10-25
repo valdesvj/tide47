@@ -1,0 +1,18 @@
+# name: Safaniya field
+# lat: 
+# lon: 
+# tz: 3
+# source: GEOSA current tables
+# kind: rect
+# flood: 
+# ebb: 
+# Copy this file to private/streams/ (one file a station), fill the header from the station's page of the tables
+# (its name, position, and the flood and ebb sets for a rectilinear station; kind: rot when the tables give a set at
+# every time, the stream turning), then type or paste the rows in the tables' local time (UTC+3), knots, deg true:
+#   SLACK 2027-01-01 03:40              slack water
+#   FLOOD 2027-01-01 06:55 1.8          maximum flood and its speed
+#   EBB 2027-01-01 13:10 1.6            maximum ebb
+#   MAX 2027-01-01 06:55 1.8 132        a maximum with its speed and set
+#   MIN 2027-01-01 03:40 0.2 41         a minimum with its speed and set (rotary)
+#   2027-01-01 04:00 1.2 135            a speed and set at a time (hourly tables)
+# A year of rows gives the best constants. Nothing in private/ goes to git.

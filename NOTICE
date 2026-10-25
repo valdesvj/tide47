@@ -1,4 +1,4 @@
-Tide 47 - Tide predictions for the C47
+Tide 47 - Tide and tidal-stream predictions for the C47
 Copyright (C) 2026 Victor Valdes <valdes.vj@gmail.com>
 
 This program is free software: you can redistribute it and/or modify it under the terms of
@@ -17,7 +17,8 @@ documentation - with these exceptions:
     standardFont and tinyFont, (c) the C43/C47 authors, GPL-3.0.
   - python/c47sim.py comes from Almanac 47 (same author, GPL-3.0); LN and e^x added here.
 
-The tide data (python/stations.py and the data programs TIDEME, TIDEUS, TIDELA):
+The tide and tidal-stream data (python/stations.py, python/streams.py and the data programs TIDEME, TIDEUS, TIDELA,
+TIDECU):
   - US ports: NOAA CO-OPS harmonic constants, public domain (U.S. Government work, not
     subject to copyright), as distributed in XTide's harmonics-dwf-20191229-free (David
     Flater; Debian package xtide-data). NOS asks for attribution: "Data: NOAA / NOS CO-OPS".
@@ -26,11 +27,13 @@ The tide data (python/stations.py and the data programs TIDEME, TIDEUS, TIDELA):
     gauges including gauge type information (data). PANGAEA, doi:10.1594/PANGAEA.951610,
     licensed CC-BY 4.0. Converted here: SA phase + 283.1 deg (the solar perigee convention),
     the datum LAT computed from the constants (2020-2038).
+  - US stream stations (TIDECU): NOAA CO-OPS tidal current harmonic constants, public domain,
+    from the same XTide harmonics-dwf-20191229-free. "Data: NOAA / NOS CO-OPS".
   - tests/xtide_tables.json: an extract of XTide's equilibrium argument and node factor tables
     (from the same harmonics-dwf file).
 
-NOT FOR NAVIGATION. Tide predictions from harmonic constants are astronomical tides only:
-wind, pressure and river flow change the real water level. Use the official tide tables of
+NOT FOR NAVIGATION. Tide and stream predictions from harmonic constants are astronomical tides only:
+wind, pressure and river flow change the real water level and add currents of their own. Use the official tide tables of
 the port authority (UKHO Admiralty, NOAA) for navigation and operations.
 
 Written with the help of AI (Claude by Anthropic, see AI_ASSISTANCE.md).
