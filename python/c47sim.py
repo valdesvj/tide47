@@ -1,0 +1,735 @@
+"""c47sim.py - small C47 RPN interpreter used by c47view.py.
+
+It runs the C47 program files (.txt, one command per line) of the C47_nav
+suite exactly as written and keeps the 400 x 240 one-bit screen, so the PC
+picture is made by the same code as the calculator picture.
+Only the commands used by the suite are implemented.
+"""
+from decimal import Decimal as D, getcontext
+import cmath, math, re
+getcontext().prec = 34
+
+def f(x): return float(x)
+
+class Mat:
+    """A real matrix on the stack (RCL of a named matrix, results of matrix operations)."""
+    def __init__(self, rows): self.rows = [[v if isinstance(v, complex) else float(v) for v in r] for r in rows]
+    def dims(self): return len(self.rows), len(self.rows[0])
+    def mul(self, o):
+        if isinstance(o, Mat):
+            n, k = self.dims(); k2, m = o.dims()
+            if k != k2: raise ValueError('matrix size mismatch %dx%d * %dx%d' % (n, k, k2, m))
+            return Mat([[sum(self.rows[i][t] * o.rows[t][j] for t in range(k)) for j in range(m)] for i in range(n)])
+        return Mat([[v * float(o) for v in r] for r in self.rows])
+    def add(self, o):
+        if not isinstance(o, Mat) or o.dims() != self.dims(): raise ValueError('matrix size mismatch')
+        return Mat([[a + b for a, b in zip(r, q)] for r, q in zip(self.rows, o.rows)])
+    def elementwise(self, fn): return Mat([[fn(v) for v in r] for r in self.rows])
+    def flat(self): return [v for r in self.rows for v in r]
+
+
+# the whole-matrix and complex commands of the C47 (tools/navmat.py), as the firmware does them (tested in the
+# C47 simulator): element by element on a matrix, except M × M (matrix product)
+# the STRUCT commands (structured.c, items 2920-2936), each with its partner number
+STRUCT = {'IF', 'ELSE', 'ENDIF', 'DO', 'WHILE', 'ENDDO', 'REPEAT', 'UNTIL'}
+MATOPS = {'COMPLEX', 'Re', 'Im', '∡', 'x²', 'eˣ', 'ABS', 'CONJ', '+', '-', '×', '÷', 'MOD', 'ASIN', 'CHS', 'RCL×', 'M.PUTM', 'M.GETM',
+          'IP'}
+
+
+def _mc(v):
+    return isinstance(v, (Mat, complex)) or (isinstance(v, tuple) and v[:1] == ('MAT',))
+
+
+def _num(v):
+    if isinstance(v, tuple):
+        return Mat([[0.0] * v[2] for _ in range(v[1])])
+    return v if isinstance(v, (Mat, complex)) else float(v)
+
+
+def _ew(fn, *vs):
+    """fn on the elements of the matrices in vs (the others: scalars); a scalar result when no matrix."""
+    m = next((v for v in vs if isinstance(v, Mat)), None)
+    if m is None:
+        return fn(*vs)
+    n, k = m.dims()
+    get = lambda v, i, j: v.rows[i][j] if isinstance(v, Mat) else v
+    return Mat([[fn(*[get(v, i, j) for v in vs]) for j in range(k)] for i in range(n)])
+
+
+def _out(v):
+    """A scalar result back to the stack's type (Decimal for a real number)."""
+    return D(repr(v)) if isinstance(v, float) else v
+
+
+class Calc:
+    def __init__(self, prog_text, mats=None):
+        self.s = [D(0)]*4; self.lift = True; self.reg = {}; self.flags = set()
+        self.deg = True; self.mats = mats or {}; self.cur = None; self.I = self.J = 1
+        self.lastx = D(0)
+        self.lines = []
+        for ln in prog_text.splitlines():
+            ln = re.sub(r'^\s*\d+\s+', '', ln.split(';')[0]).strip()
+            if ln: self.lines.append(ln)
+        self.labels = {}
+        for i, ln in enumerate(self.lines):
+            if ln.startswith('LBL '): self.labels[ln[4:].strip().strip('"')] = i
+    # stack
+    def push(self, v):
+        if self.lift: self.s = [v] + self.s[:3]
+        else: self.s[0] = v
+        self.lift = True
+    def unary(self, fn):
+        self.lastx = self.s[0]; self.s[0] = fn(self.s[0]); self.lift = True
+    def binary(self, fn):
+        x, y = self.s[0], self.s[1]; self.lastx = x
+        self.s = [fn(y, x), self.s[2], self.s[3], self.s[3]]; self.lift = True
+    def ang_in(self, v): return math.radians(f(v)) if self.deg else f(v)
+    def ang_out(self, v): return D(math.degrees(v)) if self.deg else D(v)
+    def trig(self, fn, x):
+        # high-precision range reduction for large degree arguments
+        if self.deg: x = x % D(360)
+        return D(fn(math.radians(f(x)) if self.deg else f(x)))
+    def atext(self, text):
+        """ATEXT as in the C47 source (screen.c: fnAText, _doShowString), standardFont, 20-row lines:
+        X, Y are used as |X|, |Y| (Y = bottom of the glyph box). A CR glyph (U+21B5) or LF after a
+        character = next line (20 rows down) at the start column; several in a row = several lines.
+        A CR as the FIRST character is not a line break: it is drawn as a character (the CR glyph,
+        not in our font data: drawn here as '?'). Before a character, if x > 380 and the character
+        would pass x 400: next line. After the text, x > 380: next line; below the bottom: row 0.
+        X and Y get the offset to the next position added (a negative X or Y grows in magnitude).
+        GRMOD 0 sets the glyph pixels, 1 clears the glyph box first, 2 clears them, 3 flips them."""
+        import os, sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from stdfont import STD, code as stdcode
+        if getattr(self, 'grfnt', 20) == 10:                 # GRFNT 10: the tinyFont, 8-row lines
+            from tinyfont import TINY as STD
+        LH = STD[0x41][3] + STD[0x41][4] + STD[0x41][5]       # line height = the glyph box (20 or 8)
+        CP = 1 if getattr(self, 'grfnt', 20) == 21 else 0      # GRFNT 21: one column less per character (checked, FNTCHT)
+        X, Y = int(self.s[0]), int(self.s[1])
+        x, y = abs(X), abs(Y); x0 = x; line = y; mode = getattr(self, 'grmod', 0)
+        ps = set(self.pix)
+        t = str(text); i = 0
+        while i < len(t):
+            ch = t[i]; i += 1
+            cb, cg, ca, ra, rg, rb, rows = STD.get(stdcode(ch), STD[0x3f])
+            adv = cb + cg + ca - CP
+            if x > 380 and x + adv > 400:
+                x, line = x0, line - LH
+            on = {(line + rb + rg - 1 - r, x + cb + c) for r, v in enumerate(rows) for c in range(cg) if v >> (cg - 1 - c) & 1}
+            on = {p for p in on if 0 <= p[0] < 240 and 0 <= p[1] < 400}
+            if mode == 1:
+                # the firmware (showGlyphCode): the whole width of the glyph box is cleared, before GRFNT 21
+                # moves the next character one column back
+                ps -= {(yy, xx) for yy in range(line, line + ra + rg + rb) for xx in range(x, x + adv + CP)}
+            if mode == 2: ps -= on
+            elif mode == 3: ps ^= on
+            else: ps |= on
+            x += adv
+            while i < len(t) and t[i] in ('\u21b5', '\n'):   # CR / LF after a character
+                i += 1; x, line = x0, line - LH
+        nx, ny = x, line
+        if nx > 380:
+            nx, ny = x0, ny - LH
+        if ny < 0:
+            ny = 0
+        self.pix = list(ps)
+        self.s[0] = D(X + (x0 - nx if X < 0 else nx - x0))
+        self.s[1] = D(Y + (y - ny if Y < 0 else ny - y))
+
+    def regkey(self, arg):
+        if not isinstance(arg, str): return arg                  # already resolved (STO IND)
+        if arg.startswith('IND '):
+            k = arg[4:].strip().strip('"')
+            v = self.rget(k) if k in self.reg or not k.isalpha() else self.rget(k)
+            return v if isinstance(v, str) else int(v)            # a text: the variable of that name
+        return arg
+    def local(self, k):
+        """R.nn: a local register of the running subroutine level (LocR); (list, index)."""
+        loc = getattr(self, 'locs', {}).get(getattr(self, 'depth', 0)); n = int(k[2:])
+        if loc is None or n >= len(loc): raise ValueError('no local register %s at level %d' % (k, getattr(self, 'depth', 0)))
+        return loc, n
+    def localflag(self, op, n, pc):
+        """SF / CF / FS? / FC? / FS?C / FC?C .nn (F.nn): the local flags of the running subroutine level (flags.c, local
+        flag 112 + nn). The firmware has them only after a LocR on the level (registers.c allocateLocalRegisters: in the
+        level's header) and then ignores them (FS? false); here an error, as in a program it is a mistake."""
+        fl = getattr(self, 'lflags', {}).get(getattr(self, 'depth', 0))
+        if fl is None: raise ValueError('%s .%02d: no local flags at level %d (no LocR)' % (op, n, getattr(self, 'depth', 0)))
+        if n >= 32: raise ValueError('%s .%02d: local flags are .00-.31' % (op, n))
+        on = n in fl
+        if op == 'SF' or op == 'CF' or op.endswith('C'):
+            (fl.add if op == 'SF' else fl.discard)(n)
+        if op == 'SF' or op == 'CF': return pc
+        return self.test(on == op.startswith('FS'), pc)
+    def regclr(self):
+        """R-CLR (registers.c fnRegClr / getRegParam): X = sss.nn clears nn registers from sss; X stays. The ranges:
+        0-99 R00-R99 (nn = 0: to R99; sss + nn must stay below 100: 0.99 is R00-R98), 100-111 X Y Z T A B C D L I J K
+        (nn = 0 not modelled: the firmware runs on past K), 112-210 the local registers R.00-R.98 (nn = 0 not modelled)."""
+        x = self.s[0]
+        if isinstance(x, (str, tuple, Mat, complex)) or not -1000 < x < 1000: raise ValueError('R-CLR: X %s' % (x,))
+        if x < 0: raise ValueError('R-CLR %s out of range' % x)
+        st = int(x); n = int((x - st) * 100)
+        if st < 100:
+            if st + n >= 100: raise ValueError('R-CLR %s out of range' % x)
+            keys = [str(r) for r in range(st, st + (n or 100 - st))]
+        elif st < 112:
+            if n == 0 or st + n > 112: raise ValueError('R-CLR %s: past K (not modelled)' % x)
+            keys = list('XYZTABCDLIJK'[st - 100:st - 100 + n])
+        else:
+            nl = len(getattr(self, 'locs', {}).get(getattr(self, 'depth', 0)) or [])
+            if n == 0 or st - 112 + n > nl: raise ValueError('R-CLR %s: local registers R.00-R.%02d' % (x, nl - 1))
+            keys = ['R.%02d' % (r - 112) for r in range(st, st + n)]
+        for k in keys:
+            if k in 'XYZT': self.s['XYZT'.index(k)] = D(0)
+            elif k.startswith('R.') or k == 'L': self.rset(k, D(0))
+            else: self.reg.pop(k, None)
+    def rget(self, k):
+        k = str(int(k)) if isinstance(k, int) else k
+        if k.startswith('R.'): loc, n = self.local(k); return loc[n]
+        if k in ('X', 'Y', 'Z', 'T'): return self.s['XYZT'.index(k)]          # IND X: a stack register
+        if k == 'L': return self.lastx                                         # RCL L: LASTx (register L)
+        return self.reg.get(k.lstrip('0') or '0', D(0))
+    def rset(self, k, v):
+        k = str(int(k)) if isinstance(k, int) else k
+        if k.startswith('R.'): loc, n = self.local(k); loc[n] = v; return
+        if k == 'L': self.lastx = v; return                                    # STO L: LASTx (register L)
+        self.reg[k.lstrip('0') or '0'] = v
+    def indlab(self, n, pc):
+        if isinstance(n, str): return n                     # XEQ IND r with a label name in r
+        if hasattr(self,'pid'): return '%d_%d'%(self.pid[pc], n)
+        return '%02d'%n
+    def matop(self, op, arg):
+        """MATOPS when a matrix or a complex number is involved; False: the ordinary command."""
+        x, y = self.s[0], self.s[1]
+        two = op in ('COMPLEX', '+', '-', '×', '÷', 'MOD', 'M.GETM')
+        if op == 'RCL×':
+            v = self.rget(self.regkey(arg))
+            if not (_mc(x) or _mc(v)): return False
+            self.lastx = x; self.s[0] = _ew(lambda a, b: a * b, _num(x), _num(v)); self.lift = True; return True
+        if op == 'M.PUTM':
+            m = self.mats[self.cur]
+            for i, r in enumerate(x.rows):
+                for j, v in enumerate(r):
+                    m[self.I - 1 + i][self.J - 1 + j] = v
+            return True
+        if op == 'M.GETM':
+            m = self.mats[self.cur]; r, c = int(y), int(x)
+            self.binary(lambda y, x: Mat([row[self.J - 1:self.J - 1 + c] for row in m[self.I - 1:self.I - 1 + r]])); return True
+        if not (_mc(x) or (two and _mc(y)) or op in ('COMPLEX', 'Re', 'Im', '∡')): return False
+        if op == 'IP' and not isinstance(x, Mat): return False             # a number: the ordinary IP
+        X, Y = _num(x), _num(y)
+        if op == 'COMPLEX' and isinstance(X, Mat) != isinstance(Y, Mat):
+            raise ValueError('COMPLEX of a matrix and a number: the firmware refuses it')
+        if op == '×' and isinstance(X, Mat) and isinstance(Y, Mat):
+            return False                                   # the matrix product: the ordinary code
+        deg = lambda a: math.degrees(a) if self.deg else a
+        fn2 = {'COMPLEX': lambda a, b: complex(a, b), '+': lambda a, b: a + b, '-': lambda a, b: a - b,
+               '×': lambda a, b: a * b, '÷': lambda a, b: a / b, 'MOD': lambda a, b: a - b * math.floor(a / b)}
+        fn1 = {'Re': lambda a: a.real, 'Im': lambda a: a.imag, '∡': lambda a: deg(math.atan2(a.imag, a.real)),
+               'x²': lambda a: a * a, 'ASIN': lambda a: deg(math.asin(a)), 'CHS': lambda a: -a,
+               'eˣ': lambda a: cmath.exp(a) if isinstance(a, complex) else math.exp(a), 'ABS': abs,
+               'CONJ': lambda a: a.conjugate(), 'IP': lambda a: float(int(a))}
+        if two:
+            self.binary(lambda y_, x_: _out(_ew(fn2[op], Y, X)))
+        else:
+            self.lastx = x; self.s[0] = _out(_ew(fn1[op], X)); self.lift = True
+        return True
+    def test(self, ok, pc):
+        """The step after a test: pc when the test is true, pc + 1 (skipped) when false. The firmware
+        (structured.c structNoLegacySkip): before IF / WHILE / UNTIL the answer is kept for that step, and a
+        structure step that a jump lands on (ELSE ENDIF DO ENDDO REPEAT UNTIL) is never skipped."""
+        nxt = self.lines[pc].partition(' ')[0] if pc < len(self.lines) else ''
+        if nxt in ('IF', 'WHILE', 'UNTIL'):
+            self.ti = ok; return pc
+        if nxt in STRUCT: return pc
+        return pc if ok else pc + 1
+    def partner(self, pc, num, ops, below):
+        """The nearest step of ops with the number num, below or above pc in the same program (structFindPartner)."""
+        key = (pc, num, ops, below)
+        cache = self.__dict__.setdefault('partners', {})
+        if key not in cache:
+            step = 1 if below else -1; i = pc + step; found = None
+            while 0 <= i < len(self.lines) and self.lines[i] != 'END':
+                o, _, a = self.lines[i].partition(' ')
+                if o in ops and a.strip() and int(a) == num:
+                    found = i; break
+                i += step
+            cache[key] = found
+        return cache[key]
+    def struct(self, op, arg, pc):
+        """IF ELSE ENDIF, DO WHILE ENDDO, REPEAT UNTIL with their partner numbers (structured.c); pc is the step after."""
+        if not arg.strip():
+            raise ValueError('%s without its number: the firmware stops (run VALID; tools/c47struct.py numbers them)' % op)
+        n = int(arg); at = pc - 1
+        if op in ('IF', 'WHILE', 'UNTIL'):
+            ok = getattr(self, 'ti', None)
+            if ok is None: raise ValueError('%s with no test answer before it' % op)
+            self.ti = None
+            if ok: return pc
+            if op == 'UNTIL':
+                ops, below = ('REPEAT',), False
+            else:
+                ops, below = (('ENDIF', 'ELSE') if op == 'IF' else ('ENDDO',)), True
+        elif op == 'ELSE': ops, below = ('ENDIF',), True
+        elif op == 'ENDDO': ops, below = ('DO',), False
+        else: return pc                                       # ENDIF, DO, REPEAT: the step after
+        j = self.partner(at, n, ops, below)
+        if j is None: raise ValueError('%s %02d: no partner (structure invalid)' % (op, n))
+        return j + 1
+    def run(self, label, maxsteps=10**6):
+        pc = self.labels[label] + 1; rs = []; n = 0
+        while True:
+            n += 1; self.steps=getattr(self,'steps',0)+1
+            if n > maxsteps: raise RuntimeError('too many steps')
+            ln = self.lines[pc]; pc += 1; self.depth = len(rs); self.at = pc - 1
+            op, _, arg = ln.partition(' '); arg = arg.strip().strip('"')
+            if getattr(self, 'count', None) is not None: self.count(op, self.s[0])     # tests: what runs (test_navopt)
+            if re.fullmatch(r'[01]+#2', ln):
+                v=int(ln[:-2],2)
+                # the firmware takes up to WSIZE bits (64 ones at WSIZE 64: ELEM47P's info box edge)
+                if v >= 1<<getattr(self,'ws',64): raise ValueError('OUT OF RANGE literal %s ws %d'%(ln,self.ws))
+                self.push(D(v)); continue
+            if re.fullmatch(r'-?[\d.]+(E-?\d+)?', ln): self.push(D(ln)); continue
+            if op == 'LBL': continue
+            if op in STRUCT:
+                pc = self.struct(op, arg, pc); continue
+            if ln.startswith('├'): self.alpha+=ln[1:].strip('"'); continue
+            if ln.startswith('"'): self.alpha=ln.strip('"'); self.push(ln.strip('"')); continue
+            if op in ('RTN', 'END'):
+                getattr(self, 'locs', {}).pop(len(rs), None)        # local registers live in their subroutine level
+                getattr(self, 'lflags', {}).pop(len(rs), None)      # ... and its local flags
+                if rs: pc = rs.pop(); continue
+                return
+            if op == 'CLα': self.rset(self.regkey(arg), ''); continue      # the text in a register: empty
+            if op == 'LocR':                                         # local registers R.00 .. of this level (all 0)
+                if not 0 <= int(arg) <= 99: raise ValueError('LocR out of range: %s' % arg)
+                # the firmware (allocateLocalRegisters): a second LocR on the same level keeps the values and
+                # only changes the number; new ones are 0
+                self.locs = getattr(self, 'locs', {}); old = self.locs.get(len(rs), [])
+                self.locs[len(rs)] = (old + [D(0)] * int(arg))[:int(arg)]
+                # the 32 local flags .00-.31 come with the level's first LocR (all clear), a second LocR keeps them
+                self.lflags = getattr(self, 'lflags', {}); self.lflags.setdefault(len(rs), set()); continue
+            if op == 'GTO':
+                if arg.startswith('IND '): arg=self.indlab((lambda v: v if isinstance(v,str) else int(v))(self.rget(arg[4:].strip())),pc-1)
+                pc = self.labels[arg] + 1; continue
+            if op == 'XEQ':
+                if arg.startswith('IND '): arg=self.indlab((lambda v: v if isinstance(v,str) else int(v))(self.rget(arg[4:].strip())),pc-1)
+                rs.append(pc); pc = self.labels[arg] + 1; continue
+            if op in MATOPS and self.matop(op, arg): continue      # whole-matrix and complex commands (tools/navmat.py)
+            if isinstance(self.s[0], Mat) or (op in ('×', '+', 'DOT') and isinstance(self.s[1], Mat)):
+                x, y = self.s[0], self.s[1]
+                if op == '×':
+                    self.binary(lambda y, x: y.mul(x) if isinstance(y, Mat) else x.mul(y)); continue
+                if op == '+':
+                    self.binary(lambda y, x: y.add(x)); continue
+                if op == 'DOT':
+                    a, b = y.flat(), x.flat()
+                    if len(a) != len(b): raise ValueError('DOT size mismatch')
+                    self.binary(lambda y, x: D(repr(sum(p * q for p, q in zip(a, b))))); continue
+                if op in ('COS', 'SIN'):
+                    fn = math.cos if op == 'COS' else math.sin
+                    self.unary(lambda m: m.elementwise(lambda v: float(self.trig(fn, D(repr(v))))) ); continue
+                if op == 'RCL×':
+                    v = self.rget(self.regkey(arg)); self.s[0] = x.mul(v); self.lift = True; continue
+                if op == 'STO' and arg.startswith('"'):
+                    pass
+            if op == 'ENTER': self.s = [self.s[0]] + self.s[:3]; self.lift = False; continue
+            if op == 'CC':                                 # item 1730: x + iy from Y (real) and X (imaginary)
+                self.binary(lambda y, x: complex(float(y), float(x))); continue
+            if op == 'DEG': self.deg = True; continue
+            if op == 'RAD': self.deg = False; continue
+            op={'Y↑X':'Y^X','X↑2':'X^2','x²':'X^2'}.get(op,op)
+            if op in ('+', '-', '×', '÷', 'Y^X', 'MOD'):
+                fn = {'+': lambda y, x: (y+(x if isinstance(x,str) else format(x.normalize(),'f'))) if isinstance(y,str) else y+x, '-': lambda y, x: y-x, '×': lambda y, x: y*x, '÷': lambda y, x: y/x,
+                      'Y^X': lambda y, x: D(f(y)**f(x)) if x != int(x) else y**int(x),
+                      'MOD': lambda y, x: y - x*(y/x).__floor__()}[op]
+                self.binary(fn); continue
+            if op == 'ABS': self.unary(lambda x: abs(x)); continue
+            if op == 'SIGN': self.unary(lambda x: D(1) if x > 0 else (D(-1) if x < 0 else D(0))); continue
+            if op == 'ACOS': self.unary(lambda x: self.ang_out(math.acos(f(x)))); continue
+            if op in ('X<Y?','X≥Y?','X=0?','X<0?','X>0?','X≤Y?','X≥0?','X>Y?','X=Y?','X≤0?','X≠0?','X≠Y?'):
+                x,y=self.s[0],self.s[1]
+                ok={'X<Y?':lambda:x<y,'X≥Y?':lambda:x>=y,'X=0?':lambda:x==0,'X<0?':lambda:x<0,'X>0?':lambda:x>0,'X≤Y?':lambda:x<=y,'X≥0?':lambda:x>=0,'X>Y?':lambda:x>y,'X=Y?':lambda:x==y,'X≠0?':lambda:x!=0,'X≠Y?':lambda:x!=y,'X≤0?':lambda:x<=0}[op]()
+                pc = self.test(ok, pc); continue
+            cmp = op.replace('𝑥', 'x')
+            if cmp in ('x=?', 'x≠?', 'x<?', 'x≤?', 'x>?', 'x≥?') and arg:
+                # the C47 compares (items 11-22): X with the argument, a stack register or a register
+                x = self.s[0]; v = self.s['XYZT'.index(arg[-1])] if arg in ('X', 'Y', 'Z', 'T', 'ST X', 'ST Y', 'ST Z', 'ST T') else self.rget(self.regkey(arg))
+                ok = {'x=?': x == v, 'x≠?': x != v, 'x<?': x < v, 'x≤?': x <= v, 'x>?': x > v, 'x≥?': x >= v}[cmp]
+                pc = self.test(ok, pc); continue
+            if op == 'CLLCD': self.pix=[]; self.txt=[]; continue
+            if op == 'TICKS': self.push(D(int(self.steps * 0.0017))); continue   # 1/10 s, model: 0.17 ms per step
+            if op == 'PIXEL':
+                x,y=int(self.s[0]),int(self.s[1])
+                if x>=0 and y>=0: self.pix.append((y,x))
+                if x<0: self.pix.extend((yy,-x) for yy in range(240))
+                if y<0: self.pix.extend((-y,xx) for xx in range(400))
+                continue
+            if op == 'CLA': self.alpha=''; continue
+            if op == 'CLSTK': self.s = [D(0)] * 4; continue
+            if op == 'SSIZE#': self.push(D(8)); continue          # stack size (C47 default 8; modelled as 4 levels)
+            if op in ('SSIZE4', 'SSIZE8'): continue
+            # dates (C47 CLK functions); a date is ('D', y, m, d). x→ⅅ / ⅅ→x follow the CLK date format
+            # self.datefmt: 'YMD' (YYYY.MMDD, the default), 'DMY' (DD.MMYYYY) or 'MDY' (MM.DDYYYY);
+            # FS? DMY / MDY / YMD test it (the C47 system flags of the CLK date format)
+            if op == 'x→ⅅ':
+                self.lastx = self.s[0]; fmt = getattr(self, 'datefmt', 'YMD')
+                if fmt == 'YMD':
+                    v = int((self.s[0] * 10000).to_integral_value()); self.s[0] = ('D', v // 10000, v // 100 % 100, v % 100)
+                else:
+                    v = int((self.s[0] * 1000000).to_integral_value()); a, b, y = v // 1000000, v // 10000 % 100, v % 10000
+                    self.s[0] = ('D', y, b, a) if fmt == 'DMY' else ('D', y, a, b)
+                continue
+            if op == 'ⅅ→x':
+                _, y, m, d = self.s[0]; fmt = getattr(self, 'datefmt', 'YMD')
+                self.s[0] = (D(y) + D(m) / 100 + D(d) / 10000 if fmt == 'YMD' else
+                             D(d) + D(m) / 100 + D(y) / 1000000 if fmt == 'DMY' else D(m) + D(d) / 100 + D(y) / 1000000)
+                continue
+            if op == 'ⅅ→J':
+                _, y, m, d = self.s[0]; a = (14 - m) // 12; yy = y + 4800 - a; mm = m + 12 * a - 3
+                self.s[0] = D(d + (153 * mm + 2) // 5 + 365 * yy + yy // 4 - yy // 100 + yy // 400 - 32045); continue
+            if op == 'J→ⅅℸ':                         # JDN (.0 = noon) -> Y date, X time (hours)
+                j = self.s[0] + D('0.5'); jn = int(j // 1); fr = j - jn   # jn: n is the step counter
+                a = jn + 32044; b = (4 * a + 3) // 146097; c = a - 146097 * b // 4
+                dd = (4 * c + 3) // 1461; e = c - 1461 * dd // 4; mm = (5 * e + 2) // 153
+                day = e - (153 * mm + 2) // 5 + 1; mon = mm + 3 - 12 * (mm // 10); yr = 100 * b + dd - 4800 + mm // 10
+                self.lastx = self.s[0]; self.s[0] = ('D', yr, mon, day); self.lift = True; self.push(fr * 24); continue
+            if op in ('DAY', 'MONTH', 'YEAR'):
+                _, y, m, d = self.s[0]; self.s[0] = D({'DAY': d, 'MONTH': m, 'YEAR': y}[op]); continue
+            # text: append to the string in a register (αIP: integer part of X; x→α: string X or character code X)
+            if op in ('αIP', 'x→α'):
+                k = self.regkey(arg); v = self.rget(k); x = self.s[0]
+                if not isinstance(v, str): v = format(D(int(v)).normalize(), 'f') if op == 'αIP' else v
+                if op == 'αIP': add = str(int(x))
+                else: add = x if isinstance(x, str) else chr(int(x))
+                self.rset(k, v + add); continue
+            if op == 'AIP': self.alpha+=str(int(self.s[0])); continue
+            if ln.startswith('"'): self.alpha=ln.strip('"'); self.push(ln.strip('"')); continue
+            if op == 'IP': self.unary(lambda x: D(int(x))); continue
+            if op == 'ISG':
+                k=self.regkey(arg); v=self.rget(k); cnt=int(v); frac=v-cnt; fin=int(frac*1000); inc=int(round(f(frac*100000)))%100 or 1
+                cnt+=inc; self.rset(k,D(cnt)+frac)
+                pc = self.test(cnt <= fin, pc); continue
+            if op == 'GETKEY': self.push(D(self.keys.pop(0))); continue
+            if op == 'FIX': self.fix=int(arg); continue
+            if op == 'AVIEW': self.msgs.append(self.rget(arg) if arg else self.alpha); continue
+            if op == 'ARCL':
+                v=float(self.s[0]) if arg=='ST X' else float(self.rget(arg)); self.alpha+=('%.'+str(getattr(self,'fix',4))+'f')%v; continue
+            if ln.startswith('├'): self.alpha+=ln[1:].strip('"'); continue
+            if op == 'STOP': self.stops.append(self.msgs[-1] if self.msgs else ''); continue
+            if op == 'AVIEW' and arg: self.msgs.append(self.rget(arg)); continue
+            if op == 'KEY?' and arg.startswith('R.'):          # the firmware (fnKey): no local register
+                raise ValueError('KEY? %s: out of range (KEY? takes no local register on the C47)' % arg)
+            if op == 'KEY?' and getattr(self,'keyskip',False) and not getattr(self,'keys',None):
+                # no key pressed: the program goes on (timed loops); a frame when the screen changed
+                self.frames=getattr(self,'frames',[])
+                if not self.frames or self.frames[-1] != self.pix:
+                    self.frames.append(list(self.pix))
+                    if len(self.frames) >= (getattr(self,'maxpauses',None) or 10**9): raise StopIteration
+                pc = self.test(True, pc); continue
+            if op == 'KEY?':                                  # waiting for a key: this is a shown frame
+                self.frames=getattr(self,'frames',[]); self.frames.append(list(self.pix))
+                if not getattr(self,'keys',None) or len(self.frames) >= (getattr(self,'maxpauses',None) or 10**9): raise StopIteration
+                self.rset(arg, D(self.keys.pop(0))); pc = self.test(False, pc); continue
+            if op == 'PROMPT':
+                self.msgs=getattr(self,'msgs',[]); self.msgs.append(self.rget(arg))
+                ans=getattr(self,'answers',[])
+                if ans:
+                    v = ans.pop(0)
+                    if v is not None: self.push(D(v))     # None: R/S without keying a number
+                elif len(self.msgs)>getattr(self,'maxprompts',10**9): raise StopIteration
+                continue
+            if op == 'PAUSE' and arg in ('0', '1'): continue   # PAUSE 0 / 1: display update only (no frame of its own)
+            if op == 'PAUSE' and self.lines[pc].startswith('KEY? '): continue   # PAUSE n then KEY?: the key wait (KEY? makes the frame)
+            if op == 'PAUSE':
+                self.pauses=getattr(self,'pauses',0)+1; self.frames=getattr(self,'frames',[]); self.frames.append(list(self.pix))
+                if len(self.frames) >= (getattr(self,'maxpauses',None) or 10**9): raise StopIteration
+                continue
+            if op == 'CLLCDxy':
+                # the firmware (screen.c fnClLcd): from column |X| to the right edge, from row |Y| up to the top
+                x0, y0 = abs(int(self.s[0])), abs(int(self.s[1]))
+                self.pix=[p for p in self.pix if p[0]<y0 or p[1]<x0]; self.frames=getattr(self,'frames',[]); continue
+            if op == 'POINT':
+                # the firmware (screen.c fnPoint): a 3 x 3 dot around (X, Y)
+                x, y = int(self.s[0]), int(self.s[1])
+                if x >= 0 and y >= 0:
+                    self.pix.extend((y + dy, x + dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1)
+                                    if 0 <= y + dy < 240 and 0 <= x + dx < 400)
+                if x < 0 or y < 0: raise ValueError('POINT with a negative X or Y: not modelled in c47sim yet')
+                continue
+            if op == 'CLREGS': self.reg = {k: v for k, v in self.reg.items() if not re.fullmatch(r'\d+', k)}; continue
+            if op == 'R-CLR': self.regclr(); continue
+            if op == 'CLΣ': self.stat=[]; continue
+            if op == 'Σ+': self.stat.append((float(self.s[0]),float(self.s[1]))); continue
+            if op in ('PLSTAT','PLTFCNS'): continue
+            if op == '42ALENG': self.push(D(len(self.rget('K')))); continue
+            if op == '42ATOX':
+                k=self.rget('K'); self.push(D(ord(k[0]))); self.rset('K',k[1:]); continue
+            if op == 'αLENG': self.push(D(len(self.rget(arg)))); continue
+            if op == 'α→𝑥':
+                k=self.rget(arg); v=ord(k[0])
+                if v >= 1<<(getattr(self,'ws',64)-1): raise ValueError('OUT OF RANGE alpha->x %d ws %d'%(v,self.ws))
+                self.push(D(v)); self.rset(arg,k[1:]); continue
+            if op == 'αSL': self.rset(arg, self.rget(arg)[int(self.s[0]):]); continue
+            if op in ('αLEFT', 'αRIGHT', 'αMID'):
+                # the firmware (stringFuncs.c _alphaLeftMidRight): the register is not changed; X (the
+                # number of characters) is replaced by the text; αMID takes the start (from 1) from Y and
+                # drops Y. Checked with the T47 simulator: "ABCDEF" 2 αLEFT r -> r = "ABCDEF", X = "AB"
+                s = self.rget(self.regkey(arg)); n = max(0, min(int(self.s[0]), len(s))); self.lastx = self.s[0]
+                if op == 'αLEFT': self.s[0] = s[:n]
+                elif op == 'αRIGHT': self.s[0] = s[len(s) - n:]
+                else:
+                    a = max(0, int(self.s[1])); self.s[0] = '' if a == 0 or a > len(s) else s[a - 1:a - 1 + n]
+                    self.s = [self.s[0]] + self.s[2:] + self.s[3:]
+                continue
+            if op == 'αPOS':
+                # the firmware (fnAlphaPos): X (the text searched for) stays, the stack is lifted and X = its
+                # position in the register (from 0), -1 when it is not there
+                self.lastx = self.s[0]; self.push(D(str(self.rget(self.regkey(arg))).find(str(self.s[0])))); continue
+            if op == 'REM': continue
+            if op == 'GRFNT' and not arg: self.grfnt = int(self.s[0]); continue   # font of ATEXT from X (10 tiny, 20 standard); X stays
+            if op == 'SNAP': self.snaps = getattr(self, 'snaps', []) + [list(self.pix)]; continue   # a picture of the screen
+            if op == 'WSIZE': self.ws=int(arg); continue
+            if op == 'REGS': self.regs_opened=True; continue
+            if op == 'RAN#':
+                import random as _r; self.push(D(repr(_r.Random(getattr(self,'seed',0)).random()))); self.seed=getattr(self,'seed',0)+1; continue
+            if op == 'DELP': self.deleted=getattr(self,'deleted',[])+[arg]; continue
+            if op == 'GRMOD':
+                # GRMOD (item 2742) takes no argument: the mode from X. rejig encodes "GRMOD 30" as GRMOD
+                # and then the number 30 (pushed), as the C47 runs it
+                self.grmod = int(self.s[0])
+                if arg: self.push(D(arg))
+                continue
+            if op in ('DROP', 'DROP𝑥'): self.s = self.s[1:] + self.s[3:]; continue
+            if op == 'ATEXT' and arg:
+                # ATEXT r (new C47 command): the string in r in the standardFont, Y = row of the bottom of
+                # the 20-row glyph box (base line 4 rows up), X = column; returns Y, X of the next character.
+                # r may be a stack register: ATEXT Z (ST Z) takes the string from Z
+                k = arg[3:] if arg.startswith('ST ') else arg
+                self.atext(self.s['XYZT'.index(k)] if k in ('X', 'Y', 'Z', 'T') else self.rget(self.regkey(arg))); continue
+            if op == '⇄':
+                # stack shuffle: ⇄ zyxt puts the old z in X, y in Y, x in Z, t in T
+                old = list(self.s); self.s = [old['xyzt'.index(c)] for c in arg.lower()] + old[4:]; self.lift = True; continue
+            if op == 'AGRAPH' and arg:
+                # AGRAPH D: the pattern pushed and rotated down by R↓ (D on the C47's 8-level stack = T here)
+                v=int(self.s[3] if arg == 'D' else self.rget(arg)) & ((1<<self.ws)-1); x=int(self.s[0]); y=int(self.s[1])
+                if getattr(self,'grmod',0) == 2:                  # OFF: switch the pattern's pixels off
+                    off={(y+i,x) for i in range(self.ws) if v>>i & 1}
+                    self.pix=[p for p in self.pix if p not in off]
+                elif getattr(self,'grmod',0) in (1, 4):           # the firmware (fnAGraph): 1 writes the pattern
+                    on = {(y+i,x) for i in range(self.ws) if v>>i & 1}  # exactly (0 bits white), 4 the inverse
+                    col = {(y+i,x) for i in range(self.ws)}
+                    if self.grmod == 4: on = col - on
+                    self.pix = [q for q in self.pix if q not in col] + sorted(on)
+                elif getattr(self,'grmod',0) == 3:                # XOR: switch every pixel of the pattern
+                    ps=set(self.pix)
+                    for i in range(self.ws):
+                        if v>>i & 1: ps ^= {(y+i,x)}
+                    self.pix=list(ps)
+                else:
+                    for i in range(self.ws):
+                        if v>>i & 1: self.pix.append((y+i,x))
+                self.s[0]=self.s[0]+1; continue
+            if op == 'FP': self.unary(lambda x: x-D(int(x))); continue
+            if op == 'INPUT': self.push(self.rget(arg)); continue
+            if op == 'CHS': self.s[0] = -self.s[0]; continue
+            if op == 'SIN': self.unary(lambda x: self.trig(math.sin, x)); continue
+            if op == 'COS': self.unary(lambda x: self.trig(math.cos, x)); continue
+            if op == 'TAN': self.unary(lambda x: self.trig(math.tan, x)); continue
+            if op == 'ASIN': self.unary(lambda x: self.ang_out(math.asin(f(x)))); continue
+            if op == 'X^2': self.unary(lambda x: x*x); continue
+            if op == '→DEG': self.unary(lambda x: x*D(180)/D(math.pi)); continue
+            if op in ('LASTX', 'LASTx'): self.push(self.lastx); continue
+            if op == 'X<>Y': self.s[0], self.s[1] = self.s[1], self.s[0]; self.lift = True; continue
+            if op == 'R↓': self.s = self.s[1:] + self.s[:1]; self.lift = True; continue
+            if op == '→POL':
+                x, y = f(self.s[0]), f(self.s[1])
+                self.s[0] = D(math.hypot(x, y)); self.s[1] = self.ang_out(math.atan2(y, x)); self.lift = True; continue
+            if op == '→REC':                       # Y angle, X radius -> Y = r sin, X = r cos (C47 →RECT, Free42 →REC)
+                r, t = self.s[0], self.s[1]
+                self.s[0] = r * self.trig(math.cos, t); self.s[1] = r * self.trig(math.sin, t); self.lift = True; continue
+            if op == 'STO' and arg.startswith('IND '):
+                arg = self.regkey(arg)                              # STO IND: the register / variable it names
+            if op == 'STO' and isinstance(self.s[0], Mat):          # a variable holds one value: a matrix now
+                self.mats[arg] = [list(r) for r in self.s[0].rows]; self.reg.pop(arg, None); continue
+            if op == 'STO' and isinstance(self.s[0], tuple) and self.s[0][0] == 'MAT':
+                _, r, c = self.s[0]; self.mats[arg] = [[0.0]*c for _ in range(r)]; self.reg.pop(arg, None); continue
+            if op == 'STO' and arg in self.mats and not re.fullmatch(r'\d+|R\.\d\d|[XYZT]', arg):
+                del self.mats[arg]                                  # ... and a number now
+            if op in ('STO+', 'STO-', 'STO×', 'STO÷') and arg in self.mats and not isinstance(self.s[0], (Mat, tuple, str)):
+                # the firmware (store.c _storeOp, addRemaReal ...): a matrix variable and a number, element by element
+                x = self.s[0]; g = {'STO+': lambda v, y: v + y, 'STO-': lambda v, y: v - y, 'STO×': lambda v, y: v * y, 'STO÷': lambda v, y: v / y}[op]
+                self.mats[arg] = [[g(v, D(x) if isinstance(v, D) else float(x)) for v in r] for r in self.mats[arg]]; self.lift = True; continue
+            if op == 'STRI?':                                   # fnCheckType dtString: true when X is a text
+                pc = self.test(isinstance(self.s[0], str), pc); continue
+            if op == 'MATR?':                                   # fnCheckMatrix: true when X is a real or complex matrix
+                pc = self.test(_mc(self.s[0]) and not isinstance(self.s[0], complex), pc); continue
+            if op == '42DIM#':                                  # fnGetMatrixDimensions42: X (a matrix) -> Y rows, X columns
+                m = self.s[0]; r, c = m.dims() if isinstance(m, Mat) else m[1:3]
+                self.s = self.s[1:] + self.s[-1:]; self.push(D(r)); self.push(D(c)); continue
+            if op in ('STOS', 'RCLS'):                              # store / recall the whole stack (fnStoreStack,
+                # fnRecallStack): registers n .. n+7 on the C47's 8-level stack (SSIZE 8, the default; 4 at SSIZE 4),
+                # global (n + 8 <= 100) or local (R.nn: LocR of at least nn + 8). The stack is modelled as 4 levels:
+                # X Y Z T go to n .. n+3 and come back from them; all 8 registers must exist. LASTx not touched.
+                k = self.regkey(arg); k = str(int(k)) if isinstance(k, int) else k
+                loc = k.startswith('R.'); n0 = int(k[2:]) if loc else int(k)
+                ks = [('R.%02d' % (n0 + i)) if loc else str(n0 + i) for i in range(8)]
+                if loc:
+                    self.local(ks[-1])                              # an error if the LocR is too small
+                elif n0 + 8 > 100: raise ValueError('%s %s: registers %d-%d out of range' % (op, k, n0, n0 + 7))
+                if op == 'STOS':
+                    for i in range(4): self.rset(ks[i], self.s[i])
+                else:
+                    self.s = [self.rget(ks[i]) for i in range(4)]
+                self.lift = True; continue
+            if op in ('STO', 'STO+', 'STO-', 'STO×', 'STO÷'):
+                k = self.regkey(arg); v = self.rget(k); x = self.s[0]
+                self.rset(k, {'STO': lambda: x, 'STO+': lambda: v+x, 'STO-': lambda: v-x, 'STO×': lambda: v*x, 'STO÷': lambda: v/x}[op]()); self.lift = True; continue
+            if op == 'RCL':
+                k = self.regkey(arg)
+                if isinstance(k, str) and not re.fullmatch(r'\d+|R\.\d\d|[XYZTL]', k) and k not in self.reg and k not in self.mats:
+                    # the firmware (_executeOp): RCL "name" of a missing variable stops the program with an error;
+                    # IGN1ER does not catch it there (only STO, STO+ ... create a missing variable)
+                    raise ValueError('RCL "%s": undefined source variable' % k)
+                if isinstance(k, str) and k in self.mats and k not in self.reg:
+                    self.push(Mat(self.mats[k])); continue
+                self.push(self.rget(k)); continue
+            if op in ('RCL+', 'RCL-', 'RCL×', 'RCL÷'):
+                v = self.rget(self.regkey(arg)); self.lastx = self.s[0]
+                x0 = self.s[0]; self.s[0] = {'RCL+': lambda: x0+v, 'RCL-': lambda: x0-v, 'RCL×': lambda: x0*v, 'RCL÷': lambda: x0/v}[op]()
+                self.lift = True; continue
+            if op == 'DSE':
+                k = self.regkey(arg); v = self.rget(k)
+                cnt = int(v); frac = v - cnt; fin = int(frac*1000); inc = int(round(f(frac*100000))) % 100 or 1
+                cnt -= inc; self.rset(k, D(cnt) + frac)
+                pc = self.test(cnt > fin, pc); continue
+            if op in ('SF', 'CF') and arg.strip("'") == 'IGN1ER':   # ignore the next error (the C47 clears it on an error)
+                self.ign1er = op == 'SF'; continue
+            if op == 'SSIZE8' or op == 'SSIZE4': continue           # stack size: modelled as 4 levels
+            if op == 'Date→ⅅ' or op == 'Time→ℸ':                    # the clock: self.clock, a JD of the local time
+                # jn, not n (n is the run's step counter); no clock set: 2461338.0 (2026-10-24 12:00)
+                j = D(str(getattr(self, 'clock', 2461338.0))) + D('0.5'); jn = int(j // 1); fr = j - jn
+                if op == 'Time→ℸ':
+                    self.push(('T', fr * 24)); continue
+                a = jn + 32044; b = (4 * a + 3) // 146097; c = a - 146097 * b // 4
+                dd = (4 * c + 3) // 1461; e = c - 1461 * dd // 4; mm = (5 * e + 2) // 153
+                self.push(('D', 100 * b + dd - 4800 + mm // 10, mm + 3 - 12 * (mm // 10), e - (153 * mm + 2) // 5 + 1)); continue
+            if op == 'ⅅℸ→J':                                         # Y date, X time -> JD
+                dt, tm = (self.s[1], self.s[0]) if self.s[0][0] == 'T' else (self.s[0], self.s[1])
+                _, y, m, d = dt; a = (14 - m) // 12; yy = y + 4800 - a; mm = m + 12 * a - 3
+                jdn = d + (153 * mm + 2) // 5 + 365 * yy + yy // 4 - yy // 100 + yy // 400 - 32045
+                self.lastx = self.s[0]; self.s = [D(jdn) + tm[1] / 24 - D('0.5'), self.s[2], self.s[3], self.s[3]]; continue
+            if op == 'SQRT': self.unary(lambda x: x.sqrt()); continue
+            if op == '2ˣ': self.unary(lambda x: D(2) ** int(x) if x == int(x) else D(2 ** f(x))); continue
+            if op == 'SINT': self.unary(lambda x: D(int(x))); continue   # real -> short integer (the bits stay)
+            if op in ('SF', 'CF', 'FS?', 'FC?', 'FS?C', 'FC?C') and re.fullmatch(r'F?\.\d\d', arg):
+                pc = self.localflag(op, int(arg[-2:]), pc); continue
+            if op == 'CF': self.flags.discard(int(arg)); continue
+            if op == 'SF': self.flags.add(int(arg)); continue
+            if op in ('FS?C', 'FC?C'):                                 # test, then clear (flags.c fnIsFlagSetClear)
+                on = int(arg) in self.flags; self.flags.discard(int(arg))
+                pc = self.test(on == (op == 'FS?C'), pc); continue
+            if op in ('FS?', 'FC?') and arg.strip("'") in ('DMY', 'MDY', 'YMD'):   # the date-format system flags
+                on = getattr(self, 'datefmt', 'YMD') == arg.strip("'")
+                pc = self.test(on == (op == 'FS?'), pc); continue
+            if op == 'FS?':
+                pc = self.test(int(arg) in self.flags, pc); continue
+            if op == 'FC?':
+                pc = self.test(int(arg) not in self.flags, pc); continue
+            if op in ('𝜋', 'PI'):                                      # the firmware's π (item 109)
+                self.push(D('3.141592653589793238462643383279503')); continue
+            if op == '[M]⊤':                                         # transpose (a matrix on the stack)
+                self.unary(lambda m: Mat([list(r) for r in zip(*m.rows)])); continue
+            if op == 'NEWMAT':
+                r, c = int(self.s[1]), int(self.s[0]); self.s = [('MAT', r, c), self.s[2], self.s[3], self.s[3]]; self.lift = True; continue
+            if op in ('deg→rad', 'rad→deg'):                         # fnCvtDegRad: a number (not a matrix)
+                if isinstance(self.s[0], Mat): raise ValueError('%s of a matrix: the firmware refuses it' % op)
+                k = D('0.01745329251994329576923690768488613')
+                self.unary(lambda x: x * k if op == 'deg→rad' else x / k); continue
+            if op == 'DELITM':                                        # delete a variable (fnDeleteVariable)
+                self.reg.pop(arg, None); self.mats.pop(arg, None); continue
+            if op == 'STOEL':                            # real34 kept (C47 real matrix); a complex number kept too
+                x = self.s[0]; self.mats[self.cur][self.I-1][self.J-1] = x if isinstance(x, (D, complex)) else float(x); continue
+            if op in ('M.DIM', 'DIM'):                  # item 1526: Y x X zeros in the register (a new size)
+                r, c = int(self.s[1]), int(self.s[0]); k = arg.strip('"')
+                self.mats[k] = [[D(0)] * c for _ in range(r)]; self.reg.pop(k, None); continue
+            if op == 'INDEX': self.cur = arg; self.I = self.J = 1; continue
+            if op == 'STOIJ':
+                i, j = self.s[1], self.s[0]; m = self.mats[self.cur]
+                if i != int(i) or j != int(j) or not (1 <= i <= len(m) and 1 <= j <= len(m[0])):
+                    raise ValueError('STOIJ (%s, %s) out of range for %s %dx%d' % (i, j, self.cur, len(m), len(m[0])))
+                self.I, self.J = int(i), int(j); self.lift = True; continue
+            if op == 'RCLEL':
+                v = self.mats[self.cur][self.I-1][self.J-1]; self.push(v if isinstance(v, (D, complex)) else D(str(float(v)))); continue
+            if op in ('RCLSEQ', 'STOSEQ'):              # recall / store the element, then J+
+                m = self.mats[self.cur]
+                if op == 'RCLSEQ':
+                    v = m[self.I-1][self.J-1]; self.push(v if isinstance(v, D) else D(str(float(v))))
+                else:
+                    m[self.I-1][self.J-1] = self.s[0] if isinstance(self.s[0], D) else float(self.s[0])
+                self.J += 1
+                if self.J > len(m[0]):
+                    self.J = 1; self.I += 1
+                    if self.I > len(m): self.I = 1
+                continue
+            if op == 'I+':
+                m = self.mats[self.cur]; self.I += 1
+                if self.I > len(m): self.I = 1
+                continue
+            if op == 'J-':
+                m = self.mats[self.cur]; self.J -= 1
+                if self.J < 1:
+                    self.J = len(m[0]); self.I -= 1
+                    if self.I < 1: self.I = len(m)
+                continue
+            if op == 'J+':
+                m = self.mats[self.cur]; self.J += 1
+                if self.J > len(m[0]):
+                    self.J = 1; self.I += 1
+                    if self.I > len(m): self.I = 1; self.flags.add(77)
+                continue
+            # ---- tide47: LN (a number, or a real matrix element by element: tools/navmat.py lists LN among the
+            # firmware's whole-matrix functions) and eˣ of a number; to be taken into Almanac 47's c47sim.py ----
+            if op == 'LN':
+                x = self.s[0]
+                if isinstance(x, Mat):
+                    if any(v <= 0 for v in x.flat()): raise ValueError('LN of a matrix with an element <= 0')
+                    self.lastx = x; self.s[0] = x.elementwise(math.log); continue
+                if x <= 0: raise ValueError('LN of %s' % x)
+                self.unary(lambda v: v.ln()); continue
+            if op == 'eˣ':
+                self.unary(lambda v: v.exp()); continue
+            raise ValueError(unknown(ln))
+
+
+def unknown(ln):
+    """The error for a step c47sim does not run: is it a C47 command at all (table of the firmware on master)?"""
+    try:
+        import os, sys
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools'))
+        import c47ref
+        names = c47ref.program_names(c47ref.load())
+        op = next((ln[:k] for k in range(len(ln), 0, -1) if ln[:k] in names and (k == len(ln) or ln[k] == ' ')), None)
+    except (OSError, ImportError):
+        return 'unknown op: ' + ln
+    if op:
+        return 'unknown op: %s (C47 item %s %s: not modelled in c47sim yet)' % (ln, names[op]['opcode'], names[op]['catalog_name'])
+    return 'unknown op: %s (not a name in docs/reference/C47_items_master.tsv; tools/c47check.py checks a listing with rejig)' % ln
+
+
+def load(files):
+    """Load several program files into one memory.
+    Numeric labels are local to each file (like separate programs on the C47)."""
+    out = []; pid = []
+    for k, fn in enumerate(files):
+        with open(fn, encoding='utf-8') as fh:
+            for ln in fh.read().splitlines():
+                ln = ln.strip()
+                if not ln or ln.startswith('REM'):
+                    continue
+                m = re.fullmatch(r'(LBL|GTO|XEQ) (\d+)', ln)
+                if m:
+                    ln = '%s %d_%d' % (m.group(1), k, int(m.group(2)))
+                out.append(ln); pid.append(k)
+    c = Calc('\n'.join(out)); c.pid = pid
+    c.pix = []; c.frames = []; c.msgs = []; c.stops = []; c.answers = []; c.alpha = ''
+    return c

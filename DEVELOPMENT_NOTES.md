@@ -1,0 +1,38 @@
+# Tide 47 development notes
+
+## Oct 25, 2026 - v0.1.0: the engine, 25 ports (branch claude/tide47-v01)
+
+- Method: Schureman (SP 98), as NOAA: h = Z0 + sum f H cos(V + u - g). V from the Doodson numbers in the tau basis
+  (tau = T + h - s, T = 15 UT + 180: the mean sun's hour angle), s h p N p1 from Meeus' polynomials; u and f from
+  Schureman's formulas (I, nu, xi, nu', 2nu'', P, Q, R; f eqs. 73-78, 197/207, 213/215, 227, 235). M1 as NOAA:
+  speed tau + p, V + u = tau - 90 + xi - nu + Q (u has -p; XTide's tables confirm it).
+- Checked against XTide's harmonics-dwf-20191229-free tables (V0 + u at January 1, f at mid-year, 1970-2100): all 37
+  within 0.3 deg and 0.003 in f except M1 (0.4 deg, f 0.04: XTide's yearly approximation of Q). The diurnals first
+  came out 180 deg off: T needs the + 180.
+- UTide (pip utide 0.4.0) analysing a year of the twin's hourly heights: the constants back within 5 mm, 0.3 deg.
+  UTide's SA has V = h - p1 (not NOAA's h), hence its 77 deg.
+- Data: NOAA's US stations from the Debian package xtide-data (restore_tide_db -> text; the shell cannot reach NOAA).
+  TICON-3 (attached by Victor; PANGAEA is not reachable from the session). TICON against NOAA at six US gauges: the
+  same phase convention (M2 S2 N2 K1 O1 P1 K2 within 1-4 deg) except SA (+73 to +93 deg: the solar perigee, V = h -
+  p1): converted by + 283.1. TICON has no Dubai, Jeddah, Kuwait or Saudi gauges; the Gulf: Mina Salman.
+- LAT for the TICON ports: the lowest of 19 years (2020-2038) hourly, the 40 lowest hours refined to the minute.
+- The C47 engine (proven commands of Almanac 47): M x M, M + M, M - M, M x r, M MOD r, COS / SIN / e^x of a matrix,
+  DOT; new: LN (and IP of a matrix: firmware list in Almanac 47's tools/navmat.py). f x H without an element-wise
+  product: A = e^(EM x LF + LH), LH = LN(H + 1E-40) from the port's data, so a missing constituent is e^-92 = 0.
+  A port: HG, one number a constituent (H in 0.1 mm x 100000 + g in 0.01 deg), unpacked with IP / x / -.
+- The constant matrices DM UM EM: one number a row (two digits a value + 50), LBL :ROW: unpacks them (the source
+  stays short: 135 numbers).
+- Events: h' at every hour 0-24; a sign change: the straight line between the two hours, then 4 Newton steps
+  clamped to the hour; the kind from h''. The twin does exactly that (tide47ref.day).
+- The curve: a height every 20 minutes (73), straight between them, one PIXEL a column; the scale 0.5 m (1 m over
+  3 m of range). Labels of the high / low waters above / below their cross, beside it when they would leave the chart.
+- Times in the simulator: the start 40 000 steps (6.8 s), a day 19 000 (3.3 s), a port 21 000 (3.5 s).
+- c47sim: LN (a number, a matrix) and e^x of a number added (marked tide47): to be taken into Almanac 47.
+
+## Plans
+
+- Tidal streams (a branch of its own): harmonic analysis of the vessel's own ADCP / current-meter logs (least squares,
+  the same constituents, major / minor axes), then the C47 predicts speed and direction with the same engine.
+- More ports: TICON-3 has 3 363 gauges; a region program per area.
+- The tide at a given time (key 7), the next high / low water from now, spring / neap (the M2 - S2 phase).
+- Free42 / DM42 build later.

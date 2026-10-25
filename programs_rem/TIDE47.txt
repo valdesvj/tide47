@@ -1,0 +1,1800 @@
+REM TIDE47 v0.1.0 - Tide 47: tide predictions for the C47 / R47 (and the DM42n with the C47 firmware)
+REM The harmonic method of NOAA and the Admiralty (Schureman, US C&GS Special Publication 98):
+REM   h(t) = Z0 + sum f H cos(V + u - g + w t)
+REM over 45 constituents (NOAA's 37 and 8 of TICON's), with the 18.6-year nodal corrections f and u, as whole
+REM matrices (the firmware works on every element: SIN COS LN e^x, M + M, M - M, M x r, M MOD r):
+REM   P = DM x AV + UM x BV - G  (MOD 360)     the phases at the day's start: DM the Doodson numbers (45 x 7), AV
+REM                                            the angles tau s h p N' p1 90; UM the u combinations, BV xi nu nu'
+REM                                            2nu'' Q R p
+REM   A = e^(EM x LF + LH)                     the amplitudes f H: EM the node-factor powers (45 x 10), LF the logs of
+REM                                            the 10 basic factors, LH the logs of the port's H (no loop for f x H)
+REM   h(t) = Z0 + A . COS(W t + P)            one height: one COS of a 45-vector and one DOT
+REM High and low waters: the hourly signs of h'(t) = -AW . SIN(W t + P), then Newton (h'' = -AW2 . COS) in the
+REM hour. python/tide47ref.py is the same, step for step (tests/test_tide47.py compares them).
+REM The ports are in the data programs TIDEME, TIDEUS, TIDELA (load all three): XEQ "TIDEME" with X = the port's
+REM number sets its name (R26), time zone (R27), DST (R28: 1 = US rules), datum (R29), source (R95), Z0 (R24) and
+REM the matrix HG; X = 0: R96 the number of ports, R97 the region.
+REM Keys: 4 6 the day before / after, 1 3 the week before / after, 5 today, 8 2 the port before / after, + the next
+REM region (MIDDLE EAST, USA, LATIN AMERICA), 0 the end.
+REM Screen 400 x 240, row 0 = the bottom: the header at 220 and 210, the chart at x 26-386 (15 pixels an hour), rows
+REM 118-196 (the time axis at 115), the table rows 0-100.
+REM Registers: R20 the region, R21 the port, R22 the day's start (JD, UT), R23 the time zone of the day (DST in),
+REM R24 Z0, R25 the day (JDN of the local date), R26-R29 R95-R97 the port, R30-R39 R50-R59 the astronomy, R40-R47
+REM the calendar, R50-R58 the events' search, R60-R65 the event times (hours), R66-R71 their heights, R72-R77 their
+REM kinds (1 high, -1 low), R78 how many, R80 R81 the chart's lowest and highest heights, R82 its step, R83 pixels a
+REM metre, R84 R87-R91 R93 drawing, R85 today (JDN), R86 the hour now, R92 1: load the port, R98 the key.
+REM The user's stack and LASTx are kept (LocR 9: STOS R.00, LASTx in R.08); R00-R19 are not touched; at the end
+REM R20-R99 are cleared and the matrices deleted; the angle mode is left in DEG.
+LBL "TIDE47"
+LocR 9
+STOS R.00
+LASTx
+STO R.08
+XEQ :INIT:
+1
+STO 92
+DO
+  RCL 92
+  X≠0?
+  XEQ :LOAD:
+  XEQ :DAY:
+  XEQ :KEYS:
+  82
+  RCL 98
+  X≠Y?
+WHILE
+ENDDO
+REM ---- the end: R20-R99 cleared (R-CLR 20.79, then R99), the matrices deleted, GRMOD 0, GRFNT 20, the screen; your
+REM stack back ----
+20.79
+R-CLR
+0
+STO 99
+DELITM "DM"
+DELITM "UM"
+DELITM "EM"
+DELITM "SPD"
+DELITM "W"
+DELITM "LW"
+DELITM "ONES"
+DELITM "AV"
+DELITM "BV"
+DELITM "LF"
+DELITM "HG"
+DELITM "HH"
+DELITM "G"
+DELITM "LH"
+DELITM "P"
+DELITM "L"
+DELITM "A"
+DELITM "AW"
+DELITM "AW2"
+DELITM "Z"
+DELITM "HS"
+0
+GRMOD
+20
+GRFNT
+CLLCD
+RCL R.08
+STO L
+RCLS R.00
+RTN
+REM ======== the start ========
+REM ---- LBL :INIT: R20-R99 cleared, the constant matrices (DM UM EM, the speeds W = DM x SPD, LW = the logs of W in
+REM radians an hour, ONES), the day's vectors, today, the first port ----
+LBL :INIT:
+20.79
+R-CLR
+0
+STO 99
+CLLCD
+21
+GRFNT
+0
+GRMOD
+"TIDE 47 - SETTING UP ..."
+110
+100
+ATEXT Z
+DEG
+REM ==== CONS
+7
+1
+NEWMAT
+STO "SPD"
+INDEX "SPD"
+14.4920521
+STOEL
+J+
+0.5490165
+STOEL
+J+
+0.0410686
+STOEL
+J+
+0.0046418
+STOEL
+J+
+0.0022064
+STOEL
+J+
+0.000002
+STOEL
+J+
+0
+STOEL
+RCL "DM"
+RCL "SPD"
+×
+STO "W"
+0
+×
+eˣ
+STO "ONES"
+RCL "W"
+0.017453292519943295
+×
+LN
+STO "LW"
+7
+1
+NEWMAT
+STO "AV"
+7
+1
+NEWMAT
+STO "BV"
+10
+1
+NEWMAT
+STO "LF"
+XEQ :CLOCK:
+RCL 85
+STO 25
+1
+STO 20
+STO 21
+RTN
+REM ---- LBL :ROW: X = a packed row into the indexed matrix (STOEL J+): R48 values of two digits each (value x R46 +
+REM 50), the leftmost first ----
+LBL :ROW:
+STO 47
+RCL 48
+STO 49
+DO
+  RCL 47
+  100
+  RCL 49
+  1
+  -
+  Y^X
+  ÷
+  IP
+  100
+  MOD
+  50
+  -
+  RCL÷ 46
+  STOEL
+  J+
+  DSE 49
+WHILE
+ENDDO
+RTN
+REM ---- LBL :CLOCK: R85 today (JDN of the calculator's date), R86 the hour now ----
+LBL :CLOCK:
+Date→ⅅ
+Time→ℸ
+ⅅℸ→J
+0.5
++
+STO 86
+IP
+STO 85
+RCL 86
+FP
+24
+×
+STO 86
+RTN
+REM ======== the port ========
+REM ---- LBL :LOAD: the port R21 of the region R20: its data program; G = the phases (deg), LH = the logs of the
+REM amplitudes (m; a missing constituent: H = 0, LN(1E-40) = -92, so e^ makes it 0) ----
+LBL :LOAD:
+0
+STO 92
+XEQ :REG:
+RCL 21
+XEQ :REG:
+RCL "HG"
+0.00001
+×
+IP
+STO "HH"
+RCL "HG"
+RCL "HH"
+100000
+×
+-
+0.01
+×
+STO "G"
+RCL "HH"
+0.0001
+×
+RCL "ONES"
+1E-40
+×
++
+LN
+STO "LH"
+RTN
+REM ---- LBL :REG: X = the port's number (0: the region's count and title) to the data program of the region R20 ----
+LBL :REG:
+STO 90
+1
+RCL 20
+X=Y?
+IF
+  RCL 90
+  XEQ "TIDEME"
+ENDIF
+2
+RCL 20
+X=Y?
+IF
+  RCL 90
+  XEQ "TIDEUS"
+ENDIF
+3
+RCL 20
+X=Y?
+IF
+  RCL 90
+  XEQ "TIDELA"
+ENDIF
+RTN
+REM ======== the day ========
+REM ---- LBL :DAY: the day R25 at the port: the time zone, the start JD0 = R25 - 0.5 - tz / 24 (UT), the angles, the
+REM vectors P A AW AW2, the high and low waters, the screen ----
+LBL :DAY:
+XEQ :TZ:
+RCL 25
+0.5
+-
+RCL 23
+24
+÷
+-
+STO 22
+XEQ :ASTRO:
+RCL "DM"
+RCL "AV"
+×
+RCL "UM"
+RCL "BV"
+×
++
+RCL "G"
+-
+360
+MOD
+STO "P"
+RCL "EM"
+RCL "LF"
+×
+RCL "LH"
++
+STO "L"
+eˣ
+STO "A"
+RCL "L"
+RCL "LW"
++
+STO "L"
+eˣ
+STO "AW"
+RCL "L"
+RCL "LW"
++
+eˣ
+STO "AW2"
+XEQ :EVENTS:
+XEQ :SCREEN:
+RTN
+REM ---- LBL :TZ: R23 = the port's time zone, + 1 in US daylight time (LBL :DST:) ----
+LBL :TZ:
+RCL 27
+STO 23
+RCL 28
+X≠0?
+IF
+  XEQ :DST:
+  STO+ 23
+ENDIF
+RTN
+REM ---- LBL :DST: X = 1 when the day R25 is in US daylight time: from the second Sunday of March to the first Sunday
+REM of November (the whole day: the change at 2:00 is not shown) ----
+LBL :DST:
+RCL 25
+XEQ :CAL:
+3
+XEQ :JD1:
+XEQ :SUN:
+7
++
+STO 46
+11
+XEQ :JD1:
+XEQ :SUN:
+STO 47
+0
+STO 48
+RCL 46
+RCL 25
+X≥Y?
+IF
+  RCL 47
+  RCL 25
+  X<Y?
+  IF
+    1
+    STO 48
+  ENDIF
+ENDIF
+RCL 48
+RTN
+REM ---- LBL :JD1: X = a month (3-12) of the year R42: X = the JDN of its first day ----
+LBL :JD1:
+3
+-
+153
+×
+2
++
+5
+÷
+IP
+1
++
+STO 43
+RCL 42
+4800
++
+STO 44
+365
+×
+STO+ 43
+RCL 44
+4
+÷
+IP
+STO+ 43
+RCL 44
+100
+÷
+IP
+STO- 43
+RCL 44
+400
+÷
+IP
+STO+ 43
+32045
+STO- 43
+RCL 43
+RTN
+REM ---- LBL :SUN: X = a JDN: X = the first Sunday on or after it (n + (7 - (n + 1) MOD 7) MOD 7) ----
+LBL :SUN:
+STO 45
+1
++
+7
+MOD
+7
+X<>Y
+-
+7
+MOD
+RCL+ 45
+RTN
+REM ---- LBL :CAL: X = a JDN: R40 the day, R41 the month, R42 the year (a = n + 32044, b = (4a + 3) div 146097,
+REM c = a - 146097b div 4, d = (4c + 3) div 1461, e = c - 1461d div 4, m = (5e + 2) div 153) ----
+LBL :CAL:
+32044
++
+STO 43
+4
+×
+3
++
+146097
+÷
+IP
+STO 44
+146097
+×
+4
+÷
+IP
+STO- 43
+RCL 43
+4
+×
+3
++
+1461
+÷
+IP
+STO 45
+1461
+×
+4
+÷
+IP
+STO- 43
+RCL 43
+5
+×
+2
++
+153
+÷
+IP
+STO 46
+153
+×
+2
++
+5
+÷
+IP
+RCL 43
+X<>Y
+-
+1
++
+STO 40
+RCL 46
+10
+÷
+IP
+STO 47
+12
+×
+CHS
+RCL+ 46
+3
++
+STO 41
+RCL 44
+100
+×
+RCL+ 45
+4800
+-
+RCL+ 47
+STO 42
+RTN
+REM ---- LBL :ASTRO: the angles at the day's start R22 (Meeus, as NOAA): T R30, tau R31, s R32, h R33, p R35, N R36,
+REM p1 R37; Schureman's I R38, nu R52, xi R53, nu' R54, 2nu'' R55, P = p - xi R56, Q R57, R R58 (the arctangents
+REM with ->POL); AV = tau s h p -N p1 90, BV = xi nu nu' 2nu'' Q R p, LF = the logs of f Mm Mf O1 K1 J1 OO1 M2 K2
+REM L2 M1 (eqs. 73-78, 207, 215, 227, 235) ----
+LBL :ASTRO:
+RCL 22
+2451545
+-
+36525
+÷
+STO 30
+-0.0015786
+RCL× 30
+481267.88123421
++
+RCL× 30
+218.3164477
++
+360
+MOD
+STO 32
+0.0003032
+RCL× 30
+36000.76983
++
+RCL× 30
+280.46646
++
+360
+MOD
+STO 33
+-0.01032
+RCL× 30
+4069.0137287
++
+RCL× 30
+83.3532465
++
+360
+MOD
+STO 35
+0.0020708
+RCL× 30
+-1934.136261
++
+RCL× 30
+125.04452
++
+360
+MOD
+STO 36
+0.00045688
+RCL× 30
+1.71946
++
+RCL× 30
+282.93734
++
+360
+MOD
+STO 37
+RCL 22
+0.5
++
+FP
+360
+×
+180
++
+RCL+ 33
+RCL- 32
+360
+MOD
+STO 31
+REM I: cos I = cos i cos w - sin i sin w cos N
+{CICW}
+{SISW}
+RCL 36
+COS
+×
+-
+ACOS
+STO 38
+REM A, B = atan(K tan N/2) on the branch of N/2: ->POL of (cos N/2, K sin N/2); nu = A - B, xi = N - A - B
+RCL 36
+2
+÷
+STO 39
+SIN
+{K1}
+×
+RCL 39
+COS
+→POL
+X<>Y
+STO 50
+RCL 39
+SIN
+{K2}
+×
+RCL 39
+COS
+→POL
+X<>Y
+STO 51
+RCL 50
+RCL- 51
+STO 52
+RCL 36
+RCL- 50
+RCL- 51
+STO 53
+REM nu' = atan2(sin 2I sin nu, sin 2I cos nu + 0.3347) (eq. 224)
+RCL 38
+2
+×
+SIN
+RCL 52
+SIN
+×
+RCL 38
+2
+×
+SIN
+RCL 52
+COS
+×
+0.3347
++
+→POL
+X<>Y
+STO 54
+REM 2nu'' = atan2(sin^2 I sin 2nu, sin^2 I cos 2nu + 0.0727) (eq. 232)
+RCL 38
+SIN
+x²
+RCL 52
+2
+×
+SIN
+×
+RCL 38
+SIN
+x²
+RCL 52
+2
+×
+COS
+×
+0.0727
++
+→POL
+X<>Y
+STO 55
+RCL 35
+RCL- 53
+STO 56
+REM R = atan2(sin 2P, 1 / (6 tan^2 I/2) - cos 2P) (eq. 214)
+RCL 56
+2
+×
+SIN
+1
+RCL 38
+2
+÷
+TAN
+x²
+6
+×
+÷
+RCL 56
+2
+×
+COS
+-
+→POL
+X<>Y
+STO 58
+REM Q = atan2((5 cos I - 1) sin P, (7 cos I + 1) cos P) (eq. 203)
+RCL 38
+COS
+5
+×
+1
+-
+RCL 56
+SIN
+×
+RCL 38
+COS
+7
+×
+1
++
+RCL 56
+COS
+×
+→POL
+X<>Y
+STO 57
+REM the logs of the basic node factors into LF
+INDEX "LF"
+2
+3
+÷
+RCL 38
+SIN
+x²
+-
+{DMM}
+÷
+LN
+STOEL
+J+
+RCL 38
+SIN
+x²
+{DMF}
+÷
+LN
+STOEL
+J+
+RCL 38
+SIN
+RCL 38
+2
+÷
+COS
+x²
+×
+{DO1}
+÷
+STO 59
+LN
+STOEL
+J+
+RCL 38
+2
+×
+SIN
+STO 39
+x²
+0.2523
+×
+RCL 39
+RCL 52
+COS
+×
+0.1689
+×
++
+0.0283
++
+SQRT
+{DK1}
+÷
+LN
+STOEL
+J+
+RCL 38
+2
+×
+SIN
+{DJ1}
+÷
+LN
+STOEL
+J+
+RCL 38
+SIN
+RCL 38
+2
+÷
+SIN
+x²
+×
+{DOO1}
+÷
+LN
+STOEL
+J+
+RCL 38
+2
+÷
+COS
+x²
+x²
+{DM2}
+÷
+STO 34
+LN
+STOEL
+J+
+RCL 38
+SIN
+x²
+STO 39
+x²
+0.2533
+×
+RCL 39
+RCL 52
+2
+×
+COS
+×
+0.0367
+×
++
+0.0013
++
+SQRT
+{DK2}
+÷
+LN
+STOEL
+J+
+REM L2: f M2 x sqrt(1 - 12 tan^2 (I/2) cos 2P + 36 tan^4 (I/2))
+RCL 38
+2
+÷
+TAN
+x²
+STO 39
+1
+RCL 39
+12
+×
+RCL 56
+2
+×
+COS
+×
+-
+RCL 39
+x²
+36
+×
++
+SQRT
+RCL× 34
+LN
+STOEL
+J+
+REM M1: f O1 x sqrt(0.25 + 1.5 cos I / cos^2 (I/2) cos 2P + 2.25 cos^2 I / cos^4 (I/2))
+RCL 38
+2
+÷
+COS
+x²
+STO 39
+0.25
+RCL 38
+COS
+RCL÷ 39
+1.5
+×
+RCL 56
+2
+×
+COS
+×
++
+RCL 38
+COS
+x²
+RCL 39
+x²
+÷
+2.25
+×
++
+SQRT
+RCL× 59
+LN
+STOEL
+INDEX "AV"
+RCL 31
+STOEL
+J+
+RCL 32
+STOEL
+J+
+RCL 33
+STOEL
+J+
+RCL 35
+STOEL
+J+
+RCL 36
+CHS
+STOEL
+J+
+RCL 37
+STOEL
+J+
+90
+STOEL
+INDEX "BV"
+RCL 53
+STOEL
+J+
+RCL 52
+STOEL
+J+
+RCL 54
+STOEL
+J+
+RCL 55
+STOEL
+J+
+RCL 57
+STOEL
+J+
+RCL 58
+STOEL
+J+
+RCL 35
+STOEL
+RTN
+REM ---- LBL :EVENTS: the high and low waters of the day: the sign of h' at 0, 1, ..., 24 h; a change: LBL :REFINE: ----
+LBL :EVENTS:
+0
+STO 78
+0
+STO 59
+XEQ :DER:
+STO 51
+1
+STO 50
+DO
+  RCL 50
+  STO 59
+  XEQ :DER:
+  STO 52
+  RCL× 51
+  X<0?
+  IF
+    XEQ :REFINE:
+  ENDIF
+  RCL 52
+  STO 51
+  1
+  STO+ 50
+  24
+  RCL 50
+  X≤Y?
+WHILE
+ENDDO
+RTN
+REM ---- LBL :DER: X = AW . SIN(W t + P) = -h'(t) at the hour t = R59 ----
+LBL :DER:
+RCL "W"
+RCL 59
+×
+RCL "P"
++
+SIN
+RCL "AW"
+DOT
+RTN
+REM ---- LBL :REFINE: h' changes sign between R50 - 1 and R50 (R51, R52): from the straight line between them, four
+REM Newton steps x - S / C2 (S = AW . SIN, C2 = AW2 . COS at x), kept in the hour; the event R78 + 1: its time
+REM R60 +, height R66 +, kind R72 + (1 high water: h'' = -C2 < 0) ----
+LBL :REFINE:
+RCL 78
+6
+X≤Y?
+RTN
+RCL 50
+1
+-
+STO 53
+RCL 50
+STO 54
+RCL 51
+RCL 51
+RCL- 52
+÷
+RCL+ 53
+STO 55
+4
+STO 58
+DO
+  RCL "W"
+  RCL 55
+  ×
+  RCL "P"
+  +
+  STO "Z"
+  SIN
+  RCL "AW"
+  DOT
+  STO 56
+  RCL "Z"
+  COS
+  RCL "AW2"
+  DOT
+  STO 57
+  RCL 56
+  RCL 57
+  ÷
+  STO- 55
+  RCL 53
+  RCL 55
+  X<Y?
+  IF
+    RCL 53
+    STO 55
+  ENDIF
+  RCL 54
+  RCL 55
+  X>Y?
+  IF
+    RCL 54
+    STO 55
+  ENDIF
+  DSE 58
+WHILE
+ENDDO
+60
+RCL+ 78
+STO 59
+RCL 55
+STO IND 59
+XEQ :HAT:
+STO 90
+6
+STO+ 59
+RCL 90
+STO IND 59
+RCL 57
+X>0?
+IF
+  1
+ELSE
+  -1
+ENDIF
+STO 91
+6
+STO+ 59
+RCL 91
+STO IND 59
+1
+STO+ 78
+RTN
+REM ---- LBL :HAT: X = the height at the hour R55 (Z0 + A . COS(W t + P)) ----
+LBL :HAT:
+RCL "W"
+RCL 55
+×
+RCL "P"
++
+COS
+RCL "A"
+DOT
+RCL+ 24
+RTN
+REM ======== the screen (Almanac 47's split view: the header, the chart above, the table below) ========
+LBL :SCREEN:
+CLLCD
+0
+GRMOD
+21
+GRFNT
+RCL 26
+220
+2
+ATEXT Z
+XEQ :DATES:
+RCL 34
+220
+256
+ATEXT Z
+10
+GRFNT
+"UTC"
+STO 34
+RCL 23
+X<0?
+IF
+  "-"
+ELSE
+  "+"
+ENDIF
+x→α 34
+RCL 23
+ABS
+αIP 34
+RCL 23
+FP
+X≠0?
+IF
+  ":30"
+  x→α 34
+ENDIF
+"   DATUM "
+x→α 34
+RCL 29
+x→α 34
+"   "
+x→α 34
+RCL 95
+x→α 34
+RCL 34
+209
+2
+ATEXT Z
+RCL 97
+209
+256
+ATEXT Z
+XEQ :CURVE:
+XEQ :AXES:
+XEQ :PLOT:
+XEQ :MARKS:
+XEQ :NOW:
+XEQ :TABLE:
+21
+GRFNT
+RTN
+REM ---- LBL :DATES: R34 = "SUN 25-10-2026", the day R25 ----
+LBL :DATES:
+"SUNMONTUEWEDTHUFRISAT"
+STO 47
+RCL 25
+1
++
+7
+MOD
+3
+×
+αSL 47
+3
+αLEFT 47
+STO 34
+" "
+x→α 34
+RCL 25
+XEQ :CAL:
+RCL 40
+XEQ :TWO:
+"-"
+x→α 34
+RCL 41
+XEQ :TWO:
+"-"
+x→α 34
+RCL 42
+αIP 34
+RTN
+REM ---- LBL :TWO: X (0-99) appended to R34 in two digits (as Zones 47) ----
+LBL :TWO:
+STO 94
+10
+X>Y?
+IF
+  "0"
+  x→α 34
+ENDIF
+RCL 94
+αIP 34
+RTN
+REM ---- LBL :CURVE: HS = the height every 20 minutes (73), R80 the lowest, R81 the highest; then the chart's
+REM range: the step R82 (0.5 m, 1 m over 3 m of range), R80 R81 to whole steps, R83 = 78 pixels / the range ----
+LBL :CURVE:
+73
+1
+NEWMAT
+STO "HS"
+INDEX "HS"
+1E9
+STO 80
+-1E9
+STO 81
+0
+STO 59
+DO
+  RCL 59
+  3
+  ÷
+  STO 55
+  XEQ :HAT:
+  STOEL
+  J+
+  STO 90
+  RCL 80
+  X>Y?
+  IF
+    RCL 90
+    STO 80
+  ENDIF
+  RCL 90
+  RCL 81
+  X<Y?
+  IF
+    RCL 90
+    STO 81
+  ENDIF
+  1
+  STO+ 59
+  72
+  RCL 59
+  X≤Y?
+WHILE
+ENDDO
+0.5
+STO 82
+RCL 81
+RCL- 80
+3
+X<Y?
+IF
+  1
+  STO 82
+ENDIF
+RCL 80
+RCL÷ 82
+XEQ :FLOOR:
+RCL× 82
+STO 80
+RCL 81
+RCL÷ 82
+CHS
+XEQ :FLOOR:
+CHS
+RCL× 82
+STO 81
+78
+RCL 81
+RCL- 80
+÷
+STO 83
+RTN
+REM ---- LBL :FLOOR: X = the largest whole number <= X ----
+LBL :FLOOR:
+STO 90
+IP
+STO 91
+RCL 90
+RCL 91
+X>Y?
+IF
+  1
+  STO- 91
+ENDIF
+RCL 91
+RTN
+REM ---- LBL :YPIX: X = a height: X = its row on the chart (118 + (h - R80) x R83) ----
+LBL :YPIX:
+RCL- 80
+RCL× 83
+118
++
+RTN
+REM ---- LBL :AXES: the time axis (row 118, every 3 hours a tick and the hour), the heights (every R82 a dotted line
+REM and its value) ----
+LBL :AXES:
+-115
+0
+PIXEL
+0
+STO 84
+DO
+  RCL 84
+  45
+  ×
+  26
+  +
+  STO 87
+  114
+  X<>Y
+  PIXEL
+  113
+  RCL 87
+  PIXEL
+  112
+  RCL 87
+  PIXEL
+  ""
+  STO 34
+  RCL 84
+  3
+  ×
+  XEQ :TWO:
+  RCL 34
+  103
+  RCL 87
+  4
+  -
+  ATEXT Z
+  1
+  STO+ 84
+  8
+  RCL 84
+  X≤Y?
+WHILE
+ENDDO
+RCL 80
+STO 84
+DO
+  RCL 84
+  XEQ :YPIX:
+  0.5
+  +
+  IP
+  STO 88
+  26
+  STO 89
+  DO
+    RCL 88
+    RCL 89
+    PIXEL
+    6
+    STO+ 89
+    386
+    RCL 89
+    X≤Y?
+  WHILE
+  ENDDO
+  ""
+  STO 34
+  RCL 84
+  XEQ :NUM1:
+  RCL 34
+  RCL 88
+  3
+  -
+  2
+  ATEXT Z
+  RCL 82
+  STO+ 84
+  RCL 81
+  RCL 84
+  X≤Y?
+WHILE
+ENDDO
+RTN
+REM ---- LBL :PLOT: the curve: 72 segments of 5 columns between the heights of HS (straight), a dot a column ----
+LBL :PLOT:
+INDEX "HS"
+RCLEL
+XEQ :YPIX:
+STO 87
+0
+STO 84
+DO
+  J+
+  RCLEL
+  XEQ :YPIX:
+  STO 88
+  0
+  STO 89
+  DO
+    RCL 88
+    RCL- 87
+    RCL× 89
+    5
+    ÷
+    RCL+ 87
+    0.5
+    +
+    IP
+    RCL 84
+    5
+    ×
+    RCL+ 89
+    26
+    +
+    PIXEL
+    1
+    STO+ 89
+    5
+    RCL 89
+    X<Y?
+  WHILE
+  ENDDO
+  RCL 88
+  STO 87
+  1
+  STO+ 84
+  72
+  RCL 84
+  X<Y?
+WHILE
+ENDDO
+RCL 87
+0.5
++
+IP
+386
+PIXEL
+RTN
+REM ---- LBL :MARKS: each high / low water: a cross on the curve and its time above (high) or below (low), beside it
+REM when that leaves the chart (LBL :SIDE:) ----
+LBL :MARKS:
+RCL 78
+X=0?
+RTN
+0
+STO 84
+DO
+  60
+  RCL+ 84
+  STO 90
+  RCL IND 90
+  15
+  ×
+  26
+  +
+  0.5
+  +
+  IP
+  STO 87
+  6
+  STO+ 90
+  RCL IND 90
+  XEQ :YPIX:
+  0.5
+  +
+  IP
+  STO 88
+  -2
+  STO 89
+  DO
+    RCL 88
+    RCL 87
+    RCL+ 89
+    PIXEL
+    RCL 88
+    RCL+ 89
+    RCL 87
+    PIXEL
+    1
+    STO+ 89
+    2
+    RCL 89
+    X≤Y?
+  WHILE
+  ENDDO
+  ""
+  STO 34
+  60
+  RCL+ 84
+  STO 90
+  RCL IND 90
+  XEQ :HHMM:
+  6
+  STO+ 90
+  6
+  STO+ 90
+  RCL IND 90
+  X>0?
+  IF
+    RCL 88
+    4
+    +
+  ELSE
+    RCL 88
+    11
+    -
+  ENDIF
+  STO 89
+  RCL 87
+  9
+  -
+  STO 91
+  117
+  RCL 89
+  X<Y?
+  IF
+    XEQ :SIDE:
+  ENDIF
+  RCL 89
+  199
+  X<Y?
+  IF
+    XEQ :SIDE:
+  ENDIF
+  RCL 34
+  RCL 89
+  RCL 91
+  ATEXT Z
+  1
+  STO+ 84
+  RCL 78
+  RCL 84
+  X<Y?
+WHILE
+ENDDO
+RTN
+REM ---- LBL :SIDE: the time label beside the cross (R89 its row, R91 its column): to the right, to the left near the
+REM right edge ----
+LBL :SIDE:
+RCL 88
+3
+-
+STO 89
+RCL 87
+5
++
+STO 91
+340
+X<Y?
+IF
+  RCL 87
+  42
+  -
+  STO 91
+ENDIF
+RTN
+REM ---- LBL :NOW: the day is today: a dotted line at the hour now (the calculator's clock) ----
+LBL :NOW:
+XEQ :CLOCK:
+RCL 85
+RCL 25
+X≠Y?
+RTN
+RCL 86
+15
+×
+26
++
+0.5
++
+IP
+STO 87
+119
+STO 89
+DO
+  RCL 89
+  RCL 87
+  PIXEL
+  3
+  STO+ 89
+  196
+  RCL 89
+  X≤Y?
+WHILE
+ENDDO
+RTN
+REM ---- LBL :TABLE: the high and low waters (at most 5): HIGH / LOW, the time, the height, the range from the one
+REM before ----
+LBL :TABLE:
+10
+GRFNT
+"TIDE"
+93
+10
+ATEXT Z
+"TIME"
+93
+80
+ATEXT Z
+"HEIGHT"
+93
+170
+ATEXT Z
+"RANGE"
+93
+290
+ATEXT Z
+21
+GRFNT
+RCL 78
+X=0?
+RTN
+0
+STO 84
+DO
+  74
+  RCL 84
+  18.5
+  ×
+  -
+  IP
+  STO 93
+  72
+  RCL+ 84
+  STO 90
+  RCL IND 90
+  X>0?
+  IF
+    "HIGH"
+  ELSE
+    "LOW"
+  ENDIF
+  RCL 93
+  10
+  ATEXT Z
+  ""
+  STO 34
+  60
+  RCL+ 84
+  STO 90
+  RCL IND 90
+  XEQ :HHMM:
+  RCL 34
+  RCL 93
+  80
+  ATEXT Z
+  ""
+  STO 34
+  66
+  RCL+ 84
+  STO 90
+  RCL IND 90
+  XEQ :NUM2:
+  " m"
+  x→α 34
+  RCL 34
+  RCL 93
+  170
+  ATEXT Z
+  RCL 84
+  X≠0?
+  IF
+    ""
+    STO 34
+    65
+    RCL+ 84
+    STO 91
+    RCL IND 90
+    RCL IND 91
+    -
+    ABS
+    XEQ :NUM2:
+    " m"
+    x→α 34
+    RCL 34
+    RCL 93
+    290
+    ATEXT Z
+  ENDIF
+  1
+  STO+ 84
+  RCL 78
+  5
+  X>Y?
+  IF
+    RCL 78
+  ELSE
+    5
+  ENDIF
+  RCL 84
+  X<Y?
+WHILE
+ENDDO
+RTN
+REM ---- LBL :HHMM: X = hours (0-24) appended to R34 as hh:mm (the minutes rounded first) ----
+LBL :HHMM:
+60
+×
+0.5
++
+IP
+STO 91
+60
+÷
+IP
+XEQ :TWO:
+":"
+x→α 34
+RCL 91
+60
+MOD
+XEQ :TWO:
+RTN
+REM ---- LBL :NUM2: X appended to R34 with two decimals (a minus sign if negative) ----
+LBL :NUM2:
+X<0?
+IF
+  "-"
+  x→α 34
+  DROP
+  ABS
+ENDIF
+100
+×
+0.5
++
+IP
+STO 91
+100
+÷
+IP
+αIP 34
+"."
+x→α 34
+RCL 91
+100
+MOD
+XEQ :TWO:
+RTN
+REM ---- LBL :NUM1: X appended to R34 with one decimal when it has one (0.5 m steps) ----
+LBL :NUM1:
+X<0?
+IF
+  "-"
+  x→α 34
+  DROP
+  ABS
+ENDIF
+10
+×
+0.5
++
+IP
+STO 91
+10
+÷
+IP
+αIP 34
+RCL 91
+10
+MOD
+X≠0?
+IF
+  "."
+  x→α 34
+  RCL 91
+  10
+  MOD
+  αIP 34
+ENDIF
+RTN
+REM ======== the keys ========
+REM ---- LBL :KEYS: wait for a key (DO / PAUSE 50 / KEY? 98 / WHILE / ENDDO, as Elements 47) and do it ----
+LBL :KEYS:
+DO
+  PAUSE 50
+  KEY? 98
+WHILE
+ENDDO
+RCL 98
+64
+X=Y?
+IF
+  1
+  STO+ 25
+ENDIF
+RCL 98
+62
+X=Y?
+IF
+  1
+  STO- 25
+ENDIF
+RCL 98
+74
+X=Y?
+IF
+  7
+  STO+ 25
+ENDIF
+RCL 98
+72
+X=Y?
+IF
+  7
+  STO- 25
+ENDIF
+RCL 98
+63
+X=Y?
+IF
+  XEQ :CLOCK:
+  RCL 85
+  STO 25
+ENDIF
+RCL 98
+73
+X=Y?
+IF
+  1
+  STO+ 21
+  RCL 96
+  RCL 21
+  X>Y?
+  IF
+    1
+    STO 21
+  ENDIF
+  1
+  STO 92
+ENDIF
+RCL 98
+53
+X=Y?
+IF
+  1
+  STO- 21
+  RCL 21
+  X=0?
+  IF
+    RCL 96
+    STO 21
+  ENDIF
+  1
+  STO 92
+ENDIF
+RCL 98
+85
+X=Y?
+IF
+  1
+  STO+ 20
+  3
+  RCL 20
+  X>Y?
+  IF
+    1
+    STO 20
+  ENDIF
+  1
+  STO 21
+  STO 92
+ENDIF
+RTN
+END
