@@ -19,7 +19,7 @@ the Admiralty's tables. The work is done with whole matrices, so the firmware do
 
 | | |
 |---|---|
-| Files | `build/TIDE47.txt` (the program) and the data programs `build/TIDEME.txt`, `TIDEUS.txt`, `TIDELA.txt` (convert each with rejig; load all four); commented source `programs_rem/TIDE47.txt` |
+| Files | `build/TIDE47.txt` (the program) and the data programs `build/TIDEME.txt`, `TIDEUS.txt`, `TIDELA.txt` (convert each with rejig; load all four, or build a TIDE47 for only the regions you need: `tools/build_tide47.py --regions ME`); commented source `programs_rem/TIDE47.txt` |
 | Needs | C47 / R47 firmware with STRUCT, ATEXT, GRFNT (00.109.05.00a0.ALPHA, 5 Oct 2026, or later) |
 | Size | TIDE47 2 096 steps (about 9 KB); TIDEME 1 605, TIDEUS 2 003, TIDELA 1 406 steps (about 6-7 KB each) |
 | Speed | the start about 8 s, a new day or port about 3.5 s (the simulator's step count) |

@@ -13,7 +13,9 @@ Files: programs/ and build/ TIDE47.txt TIDEME.txt TIDEUS.txt TIDELA.txt (the cal
 rejig), listings/TIDE47_doc.txt (numbered steps with comments), listings/TIDE47_labels.txt.
   python3 tools/build_tide47.py              the public build (3 regions)
   python3 tools/build_tide47.py --private    private/build/: TIDE47 with the regions of python/stations_private.py
-                                             too (+ cycles through them) and their data programs (never in git)"""
+                                             too (+ cycles through them) and their data programs (never in git)
+  python3 tools/build_tide47.py --regions AR       a TIDE47 that calls only the regions named (ME US LA AR, in the
+  python3 tools/build_tide47.py --regions ME,AR    order given): load it with just their data programs (private/build/)"""
 import os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -298,11 +300,22 @@ def build(regs, dirs, listings=True):
 
 if __name__ == '__main__':
     private = '--private' in sys.argv
+    pick = None
+    if '--regions' in sys.argv:                            # a TIDE47 that calls only these data programs
+        pick = [c.strip().upper() for c in sys.argv[sys.argv.index('--regions') + 1].split(',')]
+        private = private or 'AR' in pick
     regs = regions(private)
-    if private:                                            # private/build/: TIDE47 with the private regions, and theirs
+    if pick:
+        codes = [r[0] for r in regs]
+        bad = [c for c in pick if c not in codes]
+        if bad:
+            raise SystemExit('no region %s (there are %s)' % (','.join(bad), ','.join(codes)))
+        regs = [r for c in pick for r in regs if r[0] == c]
+    if private or pick:                                    # private/build/: TIDE47 with these regions, and their data
         dirs = [os.path.join(ROOT, 'private', 'build')]
         st = build(regs, dirs, listings=False)
-        data = build_data(regs[3:], dirs)
+        data = build_data(regs, dirs)
+        print('private/build/: load TIDE47 and %s (only these)' % ', '.join(r[1] for r in regs))
     else:
         dirs = [os.path.join(ROOT, 'programs'), os.path.join(ROOT, 'build')]
         st = build(regs, dirs)

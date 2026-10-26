@@ -81,4 +81,17 @@ writes `private/build/TIDE47.txt` (the program with a 4th region, ARAMCO: + cycl
 ARAMCO) and `private/build/TIDEAR.txt`. Convert both with rejig and load them with TIDEME, TIDEUS and TIDELA from
 `build/` (the private TIDE47 replaces the public one: it calls TIDEAR, so TIDEAR must be loaded).
 
+### Only the data you need
+
+To save memory, build a TIDE47 that calls only some regions, and load only their data programs:
+
+```bash
+python3 tools/build_tide47.py --regions AR        # TIDE47 + TIDEAR only (the Aramco stations)
+python3 tools/build_tide47.py --regions ME,AR     # TIDE47 + TIDEME + TIDEAR
+```
+
+The regions are ME (Middle East), US, LA (Latin America) and AR (Aramco), in the order given (the first is where TIDE47
+starts; + cycles through them). The files are in `private/build/`. A TIDE47 built for some regions must not be loaded
+with another build's TIDE47: the C47 keeps one program of a name.
+
 Not for navigation: the official tables are the reference.
