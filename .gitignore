@@ -3,3 +3,5 @@ __pycache__/
 *.p47
 private/
 python/stations_private.py
+python/streams_private.py
+python/flow_private.py

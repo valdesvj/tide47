@@ -13,7 +13,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import c47sim
 
-PROGS = [os.path.join(ROOT, 'build', n + '.txt') for n in ('TIDE47', 'TIDEME', 'TIDEUS', 'TIDELA')]
+PROGS = [os.path.join(ROOT, 'build', n + '.txt') for n in ('TIDE47', 'TIDEME', 'TIDEUS', 'TIDELA', 'TIDECU')]
 W, H = 400, 240
 LCD_BG, LCD_ON = (199, 205, 186), (34, 38, 30)
 UP, DOWN, LEFT, RIGHT, TODAY, REGION, WEEKB, WEEKF, END = 53, 73, 62, 64, 63, 85, 72, 74, 82
@@ -41,8 +41,45 @@ def run(ks, clock=CLOCK, maxsteps=10 ** 9, progs=None):
     return shots, c
 
 
+FLOWKEYS = dict(NEXT=64, PREV=62, DAYF=74, DAYB=72, NOW=63, POS=52)
+
+
+def run_flow(ks, lat, lon, wdir=0, wkn=0, clock=CLOCK, progs=None, maxsteps=10 ** 9, label='FLOW47'):
+    """FLOW47 in the simulator: LAT LON (DD.MMm) WDIR WKN as the INPUTs answer them; progs: TIDE47 of a private
+    build, the data programs, TIDEFL. -> the screens and the simulator (c.fl: at each key wait the state: day R25,
+    High Water R84, its hour R87, the factor R88, FU, FV, R93)."""
+    c = c47sim.load(progs)
+    c.s = [D(0)] * 4; c.pix = []; c.keys = list(ks) + [END]; c.steps = 0; c.clock = clock
+    for k, v in (('LAT', lat), ('LON', lon), ('WDIR', wdir), ('WKN', wkn)):
+        c.reg[k] = D(repr(v))
+    c.at_steps = []
+
+    class F(list):
+        def append(self, f): c.at_steps.append(c.steps); super().append(f)
+    c.frames = F()
+    c.fl = []
+
+    def hook(op, x):
+        if op == 'KEY?' and (not c.fl or c.fl[-1][0] != len(c.frames)):
+            g = lambda k: float(c.reg.get(str(k), 0))
+            c.fl.append((len(c.frames), dict(n=int(g(25)), m=int(g(84)), t=g(87), f=g(88), ok=int(float(c.reg.get('FOK', 0) or 0)),
+                                             FU=[float(r[0]) for r in c.mats.get('FU', [])] if 'FU' in c.mats else None,
+                                             FV=[float(r[0]) for r in c.mats.get('FV', [])] if 'FV' in c.mats else None,
+                                             spring=g(89), nst=float(c.reg.get('NST', 0) or 0),
+                                             ndst=float(c.reg.get('NDST', 0) or 0), ev=events(c))))
+    c.count = hook
+    c.run(label, maxsteps=maxsteps)
+    shots = [{(x, H - 1 - y) for y, x in f if 0 <= y < H and 0 <= x < W} for f in c.frames]
+    return shots, c
+
+
 def events(c):
+    """The high and low waters [(hours, metres, +1 / -1)]; a stream station (R28 >= 2): the rows of EV [(hours,
+    value kn, set deg, +1 max / -1 min)]."""
     n = int(c.reg.get('78', 0))
+    if float(c.reg.get('28', 0)) >= 2:
+        m = c.mats.get('EV')
+        return [(float(m[i][0]), float(m[i][1]), float(m[i][2]), int(m[i][3])) for i in range(n)] if m else []
     return [(float(c.reg['%d' % (60 + i)]), float(c.reg['%d' % (66 + i)]), int(c.reg['%d' % (72 + i)])) for i in range(n)]
 
 
@@ -79,4 +116,9 @@ if __name__ == '__main__':
     png(os.path.join(ROOT, 'docs', 'TIDE47_boston.png'), shots[-1])
     shots, c = run([REGION, REGION, DOWN, DOWN, DOWN])
     png(os.path.join(ROOT, 'docs', 'TIDE47_balboa.png'), shots[-1])
+    shots, c = run([REGION] * 3)
+    png(os.path.join(ROOT, 'docs', 'TIDE47_pollockrip.png'), shots[-1])
+    shots, c = run([REGION] * 3 + [UP])
+    png(os.path.join(ROOT, 'docs', 'TIDE47_deception.png'), shots[-1])
+    print('a stream station: %d steps (%.1f s)' % (c.at_steps[-1] - c.at_steps[-2], secs(c.at_steps[-1] - c.at_steps[-2])))
     print('docs/TIDE47_*.png written')

@@ -10,6 +10,9 @@
     height to 1E-9 m) and the same curve;
  4. the keys: 6 4 3 1 5 (days), 2 8 (ports), + (regions); the end (0): R20-R99 cleared, no matrix left, GRFNT 20,
     GRMOD 0, the stack back; the screens written to docs/.
+ 5. tidal streams: the C47 against the twin (tide47ref.sday) at every NOAA stream station on three days, and at a
+    synthetic rotary station through a private-style build; the end after a stream day; tools/make_private_streams.py
+    on current tables made from known constants (tests/synth_streams.py): a year fitted, the next predicted.
   python3 tests/test_tide47.py"""
 import json, math, os, sys, time
 from decimal import Decimal as D
@@ -17,7 +20,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path[:0] = [os.path.join(ROOT, 'python')]
 import tide47ref as R          # noqa: E402
 import stations                # noqa: E402
+import streams                 # noqa: E402
 import tide47sim as S          # noqa: E402
+sys.path[:0] = [os.path.join(ROOT, 'tools'), os.path.join(ROOT, 'tests')]
+ALLREG = stations.REGIONS + streams.REGIONS
 
 FAIL = []
 
@@ -91,6 +97,32 @@ def run_day(port_keys):
     return shots, c
 
 
+def test_fast():
+    print('3a. the v0.3 engine (one evaluation an hour, cubics) against the exact v0.2 method (tide47ref.day_exact)')
+    wt = wh = wc = 0
+    for _, _, _, ports in stations.REGIONS:
+        for st in ports:
+            for n in range(R.jdn(2026, 1, 1), R.jdn(2026, 1, 1) + 30):
+                a, b = R.day(st, n), R.day_exact(st, n)
+                ok = len(a[1]) == len(b[1]) and all(x[2] == y[2] for x, y in zip(a[1], b[1]))
+                if not ok:
+                    check(False, '%s day %d: %s / %s' % (st['name'], n, a[1], b[1]))
+                for x, y in zip(a[1], b[1]):
+                    wt = max(wt, abs(x[0] - y[0]) * 3600); wh = max(wh, abs(x[1] - y[1]))
+                wc = max(wc, max(abs(p - q) for p, q in zip(a[2], b[2])))
+    check(wt < 1 and wh < 1e-4 and wc < 0.002, 'tides: high and low waters within %.2f s, %.1g m; the curve within %.2f '
+          'mm' % (wt, wh, wc * 1000))
+    wt = wv = 0
+    for st in streams.REGIONS[0][3]:
+        for n in range(R.jdn(2026, 1, 1), R.jdn(2026, 1, 1) + 30):
+            a, b = R.sday(st, n), R.sday_exact(st, n)
+            if len(a[1]) != len(b[1]):
+                check(False, '%s day %d: %d / %d events' % (st['name'], n, len(a[1]), len(b[1])))
+            for x, y in zip(a[1], b[1]):
+                wt = max(wt, abs(x[0] - y[0]) * 3600); wv = max(wv, abs(x[1] - y[1]))
+    check(wt < 60 and wv < 0.002, 'streams: slacks and maxima within %.0f s, %.4f kn' % (wt, wv))
+
+
 def test_c47():
     print('3. the C47 against the twin')
     days = [R.jdn(2026, 10, 25), R.jdn(2027, 3, 21), R.jdn(2028, 6, 30)]
@@ -138,9 +170,9 @@ def test_keys():
     names = [e[3] for e in c.ev]
     me = [p['name'] for p in stations.REGIONS[0][3]]
     check(names == [me[0], me[1], me[2], me[1], me[0], me[-1]], 'ports: %s' % names)
-    shots, c = S.run([S.REGION, S.REGION, S.REGION])
+    shots, c = S.run([S.REGION] * len(ALLREG))
     names = [e[3] for e in c.ev]
-    check(names == [stations.REGIONS[i % 3][3][0]['name'] for i in range(4)], 'regions: %s' % names)
+    check(names == [ALLREG[i % len(ALLREG)][3][0]['name'] for i in range(len(ALLREG) + 1)], 'regions: %s' % names)
     import c47sim
     cc = c47sim.load(S.PROGS)
     cc.s = [D(11), D(22), D(33), D(44)]; cc.pix = []; cc.keys = [S.END]; cc.steps = 0; cc.clock = S.CLOCK; cc.frames = []
@@ -175,7 +207,7 @@ def test_probe():
     names = [e[3] for e in c.ev]
     check(names == [first['TIDEME'], first['TIDELA'], first['TIDEME']], 'TIDEME + TIDELA: + goes from one to the other: %s'
           % names)
-    old = open(P['TIDEUS'], encoding='utf-8').read().replace('\n60\nSTO 93\n', '\n', 1)
+    old = open(P['TIDEUS'], encoding='utf-8').read().replace('\n3060\nSTO 93\n', '\n', 1)
     assert old != open(P['TIDEUS'], encoding='utf-8').read()
     fn = os.path.join(tempfile.mkdtemp(), 'TIDEUS.txt')
     open(fn, 'w', encoding='utf-8').write(old)
@@ -190,11 +222,183 @@ def test_probe():
           'matrix left, the stack back)')
 
 
+def test_streams():
+    print('6. tidal streams')
+    import build_tide47 as B, synth_streams as SY, make_private_streams as MPS, c47sim, tempfile, shutil, datetime as dt
+    days = [R.jdn(2026, 10, 25), R.jdn(2027, 3, 21), R.jdn(2028, 6, 30)]
+    ri = len(stations.REGIONS)
+    wt = wv = ws = 0
+    n = 0
+    for pi, st in enumerate(streams.REGIONS[0][3]):
+        for dn in days:
+            shots, c = S.run([S.REGION] * ri + [S.DOWN] * pi, clock=dn + 1 / 24)
+            fr, ev, n25, name = c.ev[-1]
+            tz, tw, cu = R.sday(st, dn)
+            ok = name == st['name'] and n25 == dn and len(ev) == len(tw)
+            for a, b in zip(ev, tw):
+                wt = max(wt, abs(a[0] - b[0]) * 3600); wv = max(wv, abs(a[1] - b[1]))
+                if b[3] > 0:                       # a slack's set is the sign of a speed of 1E-15 (not shown)
+                    ws = max(ws, abs(a[2] - b[2]))
+                ok = ok and a[3] == b[3]
+            if not ok:
+                check(False, '%s %s: %s / %s' % (st['name'], R.cal(dn), ev, tw))
+            n += 1
+    check(wt < 0.01 and wv < 1e-9 and ws < 1e-9, '%d NOAA stream-days: the same slacks and maxima (%.2g s, %.2g kn, '
+          'the sets %.2g deg)' % (n, wt, wv, ws))
+    # a rotary station: TIDE47 and its data program built with a test region (as build_tide47.py --private)
+    tmp = tempfile.mkdtemp()
+    try:
+        rot = SY.rot_station()
+        regs = ALLREG + [('TS', 'TIDETS', 'TEST: SYNTHETIC', [rot])]
+        B.build(regs, [tmp], listings=False)
+        B.build_data(regs, [tmp])
+        progs = [os.path.join(tmp, l + '.txt') for _, l, _, _ in [('', 'TIDE47', '', '')] + regs]
+        wt = wv = ws = 0
+        for dn in days:
+            shots, c = S.run([S.REGION] * (len(regs) - 1), clock=dn + 1 / 24, progs=progs)
+            fr, ev, n25, name = c.ev[-1]
+            tz, tw, cu = R.sday(rot, dn)
+            ok = name == rot['name'] and len(ev) == len(tw)
+            for a, b in zip(ev, tw):
+                wt = max(wt, abs(a[0] - b[0]) * 3600); wv = max(wv, abs(a[1] - b[1]))
+                ws = max(ws, abs((a[2] - b[2] + 180) % 360 - 180)); ok = ok and a[3] == b[3]
+            check(ok, 'rotary %04d-%02d-%02d: %d events' % (R.cal(dn) + (len(ev),)))
+        check(wt < 0.01 and wv < 1e-9 and ws < 1e-9, 'rotary: the same maxima and minima (%.2g s, %.2g kn, %.2g deg)'
+              % (wt, wv, ws))
+        S.png(os.path.join(ROOT, 'docs', 'TIDE47_rotary_test.png'), shots[-1])
+        cc = c47sim.load(progs)
+        cc.s = [D(11), D(22), D(33), D(44)]; cc.pix = []; cc.keys = [S.REGION] * (len(regs) - 1) + [S.END]
+        cc.steps = 0; cc.clock = S.CLOCK; cc.frames = []; cc.lastx = D(55)
+        cc.run('TIDE47', maxsteps=10 ** 9)
+        check(not cc.mats and [int(v) for v in cc.s[:4]] == [11, 22, 33, 44], 'the end after a stream day: no matrix '
+              'left, the stack back %s' % (sorted(cc.mats) or ''))
+        # the fit: a year of tables, the next predicted
+        d = os.path.join(tmp, 'tables')
+        os.makedirs(d)
+        SY.write(SY.rect_station(), SY.table(SY.rect_station(), 2026, 2027), os.path.join(d, 'rect.txt'))
+        SY.write(rot, SY.table(rot, 2026, 2027), os.path.join(d, 'rot.txt'))
+        old = sys.argv
+        sys.argv = ['x', '--test-from', '2027-01-01', d]
+        try:
+            ports, rep = MPS.main()
+        finally:
+            sys.argv = old
+        rc = dict(rep)
+        a, b = rc[SY.rect_station()['name']], rc[rot['name']]
+        check(a['t_rms'] < 1 and a['s_rms'] < 0.05 and a['miss'] == 0, 'rectilinear tables (slack, flood, ebb): the '
+              'next year within %.1f min, %.2f kn rms' % (a['t_rms'], a['s_rms']))
+        check(b['t_rms'] < 2 and b['s_rms'] < 0.05 and b['miss'] < 5, 'rotary tables (max, min, set): the next year '
+              'within %.1f min, %.2f kn rms' % (b['t_rms'], b['s_rms']))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+        priv = os.path.join(ROOT, 'private', 'STREAMS_COMPARE.md')
+        if os.path.exists(priv) and 'TEST ' in open(priv).read():
+            os.remove(priv)
+
+
+def test_flow():
+    print('7. FLOW47: the C47 against the twin (tide47ref.flow_*) with a synthetic atlas and Mina Salman as the reference')
+    import build_tide47 as B, synth_flow as SF, tempfile, shutil, c47sim
+    fl = SF.atlas()
+    ref = stations.REGIONS[0][3][0]
+    tmp = tempfile.mkdtemp()
+    try:
+        regs = list(ALLREG)
+        ri, pi = B.flow_find(regs, fl)
+        flow = (ri, pi, fl, regs[ri - 1][1])
+        B.build(regs, [tmp], listings=False, flow=flow)
+        open(os.path.join(tmp, 'TIDEFL.txt'), 'w').write('\n'.join(B.flow_data(fl)) + '\n')
+        progs = [os.path.join(tmp, 'TIDE47.txt')] + [os.path.join(ROOT, 'build', r[1] + '.txt') for r in regs] + \
+            [os.path.join(tmp, 'TIDEFL.txt')]
+        K = S.FLOWKEYS
+        keys = [K['NEXT'], K['NEXT'], K['PREV'], K['DAYF'], K['DAYB'], K['PREV'], K['NOW']]
+        today = R.jdn(2026, 10, 25)
+        worst = 0
+        for lat, lon, wd, wk in ((28.24, 49.36, 320, 25), (27.15, 50.03, 0, 0), (26.3, 50.4, 90, 12), (26.2, 49.0, 0, 0),
+                                 (29.5, 49.0, 0, 0)):
+            shots, c = S.run_flow(keys, lat, lon, wd, wk, progs=progs)
+            cell = R.flow_cell(fl, R.dm(lat), R.dm(lon))
+            st = [f for _, f in c.fl]
+            if cell is None:
+                check(all(f['ok'] == 0 for f in st), '%.2f %.2f: no atlas here (land or outside), as the twin' % (lat, lon))
+                continue
+            n, m = R.flow_pick(ref, today, 13.0)
+            want = [(n, m)]
+            for k in keys:
+                if k == K['NEXT']:
+                    n, m = R.flow_step(ref, n, m, 1)
+                elif k == K['PREV']:
+                    n, m = R.flow_step(ref, n, m, -1)
+                elif k in (K['DAYF'], K['DAYB']):
+                    t = R.flow_cycle(ref, n, m)[0]
+                    n, m = R.flow_pick(ref, n + (1 if k == K['DAYF'] else -1), t)
+                else:
+                    n, m = R.flow_pick(ref, today, 13.0)
+                want.append((n, m))
+            ok = len(st) == len(want)
+            for f, (n, m) in zip(st, want):
+                t, h, rng, fac = R.flow_cycle(ref, n, m)
+                ok = ok and f['ok'] == 1 and f['n'] == n and f['m'] == m
+                worst = max(worst, abs(f['t'] - t) * 3600, abs(f['f'] - fac) * 1e4)
+            for a, b in zip(st[0]['FU'] + st[0]['FV'], cell[0] + cell[1]):
+                worst = max(worst, abs(a - b) * 1e4)
+            check(ok, '%.2f %.2f: the same High Waters through the keys %s' % (lat, lon, [(f['n'] - today, f['m']) for f in st]))
+        check(worst < 1e-3, 'the hours, the factors and the atlas values the same (worst %.2g: s, 1E-4 of the factor, '
+              '1E-4 kn)' % worst)
+        S.png(os.path.join(ROOT, 'docs', 'FLOW47_synthetic.png'), S.run_flow([], 28.24, 49.36, 0, 0, progs=progs)[0][0])
+        cc = c47sim.load(progs)
+        from decimal import Decimal as Dd
+        cc.s = [Dd(11), Dd(22), Dd(33), Dd(44)]; cc.pix = []; cc.keys = [S.END]; cc.steps = 0; cc.clock = S.CLOCK
+        cc.frames = []; cc.lastx = Dd(55)
+        for k, v in (('LAT', 27.3), ('LON', 50.1), ('WDIR', 0), ('WKN', 0)):
+            cc.reg[k] = Dd(v)
+        cc.run('FLOW47', maxsteps=10 ** 9)
+        left = [k for k in cc.mats]
+        check(not left and [int(v) for v in cc.s[:4]] == [11, 22, 33, 44], 'the end of FLOW47: no matrix left, the stack '
+              'back %s' % (left or ''))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_artf():
+    print('8. ARTF47: the C47 against the twin (art_nearest, day, flow_*), the Middle East ports standing in for Aramco')
+    import build_tide47 as B, synth_flow as SF, tempfile, shutil
+    fl = SF.atlas()
+    ME = stations.REGIONS[0]
+    tmp = tempfile.mkdtemp()
+    try:
+        B.build([ME], [tmp], listings=False, flow=(1, 1, fl, 'TIDEME'), art=dict(ports=ME[3]))
+        B.build_data([ME], [tmp])
+        open(os.path.join(tmp, 'TIDEFL.txt'), 'w').write('\n'.join(B.flow_data(fl)) + '\n')
+        progs = [os.path.join(tmp, n + '.txt') for n in ('TIDE47', 'TIDEME', 'TIDEFL')]
+        K = S.FLOWKEYS
+        ok, worst = True, 0
+        for lat, lon in ((28.24, 49.36), (23.36, 58.34), (12.47, 44.58)):
+            shots, c = S.run_flow([K['NEXT'], K['DAYF'], K['NOW']], lat, lon, progs=progs, label='ARTF47')
+            k, d = R.art_nearest(ME[3], R.dm(lat), R.dm(lon))
+            cell = R.flow_cell(fl, R.dm(lat), R.dm(lon))
+            for _, f in c.fl:
+                ev = R.day(ME[3][k - 1], f['n'])[1]
+                ok = ok and int(f['nst']) == k and len(f['ev']) == len(ev) and f['ok'] == (cell is not None)
+                worst = max([worst, abs(f['ndst'] - d)] + [abs(a[0] - b[0]) * 3600 for a, b in zip(f['ev'], ev)])
+            check(ok, '%.2f %.2f: the nearest station %s (%.1f nm), its day, the atlas %s' % (
+                lat, lon, ME[3][k - 1]['name'], d, 'there' if cell else 'not there'))
+        check(worst < 1e-3, 'the distances and the tide times the same (worst %.2g)' % worst)
+        S.png(os.path.join(ROOT, 'docs', 'ARTF47_synthetic.png'), S.run_flow([], 28.24, 49.36, progs=progs,
+                                                                            label='ARTF47')[0][0])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == '__main__':
     test_astronomy()
     test_utide()
+    test_fast()
     test_c47()
     test_keys()
     test_probe()
+    test_streams()
+    test_flow()
+    test_artf()
     print('ALL OK' if not FAIL else '%d FAILED' % len(FAIL))
     sys.exit(1 if FAIL else 0)

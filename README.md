@@ -1,8 +1,9 @@
 # Tide 47 🌊
 
-Tide predictions for the **C47 / R47** RPN calculator (and the DM42n with the C47 firmware): the high and low waters
-and the tide curve of any day, for 25 ports, computed on the calculator by the harmonic method of NOAA and the
-Admiralty.
+Tide and tidal-stream predictions for the **C47 / R47** RPN calculator (and the DM42n with the C47 firmware): the high
+and low waters and the tide curve of any day for 25 ports, and the slack water, maximum flood and ebb (or the rotary
+stream's maxima and minima, with the set) for tidal-stream stations, computed on the calculator by the harmonic method
+of NOAA and the Admiralty.
 
 ![Mina Salman, Bahrain](docs/TIDE47_bahrain.png)
 
@@ -15,14 +16,15 @@ the Admiralty's tables. The work is done with whole matrices, so the firmware do
 | the phases | `P = DM × AV + UM × BV − G` (MOD 360): DM the Doodson numbers (60 × 7), AV the astronomical angles τ s h p N′ p′ of the day, UM and BV the nodal phases u |
 | the amplitudes | `A = eˣ(EM × LF + LH)`: EM the node-factor powers (60 × 10), LF the logs of the 10 basic factors, LH the logs of the port's amplitudes: f × H without a loop |
 | a height | `Z0 + A · COS(W t + P)`: one COS of a 60-vector and one DOT |
-| high and low waters | the sign of h′ every hour (`AW · SIN(W t + P)`), then four Newton steps (`AW2 · COS`) |
+| high and low waters | h, h′, h″ every hour from one `COS` and one `SIN` of the phases; where h′ changes sign, the cubic (Hermite) of h′ between the hours, then one exact Newton step |
+| the curve | every 20 minutes from the hourly values and slopes: two matrix products of constant Hermite weights (no more cosine sums) |
 
 | | |
 |---|---|
-| Files | `build/TIDE47.txt` (the program) and the data programs `build/TIDEME.txt`, `TIDEUS.txt`, `TIDELA.txt` (convert each with rejig; load TIDE47 and the data programs you want: TIDE47 finds those loaded, with `LBL?`, and + goes through them only; an older data program is left out with OLD DATA, REBUILD); commented source `programs_rem/TIDE47.txt` |
+| Files | `build/TIDE47.txt` (the program) and the data programs `build/TIDEME.txt`, `TIDEUS.txt`, `TIDELA.txt`, `TIDECU.txt` (convert each with rejig; load TIDE47 and the data programs you want: TIDE47 finds those loaded, with `LBL?`, and + goes through them only; an older data program is left out with OLD DATA, REBUILD); commented source `programs_rem/TIDE47.txt`; FLOW47 is built apart (`private/build_flow/`, docs/FLOW.md) |
 | Needs | C47 / R47 firmware with STRUCT, ATEXT, GRFNT (00.109.05.00a0.ALPHA, 5 Oct 2026, or later) |
-| Size | TIDE47 2 096 steps (about 9 KB); TIDEME 1 605, TIDEUS 2 003, TIDELA 1 406 steps (about 6-7 KB each) |
-| Speed | the start about 8 s, a new day or port about 3.5 s (the simulator's step count) |
+| Size | TIDE47 2 694 steps (about 10 KB); TIDEME 1 605, TIDEUS 2 003, TIDELA 1 406, TIDECU 1 420 steps (about 5-7 KB each) |
+| Speed | v0.3: a day takes about 2 300 element cosines and sines (Bahrain; v0.2: 8 000): only the port's constituents, one exact evaluation an hour, the curve and the events from cubics between the hours. The simulator's step count: the start about 9 s, a day about 4 s, plus the trig time of the real calculator (to be measured) |
 | At the end (0) | your stack and LASTx as before; R00-R19 untouched, R20-R99 cleared; the matrices deleted; GRMOD 0, GRFNT 20; the angle mode DEG |
 
 ## Using it
@@ -36,7 +38,7 @@ calculator to the port's local time).
 | **1 3** | the week before / after |
 | **5** | today |
 | **8 2** | the port before / after |
-| **+** | the next region loaded: MIDDLE EAST, USA, LATIN AMERICA (ARAMCO in the private build) |
+| **+** | the next region loaded: MIDDLE EAST, USA, LATIN AMERICA, US STREAMS (ARAMCO in the private build) |
 | **0** | the end |
 
 The screen follows Almanac 47's split view: the port and the date, the time zone, the datum and the source; the day's
@@ -56,6 +58,44 @@ over 19 years (2020-2038). The US ports keep NOAA's datum, MLLW, so their height
 standard time; the US ports follow US daylight time (the whole day, from the second Sunday of March to the first
 Sunday of November). `python3 tools/make_stations.py` writes the ports (`python/stations.py`); more ports can be added
 from TICON-3's 3 363 gauges.
+
+## Tidal streams
+
+![Deception Pass](docs/TIDE47_deception.png)
+
+A stream station shows the signed stream (flood above 0, ebb below) or, when the stream turns through the compass, its
+speed; the table gives each slack and maximum flood and ebb (or MAX / MIN) with the time, the speed in knots and the
+set; today, the header shows the stream **NOW** at the calculator's clock. The public region US STREAMS has seven NOAA
+current stations. For the Arabian Gulf fields, GEOSA's Saudi tidal current tables are fitted on your computer and
+kept private (as Aramco's tide tables are): [docs/STREAMS.md](docs/STREAMS.md).
+
+## FLOW47: the tidal stream atlas at a position
+
+![FLOW47 (synthetic atlas)](docs/FLOW47_synthetic.png)
+
+`XEQ "FLOW47"`: give the position (and the wind), and the 13 hours HW−6 … HW+6 of a tidal-stream atlas appear for
+that position: the clock time, an arrow, the set and the knots, scaled from springs to the day's range at the
+reference station, with the wind's current added; beside them, a rose of the 13 streams and the stream now. It is
+built for a private atlas of the Saudi Arabian Gulf fields (digitized from its scanned charts on your computer, with
+Ras Tanura's Aramco constants as the reference), and built apart: `python3 tools/build_tide47.py --flow` writes
+`private/build_flow/` (TIDE47 with FLOW47, TIDEFL, the data programs); the other builds have no FLOW47.
+[docs/FLOW.md](docs/FLOW.md).
+
+## ARTF47: Aramco tide and flow on one screen
+
+`XEQ "ARTF47"` (the Aramco build, `build_tide47.py --artf` -> `private/build_artf/`): the position's tidal stream
+table on the left (FLOW47's) and, on the right, the tide of the Aramco station nearest the position: its curve with
+the table's 13 hours marked, now, and its high and low waters. [docs/ARTF.md](docs/ARTF.md)
+
+## The PC app (GTK)
+
+`python3 app/tide47_gtk.py` (PyGObject with GTK 4 and pycairo; on Arch: `sudo pacman -S python-gobject gtk4
+python-cairo`): the same engine as the calculator (python/tide47ref.py, its twin) in four tabs: **Tide** (an Aramco
+station's day), **Flow** (the 13-hour stream table at a position and the rose), **ARTF** (the table and the nearest
+station's tide) and **Map** (the atlas over the whole area as a colour gradient of the speed with its arrows, the
+stations marked, your position as a triangle; ◀ ▶ or the arrow keys step through the 13 charts; click to move the
+position). It reads your private data (python/stations_private.py, python/flow_private.py); without them it runs on
+public stand-ins and says so in red. `--png DIR` writes the four views as pictures.
 
 ### Your own stations (Aramco)
 
