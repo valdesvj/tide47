@@ -166,6 +166,22 @@
 - The rose's cost (Victor asked): a new High Water 26 700 steps with it, 18 000 without (the hodograph's lines are
   most of it, pixel by pixel); the vector trig of LBL :DAYC: is the same either way.
 
+## Oct 26, 2026 - ARTF47: Aramco tide and flow on one screen (branch claude/artf47)
+
+- Victor: FLOW47 and TIDE47 together, Aramco only; no rose; the tide below; the tide station the nearest to the
+  position; the stream from the position and the charts.
+- LBL "ARTF47" between REM ==== ARTF { / } (only build_tide47.py --artf: --regions AR, FLOW47 kept too; output
+  private/build_artf/). The build writes STL (the region's positions), RNAM, the reference's region / number.
+- :NEAR2: the nearest (60 x hypot(dlat, dlon cos lat), ->POL); :ATIDE: loads it and computes its day when it is not
+  the one loaded (R21); keys reload the reference first (:AREF:), so FNEXT / PICK see its events.
+- The right panel (:APANEL:): the name and distance, the curve (HS from HR as :CURVE:, 7.5 px an hour), the axis,
+  the table's 13 hours as a bar, the events marked and listed, now.
+- Bug found: the data programs set R93 = DATAVER at X = 0 (the probe) and every LOAD calls it: FLOW's atlas flag
+  in R93 was overwritten by ARTF's second LOAD -> the variable FOK.
+- Tests 8: the Middle East ports standing in for Aramco, a synthetic atlas: the nearest, its day and the atlas as the
+  twin. A first screen about 76 000 steps, a new High Water about 46 000 (two days when the nearest is not the
+  reference).
+
 ## Plans
 
 - Tidal streams: done (v0.2.0). Next: the GEOSA tables (Victor) -> private/streams/; the vessel's own DP / ADCP

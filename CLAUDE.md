@@ -28,5 +28,6 @@
   (private/atlas/, python/flow_private.py, TIDEFL: docs/FLOW.md); its pictures in docs/ use a synthetic atlas.
 - programs_rem/TIDE47.txt also holds FLOW47 (LBL "FLOW47" and its routines between REM ==== FLOW { and REM ==== FLOW },
   sharing the engine, LBL :DAYC:): only `build_tide47.py --flow` keeps it (private/build_flow/); every other build strips it.
+  ARTF47 likewise (REM ==== ARTF { ... }): only `--artf` (private/build_artf/: the Aramco region, FLOW47 and ARTF47).
 - Work in one repository at a time (this one); the other 47 repositories are for reference only.
 - Ask before anything that can't be undone. Pull requests only for tide47.

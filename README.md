@@ -81,6 +81,12 @@ Ras Tanura's Aramco constants as the reference), and built apart: `python3 tools
 `private/build_flow/` (TIDE47 with FLOW47, TIDEFL, the data programs); the other builds have no FLOW47.
 [docs/FLOW.md](docs/FLOW.md).
 
+## ARTF47: Aramco tide and flow on one screen
+
+`XEQ "ARTF47"` (the Aramco build, `build_tide47.py --artf` -> `private/build_artf/`): the position's tidal stream
+table on the left (FLOW47's) and, on the right, the tide of the Aramco station nearest the position: its curve with
+the table's 13 hours marked, now, and its high and low waters. [docs/ARTF.md](docs/ARTF.md)
+
 ### Your own stations (Aramco)
 
 Stations whose tables may not be published, such as Saudi Aramco's, can be added as a private region on your own

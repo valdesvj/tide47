@@ -219,25 +219,42 @@ def flow_cfg(flow):
             'ELSE', '  "FLOW47: LOAD %s (THE REFERENCE)"' % label, '  XEQ :MSG:', 'ENDIF']
 
 
-def flow_strip(lines):
-    """The lines without FLOW47 (between REM ==== FLOW { and REM ==== FLOW }): every build but --flow."""
+def flow_strip(lines, block='FLOW'):
+    """The lines without a block (between REM ==== FLOW { and REM ==== FLOW }: FLOW47, every build but --flow and
+    --artf; REM ==== ARTF { ... }: ARTF47, every build but --artf)."""
     out, skip = [], False
     for ln in lines:
-        if ln.strip() == 'REM ==== FLOW {':
+        if ln.strip() == 'REM ==== %s {' % block:
             skip = True
-        elif ln.strip() == 'REM ==== FLOW }':
+        elif ln.strip() == 'REM ==== %s }' % block:
             skip = False
         elif not skip:
             out.append(ln)
     return out
 
 
-def fill(lines, regs, flow=None):
+def artf_cfg(flow, art):
+    """REM ==== ARTFCFG: the stations' positions (STL), the reference's name, then the run; the region not loaded: a
+    note."""
+    ri, pi, fl, label = flow
+    ports = art['ports']
+    st = ['REM the stations of %s (their positions) and the reference station: written by the build' % label,
+          str(ri), 'XEQ :HAS:', 'X≠0?', 'IF', '  %d' % len(ports), '  2', '  NEWMAT', '  STO "STL"', '  INDEX "STL"']
+    for p in ports:
+        st += ['  %r' % float(p['lat']), '  STOEL', '  J+', '  %r' % float(p['lon']), '  STOEL', '  J+']
+    st += ['  "%s"' % ports[pi - 1]['name'], '  STO "RNAM"', '  %d' % ri, '  STO 20', '  %d' % pi, '  STO 21',
+           '  XEQ :AGO:', 'ELSE', '  "ARTF47: LOAD %s"' % label, '  XEQ :MSG:', 'ENDIF']
+    return st
+
+
+def fill(lines, regs, flow=None, art=None):
     """The markers and the {NAME} constants."""
     sys.path.insert(0, os.path.join(ROOT, 'python'))
     import tide47ref as R
     consts = dict(R.K)
     consts.update(flow_consts(flow[2] if flow else None))
+    if art:
+        consts.update(AREFR=flow[0], AREFP=flow[1], ANST=len(art['ports']))
     out = []
     for ln in lines:
         ind = ln[:len(ln) - len(ln.lstrip())]
@@ -256,6 +273,8 @@ def fill(lines, regs, flow=None):
             out.append(ind + str(len(regs)))
         elif ln.strip() == 'REM ==== FLOWCFG':
             out += [ind + st for st in flow_cfg(flow)]
+        elif ln.strip() == 'REM ==== ARTFCFG':
+            out += [ind + st for st in artf_cfg(flow, art)]
         else:
             for k, v in consts.items():
                 ln = ln.replace('{%s}' % k, repr(v))
@@ -369,14 +388,20 @@ def flow_find(regs, fl, want=None):
     raise SystemExit('the atlas\'s reference station "%s" is in no region (python/stations_private.py?)' % (want or fl['ref']))
 
 
-def build(regs, dirs, listings=True, flow=None):
+def build(regs, dirs, listings=True, flow=None, art=None):
+    """flow: (region, station, the atlas, the data program) keeps FLOW47; art (with flow): dict(ports=the region's
+    stations) keeps ARTF47 too."""
     src = os.path.join(ROOT, 'programs_rem', NAME + '.txt')
     lines = [ln.rstrip() for ln in open(src, encoding='utf-8')]
-    lines = fill(lines if flow else flow_strip(lines), regs, flow)
+    if not art:
+        lines = flow_strip(lines, 'ARTF')
+    if not flow:
+        lines = flow_strip(lines, 'FLOW')
+    lines = fill(lines, regs, flow, art)
     steps = source_steps(lines)
     numeric, num = resolve(steps)
     numeric = structures(numeric)
-    want = ['LBL "%s"' % NAME] + (['LBL "FLOW47"'] if flow else [])
+    want = ['LBL "%s"' % NAME] + (['LBL "FLOW47"'] if flow else []) + (['LBL "ARTF47"'] if art else [])
     if [s for s in steps if s.startswith('LBL "')] != want or steps.count('END') != 1:
         raise SystemExit('one program, %s%s' % (NAME, ' with FLOW47' if flow else ''))
     listing, n = [], 0
@@ -408,6 +433,12 @@ if __name__ == '__main__':
     private = '--private' in sys.argv
     pick = None
     flowb = '--flow' in sys.argv
+    artb = '--artf' in sys.argv
+    if artb:                                               # ARTF47: the Aramco region only (--artf-region: another)
+        code = sys.argv[sys.argv.index('--artf-region') + 1] if '--artf-region' in sys.argv else 'AR'
+        if '--regions' not in sys.argv:
+            sys.argv += ['--regions', code]
+        flowb = True
     want = sys.argv[sys.argv.index('--flow-ref') + 1] if '--flow-ref' in sys.argv else None
     if '--regions' in sys.argv:                            # a TIDE47 that calls only these data programs
         pick = [c.strip().upper() for c in sys.argv[sys.argv.index('--regions') + 1].split(',')]
@@ -427,14 +458,15 @@ if __name__ == '__main__':
         fl = flow_private.FLOW
         ri, pi = flow_find(regs, fl, want)
         flow = (ri, pi, fl, regs[ri - 1][1])
-        dirs = [os.path.join(ROOT, 'private', 'build_flow')]
-        st = build(regs, dirs, listings=False, flow=flow)
+        dirs = [os.path.join(ROOT, 'private', 'build_artf' if artb else 'build_flow')]
+        st = build(regs, dirs, listings=False, flow=flow, art=dict(ports=regs[ri - 1][3]) if artb else None)
         data = build_data(regs, dirs)
         fst = flow_data(fl)
         for d in dirs:
             open(os.path.join(d, 'TIDEFL.txt'), 'w', encoding='utf-8').write('\n'.join(fst) + '\n')
         data.append(('TIDEFL', len(fst), estimate(fst), sum(c is not None for c in fl['cells'])))
-        print('private/build_flow/: TIDE47 with FLOW47; load it with TIDEFL (the atlas, %d sea nodes) and %s (the '
+        print(('private/build_artf/: TIDE47 with FLOW47 and ARTF47' if artb else
+               'private/build_flow/: TIDE47 with FLOW47') + '; load it with TIDEFL (the atlas, %d sea nodes) and %s (the '
               'reference station: %s), and the other data programs you want' % (
                   data[-1][3], regs[ri - 1][1], regs[ri - 1][3][pi - 1]['name']))
     elif private or pick:                                  # private/build/: TIDE47 with these regions, and their data

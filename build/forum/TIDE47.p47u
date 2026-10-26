@@ -162,6 +162,11 @@ DELITM "FL"
 DELITM "FU"
 DELITM "FV"
 DELITM "SDIR"
+DELITM "STL"
+DELITM "NST"
+DELITM "NDST"
+DELITM "RNAM"
+DELITM "FOK"
 0
 GRMOD
 20
@@ -648,6 +653,11 @@ STO "FL"
 STO "FU"
 STO "FV"
 STO "SDIR"
+STO "STL"
+STO "NST"
+STO "NDST"
+STO "RNAM"
+STO "FOK"
 @ the Hermite weights of the curve (LBL :CURVE:): B1 the values, B2 the slopes, a row a point every 20 minutes
 @ (s = 0: 1; s = 1/3: 20/27 7/27 and 4/27 -2/27; s = 2/3: 7/27 20/27 and 2/27 -4/27); E1 E2 E4 E5 pick HR's columns
 73

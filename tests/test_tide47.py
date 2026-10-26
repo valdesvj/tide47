@@ -360,6 +360,36 @@ def test_flow():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_artf():
+    print('8. ARTF47: the C47 against the twin (art_nearest, day, flow_*), the Middle East ports standing in for Aramco')
+    import build_tide47 as B, synth_flow as SF, tempfile, shutil
+    fl = SF.atlas()
+    ME = stations.REGIONS[0]
+    tmp = tempfile.mkdtemp()
+    try:
+        B.build([ME], [tmp], listings=False, flow=(1, 1, fl, 'TIDEME'), art=dict(ports=ME[3]))
+        B.build_data([ME], [tmp])
+        open(os.path.join(tmp, 'TIDEFL.txt'), 'w').write('\n'.join(B.flow_data(fl)) + '\n')
+        progs = [os.path.join(tmp, n + '.txt') for n in ('TIDE47', 'TIDEME', 'TIDEFL')]
+        K = S.FLOWKEYS
+        ok, worst = True, 0
+        for lat, lon in ((28.24, 49.36), (23.36, 58.34), (12.47, 44.58)):
+            shots, c = S.run_flow([K['NEXT'], K['DAYF'], K['NOW']], lat, lon, progs=progs, label='ARTF47')
+            k, d = R.art_nearest(ME[3], R.dm(lat), R.dm(lon))
+            cell = R.flow_cell(fl, R.dm(lat), R.dm(lon))
+            for _, f in c.fl:
+                ev = R.day(ME[3][k - 1], f['n'])[1]
+                ok = ok and int(f['nst']) == k and len(f['ev']) == len(ev) and f['ok'] == (cell is not None)
+                worst = max([worst, abs(f['ndst'] - d)] + [abs(a[0] - b[0]) * 3600 for a, b in zip(f['ev'], ev)])
+            check(ok, '%.2f %.2f: the nearest station %s (%.1f nm), its day, the atlas %s' % (
+                lat, lon, ME[3][k - 1]['name'], d, 'there' if cell else 'not there'))
+        check(worst < 1e-3, 'the distances and the tide times the same (worst %.2g)' % worst)
+        S.png(os.path.join(ROOT, 'docs', 'ARTF47_synthetic.png'), S.run_flow([], 28.24, 49.36, progs=progs,
+                                                                            label='ARTF47')[0][0])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == '__main__':
     test_astronomy()
     test_utide()
@@ -369,5 +399,6 @@ if __name__ == '__main__':
     test_probe()
     test_streams()
     test_flow()
+    test_artf()
     print('ALL OK' if not FAIL else '%d FAILED' % len(FAIL))
     sys.exit(1 if FAIL else 0)

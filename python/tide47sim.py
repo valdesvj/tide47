@@ -44,7 +44,7 @@ def run(ks, clock=CLOCK, maxsteps=10 ** 9, progs=None):
 FLOWKEYS = dict(NEXT=64, PREV=62, DAYF=74, DAYB=72, NOW=63, POS=52)
 
 
-def run_flow(ks, lat, lon, wdir=0, wkn=0, clock=CLOCK, progs=None, maxsteps=10 ** 9):
+def run_flow(ks, lat, lon, wdir=0, wkn=0, clock=CLOCK, progs=None, maxsteps=10 ** 9, label='FLOW47'):
     """FLOW47 in the simulator: LAT LON (DD.MMm) WDIR WKN as the INPUTs answer them; progs: TIDE47 of a private
     build, the data programs, TIDEFL. -> the screens and the simulator (c.fl: at each key wait the state: day R25,
     High Water R84, its hour R87, the factor R88, FU, FV, R93)."""
@@ -62,12 +62,13 @@ def run_flow(ks, lat, lon, wdir=0, wkn=0, clock=CLOCK, progs=None, maxsteps=10 *
     def hook(op, x):
         if op == 'KEY?' and (not c.fl or c.fl[-1][0] != len(c.frames)):
             g = lambda k: float(c.reg.get(str(k), 0))
-            c.fl.append((len(c.frames), dict(n=int(g(25)), m=int(g(84)), t=g(87), f=g(88), ok=int(g(93)),
+            c.fl.append((len(c.frames), dict(n=int(g(25)), m=int(g(84)), t=g(87), f=g(88), ok=int(float(c.reg.get('FOK', 0) or 0)),
                                              FU=[float(r[0]) for r in c.mats.get('FU', [])] if 'FU' in c.mats else None,
                                              FV=[float(r[0]) for r in c.mats.get('FV', [])] if 'FV' in c.mats else None,
-                                             spring=g(89))))
+                                             spring=g(89), nst=float(c.reg.get('NST', 0) or 0),
+                                             ndst=float(c.reg.get('NDST', 0) or 0), ev=events(c))))
     c.count = hook
-    c.run('FLOW47', maxsteps=maxsteps)
+    c.run(label, maxsteps=maxsteps)
     shots = [{(x, H - 1 - y) for y, x in f if 0 <= y < H and 0 <= x < W} for f in c.frames]
     return shots, c
 

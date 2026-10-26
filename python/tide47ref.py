@@ -561,6 +561,17 @@ def flow_now(rows, off):
     return u0 + (u1 - u0) * s, v0 + (v1 - v0) * s
 
 
+def art_nearest(ports, lat, lon):
+    """ARTF47's tide station: the port nearest the position (degrees): (its number from 1, the distance in nm: 60 x the
+    hypotenuse of the latitude difference and the longitude difference x cos latitude; the first of equals)."""
+    best, k = 1e9, 1
+    for i, p in enumerate(ports, 1):
+        d = 60 * math.hypot(p['lat'] - lat, (p['lon'] - lon) * math.cos(math.radians(lat)))
+        if d < best:
+            best, k = d, i
+    return k, best
+
+
 def setkn(u, v):
     return math.degrees(math.atan2(u, v)) % 360, math.hypot(u, v)
 
