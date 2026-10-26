@@ -1,0 +1,29 @@
+---- What it is ----
+Tide 47 predicts the tide on the C47 / R47: for any day at a port, the times and heights of the high and low waters
+and the tide curve of the day, worked out on the calculator by the harmonic method that NOAA's and the Admiralty's
+tables use (60 constituents with the 18.6-year nodal corrections, as whole matrices). The ports come in data
+programs by region: TIDEME (the Middle East: Bahrain, Oman, Iran, Pakistan, Yemen, Djibouti), TIDEUS (ten US ports)
+and TIDELA (Latin America). Heights are in metres above the chart datum (LAT, or MLLW for the US ports).
+NOT FOR NAVIGATION: the astronomical tide only (wind, pressure and surges add to it); the official tables of the
+port authority are the reference.
+
+---- How to use it ----
+Load TIDE47 and the data programs of the regions you want (one is enough: TIDE47 finds those loaded), then press
+XEQ TIDE47. Setting up takes about 8 seconds; it shows today at the first port. The day is the calculator's date;
+the dotted line on the curve is its clock (set the calculator to the port's local time).
+  4 6   the day before / after            1 3   the week before / after          5   today
+  8 2   the port before / after           +     the next region loaded           0   the end
+The screen: the port, the date, its time zone, the datum and the source; the day's curve (hours 00-24) with each
+high and low water marked; the table of the high and low waters with their heights and ranges. A new day or port
+takes about 3.5 seconds. A data program from an older version is left out with OLD DATA, REBUILD.
+
+---- What it changes on your calculator ----
+Your stack and LASTx are given back at the end. Registers R00-R19 are not touched; R20-R99 are used and cleared at
+the end. It makes its matrices while it runs (DM UM EM SPD W LW ONES AV BV LF HG HH G LH P L A AW AW2 Z HS) and
+deletes them at the end. The angle mode is left in DEG; GRMOD 0 and GRFNT 20 are set.
+
+---- Programs and labels ----
+TIDE47 is one program with one global label (TIDE47); every routine is a local label. Each data program is one
+program with one global label (TIDEME, TIDEUS, TIDELA) and a local label per port. Written with the STRUCT commands,
+the matrix functions, ATEXT and GRFNT of the C47 / R47 firmware (00.109.05.00a0.ALPHA of 5 Oct 2026 or later); LN
+and LBL? are used here for the first time on a calculator (see the README).

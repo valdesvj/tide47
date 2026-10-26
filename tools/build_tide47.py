@@ -339,3 +339,6 @@ if __name__ == '__main__':
         sum(1 for s in st if s.startswith('IF ')), sum(1 for s in st if s.startswith('DO '))))
     for label, n, b, ports in data:
         print('%-7s %5d steps, %2d ports, about %d bytes' % (label, n, ports, b))
+    if not pick:                                           # the forum files (build/forum/; with --private the private data too)
+        import build_forum
+        build_forum.main(private)

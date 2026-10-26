@@ -71,6 +71,16 @@
 - c47sim: LBL? as a test (marked tide47); tide47sim.run(progs=). tests: TIDEUS alone, TIDEME + TIDELA, an older TIDEUS,
   TIDE47 alone; by hand: the private TIDE47 with TIDEAR alone opens on ARAMCO.
 
+## Oct 26, 2026 - the forum files for new users (branch claude/tide47-forum)
+
+- The forum asked contributors for plain-English instructions in the .p47u ('@' lines, not '#': rejig makes a '#'
+  line a REM step) and local labels. tools/build_forum.py (from Chess 47's), run by the build: build/forum/TIDE47.p47u
+  (the '@' metadata, tools/forum/TIDE47.txt, the source's header as technical notes, the comment blocks as '@' lines,
+  label names after ';') and one file per data program (tools/forum/DATA.txt with its region and ports, each port's
+  LBL named after ';'); with --private also private/build/forum/TIDEAR.p47u (git-ignored).
+- tools/build_p47.py (with rejig on Victor's computer): build/p47/*.p47, each checked against the plain listing's;
+  --private: private/build/p47/ (TIDE47 of the private build from its plain listing). tests/test_forum.py.
+
 ## Plans
 
 - Tidal streams (a branch of its own): harmonic analysis of the vessel's own ADCP / current-meter logs (least squares,
