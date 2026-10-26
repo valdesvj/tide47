@@ -97,6 +97,32 @@ def run_day(port_keys):
     return shots, c
 
 
+def test_fast():
+    print('3a. the v0.3 engine (one evaluation an hour, cubics) against the exact v0.2 method (tide47ref.day_exact)')
+    wt = wh = wc = 0
+    for _, _, _, ports in stations.REGIONS:
+        for st in ports:
+            for n in range(R.jdn(2026, 1, 1), R.jdn(2026, 1, 1) + 30):
+                a, b = R.day(st, n), R.day_exact(st, n)
+                ok = len(a[1]) == len(b[1]) and all(x[2] == y[2] for x, y in zip(a[1], b[1]))
+                if not ok:
+                    check(False, '%s day %d: %s / %s' % (st['name'], n, a[1], b[1]))
+                for x, y in zip(a[1], b[1]):
+                    wt = max(wt, abs(x[0] - y[0]) * 3600); wh = max(wh, abs(x[1] - y[1]))
+                wc = max(wc, max(abs(p - q) for p, q in zip(a[2], b[2])))
+    check(wt < 1 and wh < 1e-4 and wc < 0.002, 'tides: high and low waters within %.2f s, %.1g m; the curve within %.2f '
+          'mm' % (wt, wh, wc * 1000))
+    wt = wv = 0
+    for st in streams.REGIONS[0][3]:
+        for n in range(R.jdn(2026, 1, 1), R.jdn(2026, 1, 1) + 30):
+            a, b = R.sday(st, n), R.sday_exact(st, n)
+            if len(a[1]) != len(b[1]):
+                check(False, '%s day %d: %d / %d events' % (st['name'], n, len(a[1]), len(b[1])))
+            for x, y in zip(a[1], b[1]):
+                wt = max(wt, abs(x[0] - y[0]) * 3600); wv = max(wv, abs(x[1] - y[1]))
+    check(wt < 60 and wv < 0.002, 'streams: slacks and maxima within %.0f s, %.4f kn' % (wt, wv))
+
+
 def test_c47():
     print('3. the C47 against the twin')
     days = [R.jdn(2026, 10, 25), R.jdn(2027, 3, 21), R.jdn(2028, 6, 30)]
@@ -245,6 +271,7 @@ def test_streams():
 if __name__ == '__main__':
     test_astronomy()
     test_utide()
+    test_fast()
     test_c47()
     test_keys()
     test_streams()

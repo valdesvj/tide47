@@ -186,7 +186,12 @@ def vector(j):
     return out
 
 
-# ---- the C47's day, step for step (LBL :DAY:, :EVENTS:, :REFINE:, :CURVE:) ----
+# ---- the C47's day, step for step (LBL :DAY:, :HOURS:, :FIND:, :ROOT:, :CURVE:) ----
+# v0.3 (speed): only the port's constituents (the non-zero ones: the selection matrix S on the C47), one exact
+# evaluation an hour (COS and SIN of the same phases give the value, its first and second derivatives), the events
+# from the cubic (Hermite) of the event function F between the hours, then one exact Newton step; the curve from
+# the hourly values and slopes (Hermite). The v0.2 method (an exact sum at every curve point, four exact Newton steps)
+# stays as day_exact / sday_exact: tests/test_tide47.py checks the two agree (seconds, millimetres).
 def jdn(y, m, d):
     a = (14 - m) // 12; yy = y + 4800 - a; mm = m + 12 * a - 3
     return d + (153 * mm + 2) // 5 + 365 * yy + yy // 4 - yy // 100 + yy // 400 - 32045
@@ -210,7 +215,137 @@ def dst(st, n):
     return 1 if start <= n < end else 0
 
 
+def port_index(st):
+    """The constituents a port carries (the C47's IX): the non-zero ones of hc (and hv), in CONS order (1-based)."""
+    names = [k[0] for k in CONS]
+    have = set(n for n, v in st['hc'].items() if v[0] > 0) | set(n for n, v in st.get('hv', {}).items() if v[0] > 0)
+    return [i + 1 for i, n in enumerate(names) if n in have]
+
+
+def comp(st, j0, hc, ix=None):
+    """P (deg) and A AW AW2 of one component over the port's constituents (LBL :VEC:), and their speeds W (deg/h)."""
+    ix = ix or port_index(st)
+    W = speeds()
+    vf = vector(j0)
+    P, A, AW, AW2, Wk = [], [], [], [], []
+    for i in ix:
+        name = CONS[i - 1][0]
+        vu, f = vf[i - 1]
+        H, g = hc.get(name, (0.0, 0.0))
+        a = f * (H + 1e-40)
+        r = W[i - 1] * D2R
+        P.append((vu - g) % 360); A.append(a); AW.append(a * r); AW2.append(a * r * r); Wk.append(W[i - 1])
+    return P, A, AW, AW2, Wk
+
+
+def evaluate(C, z0, t):
+    """One component at the hour t (LBL :UV:): (value, first, second derivative)."""
+    P, A, AW, AW2, Wk = C
+    z = [(p + w * t) * D2R for p, w in zip(P, Wk)]
+    c = [math.cos(x) for x in z]
+    s_ = [math.sin(x) for x in z]
+    return (z0 + sum(a * x for a, x in zip(A, c)), -sum(a * x for a, x in zip(AW, s_)),
+            -sum(a * x for a, x in zip(AW2, c)))
+
+
+def herm(f0, d0, f1, d1, s):
+    """The cubic (Hermite) on [0, 1] through f0, f1 with slopes d0, d1 (an interval of 1 hour): (value, slope)."""
+    s2, s3 = s * s, s * s * s
+    v = (2 * s3 - 3 * s2 + 1) * f0 + (s3 - 2 * s2 + s) * d0 + (-2 * s3 + 3 * s2) * f1 + (s3 - s2) * d1
+    dv = (6 * s2 - 6 * s) * f0 + (3 * s2 - 4 * s + 1) * d0 + (-6 * s2 + 6 * s) * f1 + (3 * s2 - 2 * s) * d1
+    return v, dv
+
+
+def _ff(u, v):
+    """The event function F and F' from (u, u', u'') and (v, v', v''): tide F = h' (then v = 0 and F = u', F' = u'')
+    is the same formula as the stream's g = u u' + v v' only for a stream; see engine()."""
+    return u[0] * u[1] + v[0] * v[1], u[1] * u[1] + u[0] * u[2] + v[1] * v[1] + v[0] * v[2]
+
+
+def engine(st, n, stream):
+    """The day n at st, as the C47 does it: (tz, events [(t, value, set, kind)], curve 73, hourly rows)."""
+    tz = st['tz'] + dst(st, n)
+    j0 = n - 0.5 - tz / 24
+    ix = port_index(st)
+    E = comp(st, j0, st['hc'], ix)
+    rot = stream and st.get('kind') == 'rot'
+    N = comp(st, j0, st['hv'], ix) if rot else None
+    z0, v0 = st['z0'], st.get('v0', 0.0)
+
+    def uv(t):
+        u = evaluate(E, z0, t)
+        v = evaluate(N, v0, t) if rot else (0.0, 0.0, 0.0)
+        if not stream:
+            return u, v, u[1], u[2]                           # a tide: F = h', F' = h''
+        F, Fp = _ff(u, v)
+        return u, v, F, Fp
+    HR = [uv(float(t)) for t in range(25)]
+    ev = []
+    most = 8 if stream else 6
+    for k in range(1, 25):
+        F0, D0 = HR[k - 1][2], HR[k - 1][3]
+        F1, D1 = HR[k][2], HR[k][3]
+        if F0 * F1 < 0 and len(ev) < most:
+            s = F0 / (F0 - F1)
+            for _ in range(3):
+                p, dp = herm(F0, D0, F1, D1, s)
+                s -= p / dp
+                s = min(max(s, 0.0), 1.0)
+            x0 = k - 1 + s
+            u, v, F, Fp = uv(x0)
+            x = min(max(x0 - F / Fp, k - 1.0), float(k))
+            dx = x - x0
+            uu, vv = u[0] + u[1] * dx, v[0] + v[1] * dx
+            kind = 1 if Fp < 0 else -1
+            if not stream:
+                ev.append((x, uu, 0.0, kind))
+            elif not rot:
+                ev.append((x, uu, float(st['flood'] if uu >= 0 else st['ebb']), kind))
+            else:
+                ev.append((x, math.hypot(uu, vv), math.degrees(math.atan2(uu, vv)) % 360, kind))
+    curve = []
+    for k in range(73):
+        t = k / 3
+        i = min(int(t), 23)
+        s = t - i
+        a, b = HR[i], HR[i + 1]
+        u = herm(a[0][0], a[0][1], b[0][0], b[0][1], s)[0]
+        if rot:
+            v = herm(a[1][0], a[1][1], b[1][0], b[1][1], s)[0]
+            curve.append(math.hypot(u, v))
+        else:
+            curve.append(u)
+    return tz, ev, curve, HR
+
+
 def day(st, n):
+    """The day n (JDN of the local date) at the station st: (tz, events [(t hours, height m, +1 HW / -1 LW)],
+    the curve [the height every 20 minutes, 73 values]), as the C47 computes them."""
+    tz, ev, curve, _ = engine(st, n, False)
+    return tz, [(t, h, k) for t, h, _, k in ev], curve
+
+
+def sday(st, n):
+    """The day n at the stream station st: (tz, events [(t hours, value kn, set deg, +1 max / -1 min)], the curve
+    [the value every 20 minutes, 73]): value = the signed speed along the flood axis (rect) or the speed (rot)."""
+    tz, ev, curve, _ = engine(st, n, True)
+    return tz, ev, curve
+
+
+def stream_now(st, n, hour):
+    """The value and set at the local hour of the day n (the C47's NOW: one exact evaluation)."""
+    tz = st['tz'] + dst(st, n)
+    j0 = n - 0.5 - tz / 24
+    ix = port_index(st)
+    u = evaluate(comp(st, j0, st['hc'], ix), st['z0'], hour)[0]
+    if st['kind'] != 'rot':
+        return u, (st['flood'] if u >= 0 else st['ebb'])
+    v = evaluate(comp(st, j0, st['hv'], ix), st.get('v0', 0.0), hour)[0]
+    return math.hypot(u, v), math.degrees(math.atan2(u, v)) % 360
+
+
+# ---- v0.2, exact at every point (kept for the tests: the reference the faster engine is checked against) ----
+def day_exact(st, n):
     """The day n (JDN of the local date) at the station st: (tz, events [(t hours, height m, +1 HW / -1 LW)],
     the curve [the height every 20 minutes, 73 values]), as the C47 computes them."""
     tz = st['tz'] + dst(st, n)
@@ -264,7 +399,7 @@ def _vecs(st, j0, hc):
     return P, A, AW, AW2
 
 
-def sday(st, n):
+def sday_exact(st, n):
     """The day n (JDN of the local date) at the stream station st: (tz, events [(t hours, value kn, set deg,
     +1 max / -1 min)], the curve [the value every 20 minutes, 73]): value = the signed speed along the flood axis
     (rect) or the speed (rot), as the C47 computes them."""
@@ -316,7 +451,7 @@ def sday(st, n):
     return tz, ev, curve
 
 
-def stream_now(st, n, hour):
+def stream_now_exact(st, n, hour):
     """The value and set at the local hour of the day n (the C47's NOW)."""
     tz = st['tz'] + dst(st, n)
     j0 = n - 0.5 - tz / 24

@@ -232,11 +232,12 @@ def data_program(code, label, title, ports):
     names = [c[0] for c in R.CONS]
     st = ['LBL "%s"' % label, 'X=0?', 'GTO 99', 'STO 99', 'XEQ IND 99', 'RTN',
           'LBL 99', '"%s"' % title, 'STO 97', str(len(ports)), 'STO 96', 'RTN']
-    def mat(name, hc):
-        out = [str(len(names)), '1', 'NEWMAT', 'STO "%s"' % name, 'INDEX "%s"' % name]
-        for n in names:
-            H, g = hc.get(n, (0.0, 0.0))
-            v = int(round(H * 1e4)) * 100000 + int(round(g * 100)) % 36000
+    def mat(name, hc, ix):
+        """the port's constituents only (v0.3): its number in the 60 x 1E11 + H (0.1 mm) x 100000 + g / 100"""
+        out = [str(len(ix)), '1', 'NEWMAT', 'STO "%s"' % name, 'INDEX "%s"' % name]
+        for i in ix:
+            H, g = hc.get(names[i - 1], (0.0, 0.0))
+            v = i * 10 ** 11 + int(round(H * 1e4)) * 100000 + int(round(g * 100)) % 36000
             out += [str(v), 'STOEL', 'J+']
         return out
     for i, p in enumerate(ports, 1):
@@ -247,9 +248,10 @@ def data_program(code, label, title, ports):
             st += ['%d.%03d' % (p['flood'], p['ebb']), 'STO 79']
         elif p.get('kind') == 'rot':
             st += [repr(p['v0']), 'STO 79']
-        st += mat('HG', p['hc'])
+        ix = R.port_index(p)
+        st += [str(len(ix)), 'STO "NK"'] + mat('HG', p['hc'], ix)
         if p.get('kind') == 'rot':
-            st += mat('HV', p['hv'])
+            st += mat('HV', p['hv'], ix)
         st.append('RTN')
     st.append('END')
     return st

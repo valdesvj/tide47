@@ -16,14 +16,15 @@ the Admiralty's tables. The work is done with whole matrices, so the firmware do
 | the phases | `P = DM × AV + UM × BV − G` (MOD 360): DM the Doodson numbers (60 × 7), AV the astronomical angles τ s h p N′ p′ of the day, UM and BV the nodal phases u |
 | the amplitudes | `A = eˣ(EM × LF + LH)`: EM the node-factor powers (60 × 10), LF the logs of the 10 basic factors, LH the logs of the port's amplitudes: f × H without a loop |
 | a height | `Z0 + A · COS(W t + P)`: one COS of a 60-vector and one DOT |
-| high and low waters | the sign of h′ every hour (`AW · SIN(W t + P)`), then four Newton steps (`AW2 · COS`) |
+| high and low waters | h, h′, h″ every hour from one `COS` and one `SIN` of the phases; where h′ changes sign, the cubic (Hermite) of h′ between the hours, then one exact Newton step |
+| the curve | every 20 minutes from the hourly values and slopes: two matrix products of constant Hermite weights (no more cosine sums) |
 
 | | |
 |---|---|
 | Files | `build/TIDE47.txt` (the program) and the data programs `build/TIDEME.txt`, `TIDEUS.txt`, `TIDELA.txt`, `TIDECU.txt` (convert each with rejig; load all five); commented source `programs_rem/TIDE47.txt` |
 | Needs | C47 / R47 firmware with STRUCT, ATEXT, GRFNT (00.109.05.00a0.ALPHA, 5 Oct 2026, or later) |
 | Size | TIDE47 2 694 steps (about 10 KB); TIDEME 1 605, TIDEUS 2 003, TIDELA 1 406, TIDECU 1 420 steps (about 5-7 KB each) |
-| Speed | the start about 8 s, a new day or port about 3.5 s, a stream station about 5 s (the simulator's step count) |
+| Speed | v0.3: a day takes about 2 300 element cosines and sines (Bahrain; v0.2: 8 000): only the port's constituents, one exact evaluation an hour, the curve and the events from cubics between the hours. The simulator's step count: the start about 9 s, a day about 4 s, plus the trig time of the real calculator (to be measured) |
 | At the end (0) | your stack and LASTx as before; R00-R19 untouched, R20-R99 cleared; the matrices deleted; GRMOD 0, GRFNT 20; the angle mode DEG |
 
 ## Using it

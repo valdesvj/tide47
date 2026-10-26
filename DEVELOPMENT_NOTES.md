@@ -88,6 +88,24 @@
   1.0 min / 0.03 kn (the tables' 0.1 kn rounding). Tests 5 also run the rotary station on the C47 through a
   private-style build (identical to the twin: 4E-9 s, 3E-13 kn, 5E-12 deg).
 
+## Oct 26, 2026 - v0.3 speed (branch claude/tide47-streams)
+
+- Victor: TIDE47 is very slow on the calculator. The step counts hid the work: one COS of a 60-vector is one step but
+  60 34-digit cosines; v0.2 did about 8 000 element cosines / sines a day (73 curve points, 25 hourly h', 4 Newton
+  steps x 2 an event).
+- Only the port's constituents: the data programs carry the non-zero ones (packed: number in the 60 x 1E11 + H x 1E5 +
+  g / 100; NK of them); LBL :SEL: makes the selection matrix S (NK x 60) and WK = S x W, LWK = S x LW; each day
+  VU = S x (DM AV + UM BV), EL = S x EM x LF. Exact: the dropped ones are zero. 15-40 of 60.
+- One exact evaluation an hour (LBL :HOURS:: :UV: gives u u' u'' from one COS and one SIN, v likewise): HR 25 x 8 with
+  the event function F, F' (LBL :FF:: a tide h', h''; a stream g = u u' + v v', g'). LBL :FIND: / :ROOT:: where F
+  changes sign, the Hermite cubic of F (F and F' at the two hours), three Newton steps on it, then ONE exact Newton
+  step; the value at the event u + u' dx. Kind: F' < 0 a maximum (both modes).
+- The curve: HS = B1 x (HR x E1) + B2 x (HR x E2), B1 B2 constant 73 x 25 Hermite weights (made at the start), E1 E2
+  pick columns; a rotary stream: v likewise, the speed with ->POL in the min / max loop.
+- Against the exact v0.2 method (kept as tide47ref.day_exact / sday_exact, tests 3a): tides 0.06 s and 2E-6 m, the
+  curve 0.8 mm; streams 1 s (16 s worst over 60 days), 0.0004 kn. The C47 = the twin as before (tests 3, 5).
+- Work a day: Bahrain 2 320 element trig (from 8 040), Boston 1 680 (7 500); steps 22 500 (20 000).
+
 ## Plans
 
 - Tidal streams: done (v0.2.0). Next: the GEOSA tables (Victor) -> private/streams/; the vessel's own DP / ADCP

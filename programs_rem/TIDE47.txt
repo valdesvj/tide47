@@ -91,6 +91,19 @@ DELITM "AW2N"
 DELITM "ZW"
 DELITM "CZ"
 DELITM "EV"
+DELITM "HR"
+DELITM "S"
+DELITM "IX"
+DELITM "WK"
+DELITM "LWK"
+DELITM "NK"
+DELITM "B1"
+DELITM "B2"
+DELITM "E1"
+DELITM "E2"
+DELITM "E4"
+DELITM "E5"
+DELITM "HSV"
 0
 GRMOD
 20
@@ -182,6 +195,158 @@ STO "AW2N"
 STO "ZW"
 STO "CZ"
 STO "EV"
+STO "HR"
+STO "S"
+STO "IX"
+STO "WK"
+STO "LWK"
+STO "NK"
+STO "HSV"
+REM the Hermite weights of the curve (LBL :CURVE:): B1 the values, B2 the slopes, a row a point every 20 minutes
+REM (s = 0: 1; s = 1/3: 20/27 7/27 and 4/27 -2/27; s = 2/3: 7/27 20/27 and 2/27 -4/27); E1 E2 E4 E5 pick HR's columns
+73
+25
+NEWMAT
+STO "B1"
+73
+25
+NEWMAT
+STO "B2"
+0
+STO 50
+DO
+  RCL 50
+  3
+  ×
+  STO 51
+  INDEX "B1"
+  RCL 51
+  1
+  +
+  RCL 50
+  1
+  +
+  STOIJ
+  1
+  STOEL
+  RCL 51
+  2
+  +
+  RCL 50
+  1
+  +
+  STOIJ
+  20
+  27
+  ÷
+  STOEL
+  J+
+  7
+  27
+  ÷
+  STOEL
+  RCL 51
+  3
+  +
+  RCL 50
+  1
+  +
+  STOIJ
+  7
+  27
+  ÷
+  STOEL
+  J+
+  20
+  27
+  ÷
+  STOEL
+  INDEX "B2"
+  RCL 51
+  2
+  +
+  RCL 50
+  1
+  +
+  STOIJ
+  4
+  27
+  ÷
+  STOEL
+  J+
+  -2
+  27
+  ÷
+  STOEL
+  RCL 51
+  3
+  +
+  RCL 50
+  1
+  +
+  STOIJ
+  2
+  27
+  ÷
+  STOEL
+  J+
+  -4
+  27
+  ÷
+  STOEL
+  1
+  STO+ 50
+  23
+  RCL 50
+  X≤Y?
+WHILE
+ENDDO
+INDEX "B1"
+73
+25
+STOIJ
+1
+STOEL
+8
+1
+NEWMAT
+STO "E1"
+INDEX "E1"
+1
+1
+STOIJ
+1
+STOEL
+8
+1
+NEWMAT
+STO "E2"
+INDEX "E2"
+2
+1
+STOIJ
+1
+STOEL
+8
+1
+NEWMAT
+STO "E4"
+INDEX "E4"
+4
+1
+STOIJ
+1
+STOEL
+8
+1
+NEWMAT
+STO "E5"
+INDEX "E5"
+5
+1
+STOIJ
+1
+STOEL
 XEQ :CLOCK:
 RCL 85
 STO 25
@@ -259,9 +424,59 @@ IF
 ENDIF
 RCL "HG"
 XEQ :UNPK:
+XEQ :SEL:
 RTN
-REM ---- LBL :UNPK: X = a port's matrix (H x 100000 + g / 100 a constituent): G the phases, LH the logs of H ----
+REM ---- LBL :SEL: the selection matrix S (NK x 60: 1 at (i, IX i)): the port's constituents out of the 60; WK, LWK
+REM the speeds and their logs of those (S x W, S x LW) ----
+LBL :SEL:
+RCL "NK"
+60
+NEWMAT
+STO "S"
+1
+STO 50
+DO
+  INDEX "IX"
+  RCL 50
+  1
+  STOIJ
+  RCLEL
+  STO 51
+  INDEX "S"
+  RCL 50
+  RCL 51
+  STOIJ
+  1
+  STOEL
+  1
+  STO+ 50
+  RCL "NK"
+  RCL 50
+  X≤Y?
+WHILE
+ENDDO
+RCL "S"
+RCL "W"
+×
+STO "WK"
+RCL "S"
+RCL "LW"
+×
+STO "LWK"
+RTN
+REM ---- LBL :UNPK: X = a port's matrix, one number a constituent it has: its number in the 60 (IX) x 1E11 + H (0.1 mm
+REM or 0.0001 kn) x 100000 + g / 100: IX, G the phases, LH the logs of H ----
 LBL :UNPK:
+STO "HQ"
+1E-11
+×
+IP
+STO "IX"
+RCL "HQ"
+RCL "IX"
+1E11
+×
+-
 STO "HQ"
 0.00001
 ×
@@ -278,7 +493,10 @@ STO "G"
 RCL "HH"
 0.0001
 ×
-RCL "ONES"
+RCL "HH"
+0
+×
+eˣ
 1E-40
 ×
 +
@@ -312,9 +530,14 @@ RCL "UM"
 RCL "BV"
 ×
 +
+RCL "S"
+X<>Y
+×
 STO "VU"
+RCL "S"
 RCL "EM"
 RCL "LF"
+×
 ×
 STO "EL"
 RCL 28
@@ -341,18 +564,13 @@ ENDIF
 RCL "G"
 RCL "LH"
 XEQ :VEC:
-RCL 28
-2
-X≤Y?
-IF
-  XEQ :SEVENTS:
-ELSE
-  XEQ :EVENTS:
-ENDIF
+XEQ :HOURS:
+XEQ :FIND:
 XEQ :SCREEN:
 RTN
-REM ---- LBL :VEC: Y = the phases G, X = the logs LH of a component: P = VU - G (MOD 360) with VU = DM x AV + UM x BV,
-REM A = e^(EL + LH) with EL = EM x LF (f x H), AW = A x the speeds (rad / h), AW2 = AW x the speeds ----
+REM ---- LBL :VEC: Y = the phases G, X = the logs LH of a component: P = VU - G (MOD 360) with VU = S x (DM x AV + UM x
+REM BV), A = e^(EL + LH) with EL = S x EM x LF (f x H), AW = A x the speeds (rad / h), AW2 = AW x the speeds: vectors
+REM of the port's NK constituents ----
 LBL :VEC:
 X<>Y
 RCL "VU"
@@ -368,13 +586,13 @@ STO "L"
 eˣ
 STO "A"
 RCL "L"
-RCL "LW"
+RCL "LWK"
 +
 STO "L"
 eˣ
 STO "AW"
 RCL "L"
-RCL "LW"
+RCL "LWK"
 +
 eˣ
 STO "AW2"
@@ -976,173 +1194,133 @@ J+
 RCL 35
 STOEL
 RTN
-REM ---- LBL :EVENTS: the high and low waters of the day: the sign of h' at 0, 1, ..., 24 h; a change: LBL :REFINE: ----
-LBL :EVENTS:
+REM ======== tidal streams ========
+REM ---- LBL :HOURS: the hours 0-24: LBL :UV: and :FF: into HR (25 x 8: u u' u'' v v' v'' F F'), row = the hour + 1 ----
+LBL :HOURS:
+25
+8
+NEWMAT
+STO "HR"
 0
-STO 78
-0
-STO 59
-XEQ :DER:
-STO 51
-1
-STO 50
+STO 55
 DO
-  RCL 50
-  STO 59
-  XEQ :DER:
-  STO 52
-  RCL× 51
-  X<0?
-  IF
-    XEQ :REFINE:
-  ENDIF
-  RCL 52
-  STO 51
+  XEQ :UV:
+  XEQ :FF:
+  INDEX "HR"
+  RCL 55
   1
-  STO+ 50
+  +
+  1
+  STOIJ
+  RCL 30
+  STOEL
+  J+
+  RCL 32
+  STOEL
+  J+
+  RCL 35
+  STOEL
+  J+
+  RCL 31
+  STOEL
+  J+
+  RCL 33
+  STOEL
+  J+
+  RCL 36
+  STOEL
+  J+
+  RCL 56
+  STOEL
+  J+
+  RCL 57
+  STOEL
+  1
+  STO+ 55
   24
-  RCL 50
+  RCL 55
   X≤Y?
 WHILE
 ENDDO
 RTN
-REM ---- LBL :DER: X = AW . SIN(W t + P) = -h'(t) at the hour t = R59 ----
-LBL :DER:
-RCL "W"
-RCL 59
-×
-RCL "P"
-+
-SIN
-RCL "AW"
-DOT
-RTN
-REM ---- LBL :REFINE: h' changes sign between R50 - 1 and R50 (R51, R52): from the straight line between them, four
-REM Newton steps x - S / C2 (S = AW . SIN, C2 = AW2 . COS at x), kept in the hour; the event R78 + 1: its time
-REM R60 +, height R66 +, kind R72 + (1 high water: h'' = -C2 < 0) ----
-LBL :REFINE:
-RCL 78
-6
+REM ---- LBL :FF: the event function from R30-R36: R56 F, R57 F' (a tide: F = h', F' = h''; a stream: F = g = u u' +
+REM v v', F' = u'^2 + u u'' + v'^2 + v v''): an event where F changes sign, a maximum when F' < 0 ----
+LBL :FF:
+RCL 28
+2
 X≤Y?
-RTN
-RCL 50
-1
--
-STO 53
-RCL 50
-STO 54
-RCL 51
-RCL 51
-RCL- 52
-÷
-RCL+ 53
-STO 55
-4
-STO 58
-DO
-  RCL "W"
-  RCL 55
-  ×
-  RCL "P"
-  +
-  STO "Z"
-  SIN
-  RCL "AW"
-  DOT
-  STO 56
-  RCL "Z"
-  COS
-  RCL "AW2"
-  DOT
-  STO 57
-  RCL 56
-  RCL 57
-  ÷
-  STO- 55
-  RCL 53
-  RCL 55
-  X<Y?
-  IF
-    RCL 53
-    STO 55
-  ENDIF
-  RCL 54
-  RCL 55
-  X>Y?
-  IF
-    RCL 54
-    STO 55
-  ENDIF
-  DSE 58
-WHILE
-ENDDO
-60
-RCL+ 78
-STO 59
-RCL 55
-STO IND 59
-XEQ :HAT:
-STO 90
-6
-STO+ 59
-RCL 90
-STO IND 59
-RCL 57
-X>0?
 IF
-  1
+  RCL 30
+  RCL× 32
+  RCL 31
+  RCL× 33
+  +
+  STO 56
+  RCL 32
+  x²
+  RCL 30
+  RCL× 35
+  +
+  RCL 33
+  x²
+  +
+  RCL 31
+  RCL× 36
+  +
+  STO 57
 ELSE
-  -1
+  RCL 32
+  STO 56
+  RCL 35
+  STO 57
 ENDIF
-STO 91
-6
-STO+ 59
-RCL 91
-STO IND 59
-1
-STO+ 78
 RTN
-REM ---- LBL :HAT: X = the height at the hour R55 (Z0 + A . COS(W t + P)) ----
-LBL :HAT:
-RCL "W"
-RCL 55
-×
-RCL "P"
-+
-COS
-RCL "A"
-DOT
-RCL+ 24
+REM ---- LBL :HGET: Y = the row, X = the column of HR: X = the element ----
+LBL :HGET:
+INDEX "HR"
+STOIJ
+DROP
+DROP
+RCLEL
 RTN
-REM ======== tidal streams ========
-REM ---- LBL :SEVENTS: the turning points of a stream's speed: the sign of g = u u' + v v' at 0, 1, ..., 24 h; a change:
-REM LBL :SREF:; the events into EV (8 x 4: time, value, set, kind) ----
-LBL :SEVENTS:
+REM ---- LBL :FIND: the events: F changes sign between the hours R50 - 1 and R50 (HR's F and F': R51 R46, R52 R47):
+REM LBL :ROOT: ----
+LBL :FIND:
 0
 STO 78
 8
 4
 NEWMAT
 STO "EV"
-INDEX "EV"
-0
-STO 55
-XEQ :UV:
-STO 51
 1
 STO 50
 DO
   RCL 50
-  STO 55
-  XEQ :UV:
+  7
+  XEQ :HGET:
+  STO 51
+  RCL 50
+  8
+  XEQ :HGET:
+  STO 46
+  RCL 50
+  1
+  +
+  7
+  XEQ :HGET:
   STO 52
-  RCL× 51
+  RCL 50
+  1
+  +
+  8
+  XEQ :HGET:
+  STO 47
+  RCL 51
+  RCL× 52
   X<0?
   IF
-    XEQ :SREF:
+    XEQ :ROOT:
   ENDIF
-  RCL 52
-  STO 51
   1
   STO+ 50
   24
@@ -1151,10 +1329,219 @@ DO
 WHILE
 ENDDO
 RTN
-REM ---- LBL :UV: the stream at the hour R55: R30 u, R32 u', R35 u'' (east, or along the flood axis), R31 v, R33 v',
-REM R36 v'' (north; 0 on a rectilinear stream); X = g = u u' + v v' ----
+REM ---- LBL :ROOT: the cubic of F between the hours (LBL :HERM:): from the straight line, three Newton steps on it
+REM (kept in [0, 1]); then one exact Newton step x - F / F' (LBL :UV: :FF:, kept in the hour); the values at the event
+REM u + u' dx, v + v' dx (dx: the exact step); a tide: time R60 +, height R66 +, kind R72 + (at most 6); a stream:
+REM a row of EV (time, value, set, kind; at most 8); the kind 1 (a maximum: F' < 0) or -1 ----
+LBL :ROOT:
+RCL 28
+2
+X≤Y?
+IF
+  8
+ELSE
+  6
+ENDIF
+RCL 78
+X≥Y?
+RTN
+RCL 51
+RCL 51
+RCL- 52
+÷
+STO 48
+3
+STO 58
+DO
+  XEQ :HERM:
+  RCL 49
+  RCL÷ 43
+  STO- 48
+  RCL 48
+  X<0?
+  IF
+    0
+    STO 48
+  ENDIF
+  1
+  RCL 48
+  X>Y?
+  IF
+    1
+    STO 48
+  ENDIF
+  DSE 58
+WHILE
+ENDDO
+RCL 50
+1
+-
+STO 53
+RCL+ 48
+STO 55
+XEQ :UV:
+XEQ :FF:
+RCL 55
+STO 54
+RCL 56
+RCL÷ 57
+STO- 55
+RCL 53
+RCL 55
+X<Y?
+IF
+  RCL 53
+  STO 55
+ENDIF
+RCL 53
+1
++
+RCL 55
+X>Y?
+IF
+  RCL 53
+  1
+  +
+  STO 55
+ENDIF
+RCL 55
+RCL- 54
+STO 54
+RCL× 32
+STO+ 30
+RCL 54
+RCL× 33
+STO+ 31
+RCL 57
+X<0?
+IF
+  1
+ELSE
+  -1
+ENDIF
+STO 91
+RCL 28
+2
+X≤Y?
+IF
+  XEQ :SD:
+  STO 39
+  X<>Y
+  STO 38
+  INDEX "EV"
+  RCL 78
+  1
+  +
+  1
+  STOIJ
+  RCL 55
+  STOEL
+  J+
+  RCL 39
+  STOEL
+  J+
+  RCL 38
+  STOEL
+  J+
+  RCL 91
+  STOEL
+ELSE
+  60
+  RCL+ 78
+  STO 59
+  RCL 55
+  STO IND 59
+  6
+  STO+ 59
+  RCL 30
+  STO IND 59
+  6
+  STO+ 59
+  RCL 91
+  STO IND 59
+ENDIF
+1
+STO+ 78
+RTN
+REM ---- LBL :HERM: the cubic (Hermite) on [0, 1] through F0 R51 (slope R46) and F1 R52 (slope R47) at s = R48:
+REM R49 its value, R43 its slope (R44 s^2, R45 s^3) ----
+LBL :HERM:
+RCL 48
+x²
+STO 44
+RCL× 48
+STO 45
+2
+×
+RCL 44
+3
+×
+-
+1
++
+RCL× 51
+RCL 45
+RCL 44
+2
+×
+-
+RCL+ 48
+RCL× 46
++
+RCL 44
+3
+×
+RCL 45
+2
+×
+-
+RCL× 52
++
+RCL 45
+RCL- 44
+RCL× 47
++
+STO 49
+RCL 44
+RCL 48
+-
+6
+×
+RCL× 51
+RCL 44
+3
+×
+RCL 48
+4
+×
+-
+1
++
+RCL× 46
++
+RCL 48
+RCL 44
+-
+6
+×
+RCL× 52
++
+RCL 44
+3
+×
+RCL 48
+2
+×
+-
+RCL× 47
++
+STO 43
+RTN
+REM ---- LBL :UV: one exact evaluation at the hour R55 (one COS and one SIN of the port's phases): R30 u, R32 u', R35 u''
+REM (the height, or the stream east / along the flood axis), R31 v, R33 v', R36 v'' (north; 0 unless a rotary stream);
+REM X = g = u u' + v v' ----
 LBL :UV:
-RCL "W"
+RCL "WK"
 RCL 55
 ×
 STO "ZW"
@@ -1183,9 +1570,13 @@ STO 31
 STO 33
 STO 36
 RCL 28
-4
-X>Y?
+2
+X≤Y?
 IF
+  RCL 28
+  4
+  X>Y?
+  IF
   RCL "ZW"
   RCL "PN"
   +
@@ -1207,96 +1598,13 @@ IF
   DOT
   CHS
   STO 33
+  ENDIF
 ENDIF
 RCL 30
 RCL× 32
 RCL 31
 RCL× 33
 +
-RTN
-REM ---- LBL :SREF: g changes sign between R50 - 1 and R50 (R51, R52): from the straight line, four Newton steps
-REM x - g / g' (kept in the hour); the event into EV: the time, the value and set (LBL :SD:), the kind (1 a maximum:
-REM g' < 0, -1 a minimum) ----
-LBL :SREF:
-RCL 78
-8
-X≤Y?
-RTN
-RCL 50
-1
--
-STO 53
-RCL 50
-STO 54
-RCL 51
-RCL 51
-RCL- 52
-÷
-RCL+ 53
-STO 55
-4
-STO 58
-DO
-  XEQ :UV:
-  STO 56
-  RCL 32
-  x²
-  RCL 33
-  x²
-  +
-  RCL 30
-  RCL× 35
-  +
-  RCL 31
-  RCL× 36
-  +
-  STO 57
-  RCL 56
-  RCL 57
-  ÷
-  STO- 55
-  RCL 53
-  RCL 55
-  X<Y?
-  IF
-    RCL 53
-    STO 55
-  ENDIF
-  RCL 54
-  RCL 55
-  X>Y?
-  IF
-    RCL 54
-    STO 55
-  ENDIF
-  DSE 58
-WHILE
-ENDDO
-XEQ :UV:
-XEQ :SD:
-STO 39
-X<>Y
-STO 38
-RCL 55
-STOEL
-J+
-RCL 39
-STOEL
-J+
-RCL 38
-STOEL
-J+
-RCL 57
-X>0?
-IF
-  -1
-ELSE
-  1
-ENDIF
-STOEL
-J+
-1
-STO+ 78
 RTN
 REM ---- LBL :SD: from R30 R31: X = the value (rectilinear: the signed speed u; rotary: the speed), Y = the set
 REM (rectilinear: the flood direction, the ebb's when u < 0; rotary: atan2(u, v) with ->POL) ----
@@ -1327,44 +1635,6 @@ ELSE
   360
   MOD
   X<>Y
-ENDIF
-RTN
-REM ---- LBL :VAL: X = the curve's value at the hour R55: the height (a tide), or LBL :SD:'s value (a stream: u and v
-REM alone, as LBL :UV: makes them, without the derivatives) ----
-LBL :VAL:
-RCL 28
-2
-X≤Y?
-IF
-  RCL "W"
-  RCL 55
-  ×
-  STO "ZW"
-  RCL "P"
-  +
-  COS
-  RCL "A"
-  DOT
-  RCL+ 24
-  STO 30
-  0
-  STO 31
-  RCL 28
-  4
-  X>Y?
-  IF
-    RCL "ZW"
-    RCL "PN"
-    +
-    COS
-    RCL "AN"
-    DOT
-    RCL+ 79
-    STO 31
-  ENDIF
-  XEQ :SD:
-ELSE
-  XEQ :HAT:
 ENDIF
 RTN
 REM ======== the screen (Almanac 47's split view: the header, the chart above, the table below) ========
@@ -1550,15 +1820,36 @@ ENDIF
 RCL 94
 αIP 34
 RTN
-REM ---- LBL :CURVE: HS = the height (a stream: LBL :VAL:'s value) every 20 minutes (73), R80 the lowest, R81 the
-REM highest (a stream: 0 always in); then the chart's range: the step R82 (0.5, 1 over 3 of range, 2 over 6), R80 R81
-REM to whole steps, R83 = 78 pixels / the range ----
+REM ---- LBL :CURVE: HS = the height (a stream: the signed stream, or the speed) every 20 minutes (73): the cubics
+REM between the hours as two matrix products, HS = B1 x (HR x E1) + B2 x (HR x E2) (B1 B2 the Hermite weights of the
+REM values and the slopes at s = 0, 1/3, 2/3; E1 E2 pick HR's u and u'; a rotary stream: v likewise (E4 E5), then the
+REM speed with ->POL); R80 the lowest, R81 the highest (a stream: 0 always in); then the chart's range: the step R82
+REM (0.5, 1 over 3 of range, 2 over 6), R80 R81 to whole steps, R83 = 78 pixels / the range ----
 LBL :CURVE:
-73
-1
-NEWMAT
+RCL "B1"
+RCL "HR"
+RCL "E1"
+×
+×
+RCL "B2"
+RCL "HR"
+RCL "E2"
+×
+×
++
 STO "HS"
-INDEX "HS"
+RCL "B1"
+RCL "HR"
+RCL "E4"
+×
+×
+RCL "B2"
+RCL "HR"
+RCL "E5"
+×
+×
++
+STO "HSV"
 1E9
 STO 80
 -1E9
@@ -1571,19 +1862,42 @@ IF
   STO 80
   STO 81
 ENDIF
-0
+1
 STO 59
 DO
+  INDEX "HS"
   RCL 59
-  3
-  ÷
-  STO 55
-  XEQ :VAL:
-  STOEL
-  J+
+  1
+  STOIJ
+  RCLEL
   STO 90
+  RCL 28
+  2
+  X≤Y?
+  IF
+    RCL 28
+    4
+    X>Y?
+    IF
+      INDEX "HSV"
+      RCL 59
+      1
+      STOIJ
+      RCLEL
+      RCL 90
+      →POL
+      STO 90
+      INDEX "HS"
+      RCL 59
+      1
+      STOIJ
+      RCL 90
+      STOEL
+    ENDIF
+  ENDIF
   RCL 80
-  X>Y?
+  RCL 90
+  X<Y?
   IF
     RCL 90
     STO 80
@@ -1597,7 +1911,7 @@ DO
   ENDIF
   1
   STO+ 59
-  72
+  73
   RCL 59
   X≤Y?
 WHILE
