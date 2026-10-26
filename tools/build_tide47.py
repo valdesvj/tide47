@@ -6,7 +6,7 @@ numbered, the REM lines and the indentation go. Written by the build into the so
   REM ==== CONS     the matrices DM (Doodson numbers), UM (the nodal u), EM (the node-factor powers x 2), one
                     number a row (two digits a column, + 50: LBL :ROW: unpacks it), from tide47ref.CONS
   REM ==== NCONS    the number of constituents
-The data programs TIDEME, TIDEUS, TIDELA (one a region) are written from python/stations.py: X = the port's number
+The data programs TIDEME, TIDEUS, TIDELA, TIDECU (one a region) are written from python/stations.py and streams.py: X = the port's number
 (0: R96 the number of ports, R97 the region's title); a port: its name, time zone, DST, datum, source, the mean
 sea level above the datum, and the matrix HG (a number a constituent: H in 0.1 mm x 100000 + g in 0.01 deg).
 Files: programs/ and build/ TIDE47.txt TIDEME.txt TIDEUS.txt TIDELA.txt (the calculator files, to convert with
@@ -149,17 +149,29 @@ def source_steps(lines):
 
 
 def regions(private=False):
-    """The regions: python/stations.py, and with private=True also python/stations_private.py (not in git: data
-    that may not be published, such as constants worked out from Aramco's tables; tools/make_private.py)."""
+    """The regions: python/stations.py and python/streams.py (the tidal streams), and with private=True also
+    python/stations_private.py and python/streams_private.py (not in git: data that may not be published, such as
+    constants worked out from Aramco's tide tables or GEOSA's current tables; tools/make_private.py,
+    tools/make_private_streams.py)."""
     sys.path.insert(0, os.path.join(ROOT, 'python'))
-    import stations
-    out = list(stations.REGIONS)
+    import stations, streams
+    out = list(stations.REGIONS) + list(streams.REGIONS)
     if private:
+        found = False
         try:
-            import stations_private
+            import flow_private                                  # noqa: F401 (an atlas alone is a private build too)
+            found = True
         except ImportError:
-            raise SystemExit('no python/stations_private.py: run tools/make_private.py first')
-        out += list(stations_private.REGIONS)
+            pass
+        for mod in ('stations_private', 'streams_private'):
+            try:
+                out += list(__import__(mod).REGIONS)
+                found = True
+            except ImportError:
+                pass
+        if not found:
+            raise SystemExit('no python/stations_private.py or streams_private.py: run tools/make_private.py or '
+                             'tools/make_private_streams.py first')
     return out
 
 
@@ -171,21 +183,61 @@ def region_steps(regs):
     return out
 
 
-def probe_steps(regs, ncons):
-    """LBL :PROBE:'s body: a region whose data program is loaded (LBL?) and sets R93 = the constituents (this version)
+DATAVER = 3060        # the data programs' version (R93 at X = 0): v0.3's format (a port's constituents only, NK, the
+                      # packed numbers) x 1000 + the 60 constituents; TIDE47 leaves an older data program out
+
+
+def probe_steps(regs, ver):
+    """LBL :PROBE:'s body: a region whose data program is loaded (LBL?) and sets R93 = DATAVER (this version)
     adds 2^(i - 1) to R79; loaded but older (R96 set, R93 not): its name into R94, R92 + 1."""
     out = []
     for i, (code, label, title, ports) in enumerate(regs, 1):
         out += ['0', 'STO 93', 'STO 96', 'LBL? "%s"' % label, 'XEQ "%s"' % label, 'RCL 96', 'X≠0?', 'IF',
-                '  %d' % ncons, '  RCL 93', '  X=Y?', '  IF', '    %d' % (1 << (i - 1)), '    STO+ 79', '  ELSE',
+                '  %d' % ver, '  RCL 93', '  X=Y?', '  IF', '    %d' % (1 << (i - 1)), '    STO+ 79', '  ELSE',
                 '    " %s"' % label, '    x→α 94', '    1', '    STO+ 92', '  ENDIF', 'ENDIF']
     return out
 
 
-def fill(lines, regs):
+FLOW_DEFAULT = dict(lat0=26.0, lon0=48.75, step_min=10, nlat=19, nlon=13, q=0.05)
+
+
+def flow_consts(fl):
+    """FLOW47's {NAME} constants: the atlas grid and the wind's current."""
+    import tide47ref as R
+    fl = fl or FLOW_DEFAULT
+    return dict(FLAT0=fl['lat0'], FLON0=fl['lon0'], FK=60 / fl['step_min'], FNLAT1=fl['nlat'] - 1,
+                FNLAT2=fl['nlat'] - 2, FNLON=fl['nlon'], FNLON1=fl['nlon'] - 1, FNLON2=fl['nlon'] - 2, FQ=fl['q'],
+                WFAC=R.WFAC, WDEF=R.WDEF)
+
+
+def flow_cfg(flow):
+    """REM ==== FLOWCFG: the reference station (its region and number), when its data program is loaded, then the run;
+    not loaded: a note."""
+    ri, pi, fl, label = flow
+    return ['REM the reference station of the atlas: region %d, station %d (written by the build)' % (ri, pi),
+            str(ri), 'XEQ :HAS:', 'X≠0?', 'IF', '  %d' % ri, '  STO 20', '  %d' % pi, '  STO 21', '  XEQ :FGO:',
+            'ELSE', '  "FLOW47: LOAD %s (THE REFERENCE)"' % label, '  XEQ :MSG:', 'ENDIF']
+
+
+def flow_strip(lines):
+    """The lines without FLOW47 (between REM ==== FLOW { and REM ==== FLOW }): every build but --flow."""
+    out, skip = [], False
+    for ln in lines:
+        if ln.strip() == 'REM ==== FLOW {':
+            skip = True
+        elif ln.strip() == 'REM ==== FLOW }':
+            skip = False
+        elif not skip:
+            out.append(ln)
+    return out
+
+
+def fill(lines, regs, flow=None):
     """The markers and the {NAME} constants."""
     sys.path.insert(0, os.path.join(ROOT, 'python'))
     import tide47ref as R
+    consts = dict(R.K)
+    consts.update(flow_consts(flow[2] if flow else None))
     out = []
     for ln in lines:
         ind = ln[:len(ln) - len(ln.lstrip())]
@@ -199,11 +251,13 @@ def fill(lines, regs):
             out += [ind + st for st in region_steps(regs)]
         elif ln.strip() == 'REM ==== PROBE':
             out.append(ind + 'REM the data programs %s (written by the build)' % ' '.join(r[1] for r in regs))
-            out += [ind + st for st in probe_steps(regs, len(R.CONS))]
+            out += [ind + st for st in probe_steps(regs, DATAVER)]
         elif ln.strip() == 'REM ==== NREG':
             out.append(ind + str(len(regs)))
+        elif ln.strip() == 'REM ==== FLOWCFG':
+            out += [ind + st for st in flow_cfg(flow)]
         else:
-            for k, v in R.K.items():
+            for k, v in consts.items():
                 ln = ln.replace('{%s}' % k, repr(v))
             if re.search(r'\{[A-Z0-9]+\}', ln) and not ln.lstrip().startswith('REM'):
                 raise SystemExit('unknown constant in: ' + ln)
@@ -239,15 +293,27 @@ def data_program(code, label, title, ports):
     import tide47ref as R
     names = [c[0] for c in R.CONS]
     st = ['LBL "%s"' % label, 'X=0?', 'GTO 99', 'STO 99', 'XEQ IND 99', 'RTN',
-          'LBL 99', '"%s"' % title, 'STO 97', str(len(ports)), 'STO 96', str(len(names)), 'STO 93', 'RTN']
+          'LBL 99', '"%s"' % title, 'STO 97', str(len(ports)), 'STO 96', str(DATAVER), 'STO 93', 'RTN']
+    def mat(name, hc, ix):
+        """the port's constituents only (v0.3): its number in the 60 x 1E11 + H (0.1 mm) x 100000 + g / 100"""
+        out = [str(len(ix)), '1', 'NEWMAT', 'STO "%s"' % name, 'INDEX "%s"' % name]
+        for i in ix:
+            H, g = hc.get(names[i - 1], (0.0, 0.0))
+            v = i * 10 ** 11 + int(round(H * 1e4)) * 100000 + int(round(g * 100)) % 36000
+            out += [str(v), 'STOEL', 'J+']
+        return out
     for i, p in enumerate(ports, 1):
-        st += ['LBL %02d' % i, '"%s"' % p['name'], 'STO 26', repr(p['tz']), 'STO 27', '1' if p['dst'] == 'US' else '0',
-               'STO 28', '"%s"' % p['datum'], 'STO 29', '"%s"' % p['src'], 'STO 95', repr(p['z0']), 'STO 24',
-               str(len(names)), '1', 'NEWMAT', 'STO "HG"', 'INDEX "HG"']
-        for n in names:
-            H, g = p['hc'].get(n, (0.0, 0.0))
-            v = int(round(H * 1e4)) * 100000 + int(round(g * 100)) % 36000
-            st += [str(v), 'STOEL', 'J+']
+        kind = {'rot': 2, 'rect': 4}.get(p.get('kind'), 0) + (1 if p['dst'] == 'US' else 0)
+        st += ['LBL %02d' % i, '"%s"' % p['name'], 'STO 26', repr(p['tz']), 'STO 27', str(kind),
+               'STO 28', '"%s"' % p['datum'], 'STO 29', '"%s"' % p['src'], 'STO 95', repr(p['z0']), 'STO 24']
+        if p.get('kind') == 'rect':
+            st += ['%d.%03d' % (p['flood'], p['ebb']), 'STO "SDIR"']
+        elif p.get('kind') == 'rot':
+            st += [repr(p['v0']), 'STO "SDIR"']
+        ix = R.port_index(p)
+        st += [str(len(ix)), 'STO "NK"'] + mat('HG', p['hc'], ix)
+        if p.get('kind') == 'rot':
+            st += mat('HV', p['hv'], ix)
         st.append('RTN')
     st.append('END')
     return st
@@ -279,14 +345,40 @@ def labels_text(lines, num):
     return '\n'.join(out) + '\n'
 
 
-def build(regs, dirs, listings=True):
+def flow_data(fl):
+    """The data program TIDEFL: the matrix FL, a row a node (row by row from the south-west), two numbers: the hours
+    HW-6 ... HW 0 and HW+1 ... HW+6, each hour two digits u and two v (code = u / Q + 50); land: 0 0."""
+    st = ['LBL "TIDEFL"', str(len(fl['cells'])), '2', 'NEWMAT', 'STO "FL"', 'INDEX "FL"']
+    for c in fl['cells']:
+        if c is None:
+            st += ['0', 'STOEL', 'J+', '0', 'STOEL', 'J+']
+            continue
+        n1 = ''.join('%02d%02d' % uv for uv in c[:7]).lstrip('0') or '0'
+        n2 = ''.join('%02d%02d' % uv for uv in c[7:]).lstrip('0') or '0'
+        st += [n1, 'STOEL', 'J+', n2, 'STOEL', 'J+']
+    return st + ['RTN', 'END']
+
+
+def flow_find(regs, fl, want=None):
+    """The atlas's reference station (want, or fl['ref']: part of its name) in the regions: (region, station) numbers."""
+    key = (want or fl['ref']).lower()
+    for ri, (_, _, _, ports) in enumerate(regs, 1):
+        for pi, p in enumerate(ports, 1):
+            if key in p['name'].lower() and p.get('kind') not in ('rect', 'rot'):
+                return ri, pi
+    raise SystemExit('the atlas\'s reference station "%s" is in no region (python/stations_private.py?)' % (want or fl['ref']))
+
+
+def build(regs, dirs, listings=True, flow=None):
     src = os.path.join(ROOT, 'programs_rem', NAME + '.txt')
-    lines = fill([ln.rstrip() for ln in open(src, encoding='utf-8')], regs)
+    lines = [ln.rstrip() for ln in open(src, encoding='utf-8')]
+    lines = fill(lines if flow else flow_strip(lines), regs, flow)
     steps = source_steps(lines)
     numeric, num = resolve(steps)
     numeric = structures(numeric)
-    if [s for s in steps if s.startswith('LBL "')] != ['LBL "%s"' % NAME] or steps.count('END') != 1:
-        raise SystemExit('one program, %s' % NAME)
+    want = ['LBL "%s"' % NAME] + (['LBL "FLOW47"'] if flow else [])
+    if [s for s in steps if s.startswith('LBL "')] != want or steps.count('END') != 1:
+        raise SystemExit('one program, %s%s' % (NAME, ' with FLOW47' if flow else ''))
     listing, n = [], 0
     for ln in lines:
         if not ln.strip():
@@ -315,17 +407,37 @@ def build(regs, dirs, listings=True):
 if __name__ == '__main__':
     private = '--private' in sys.argv
     pick = None
+    flowb = '--flow' in sys.argv
+    want = sys.argv[sys.argv.index('--flow-ref') + 1] if '--flow-ref' in sys.argv else None
     if '--regions' in sys.argv:                            # a TIDE47 that calls only these data programs
         pick = [c.strip().upper() for c in sys.argv[sys.argv.index('--regions') + 1].split(',')]
         private = private or 'AR' in pick
-    regs = regions(private)
+    regs = regions(private or flowb)
     if pick:
         codes = [r[0] for r in regs]
         bad = [c for c in pick if c not in codes]
         if bad:
             raise SystemExit('no region %s (there are %s)' % (','.join(bad), ','.join(codes)))
         regs = [r for c in pick for r in regs if r[0] == c]
-    if private or pick:                                    # private/build/: TIDE47 with these regions, and their data
+    if flowb:                                              # private/build_flow/: TIDE47 with FLOW47, the atlas, the data
+        try:
+            import flow_private
+        except ImportError:
+            raise SystemExit('no python/flow_private.py: tools/digitize_atlas.py, tools/make_flow.py (docs/FLOW.md)')
+        fl = flow_private.FLOW
+        ri, pi = flow_find(regs, fl, want)
+        flow = (ri, pi, fl, regs[ri - 1][1])
+        dirs = [os.path.join(ROOT, 'private', 'build_flow')]
+        st = build(regs, dirs, listings=False, flow=flow)
+        data = build_data(regs, dirs)
+        fst = flow_data(fl)
+        for d in dirs:
+            open(os.path.join(d, 'TIDEFL.txt'), 'w', encoding='utf-8').write('\n'.join(fst) + '\n')
+        data.append(('TIDEFL', len(fst), estimate(fst), sum(c is not None for c in fl['cells'])))
+        print('private/build_flow/: TIDE47 with FLOW47; load it with TIDEFL (the atlas, %d sea nodes) and %s (the '
+              'reference station: %s), and the other data programs you want' % (
+                  data[-1][3], regs[ri - 1][1], regs[ri - 1][3][pi - 1]['name']))
+    elif private or pick:                                  # private/build/: TIDE47 with these regions, and their data
         dirs = [os.path.join(ROOT, 'private', 'build')]
         st = build(regs, dirs, listings=False)
         data = build_data(regs, dirs)
@@ -339,6 +451,6 @@ if __name__ == '__main__':
         sum(1 for s in st if s.startswith('IF ')), sum(1 for s in st if s.startswith('DO '))))
     for label, n, b, ports in data:
         print('%-7s %5d steps, %2d ports, about %d bytes' % (label, n, ports, b))
-    if not pick:                                           # the forum files (build/forum/; with --private the private data too)
+    if not pick and not flowb:                             # the forum files (build/forum/; with --private the private data too)
         import build_forum
         build_forum.main(private)
