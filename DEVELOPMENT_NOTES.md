@@ -60,6 +60,17 @@
   tables in whole cm: 0.3 cm rms is the floor). Candidates on the frequency of a constituent already there (S2 - SA =
   T2, M2 + SA = MB2, O1 + 2SA = TAU1) only cancel each other: the engine checks there are none. The start 8.0 s.
 
+## Oct 26, 2026 - the data programs found at the start (branch claude/tide47-probe)
+
+- Victor: one TIDE47 that works with whichever data programs are loaded (only TIDEAR, to save memory), with a version
+  check. LBL :PROBE: (end of INIT, a block a region written by the build, REM ==== PROBE): 0 STO 93 STO 96, LBL?
+  "TIDEME" (new: the firmware's fnCheckLabel, item 1503), XEQ "TIDEME" with X = 0; R96 set: loaded; R93 = the number
+  of constituents (the data programs now set it at X = 0; older ones do not): this version. R79 = the sum of
+  2^(region - 1); + skips the others (LBL :HAS:); an older one: OLD DATA, REBUILD: TIDEUS for 3 s; none: NO TIDE DATA
+  PROGRAM LOADED, then the usual end. The --regions build stays (a smaller TIDE47).
+- c47sim: LBL? as a test (marked tide47); tide47sim.run(progs=). tests: TIDEUS alone, TIDEME + TIDELA, an older TIDEUS,
+  TIDE47 alone; by hand: the private TIDE47 with TIDEAR alone opens on ARAMCO.
+
 ## Plans
 
 - Tidal streams (a branch of its own): harmonic analysis of the vessel's own ADCP / current-meter logs (least squares,

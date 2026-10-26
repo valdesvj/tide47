@@ -15,11 +15,11 @@
 - Text on the C47 screen: ATEXT in GRFNT 21 (GRFNT 10 for the small text). Restore GRFNT 20 and GRMOD 0 before
   the program ends. GRMOD and GRFNT take X: write `21 GRFNT`.
 - Key waits: DO / PAUSE 50 / KEY? 98 / WHILE / ENDDO (as Elements 47).
-- Only commands already run on a C47 in Almanac 47, Elements 47, Zones 47 or Logic 47, except LN: say so in the README
+- Only commands already run on a C47 in Almanac 47, Elements 47, Zones 47 or Logic 47, except LN and LBL?: say so in the README
   until Victor has run it; a new command: ask Victor to try it.
 - Check every change in the simulator (python3 python/tide47sim.py writes docs/*.png) and with
   python3 tests/test_tide47.py.
-- python/c47sim.py, stdfont.py, tinyfont.py come from Almanac 47 (LN and e^x added here, marked tide47): a fix is
+- python/c47sim.py, stdfont.py, tinyfont.py come from Almanac 47 (LN, e^x and LBL? added here, marked tide47): a fix is
   made there first, then copied here.
 - The data's terms (NOTICE): NOAA public domain (attribution), TICON-3 CC-BY 4.0. No Admiralty (UKHO) or Aramco data in
   the repo: private stations stay in private/ and python/stations_private.py (git-ignored; docs/ARAMCO.md).

@@ -1,34 +1,37 @@
 TIDE47 local labels: name (programs_rem/TIDE47.txt), number (build/TIDE47.txt), what it does
 
 :INIT:     00  ======== the start ========
-:ROW:      01  X = a packed row into the indexed matrix (STOEL J+): R48 values of two digits each (value 
-:CLOCK:    02  R85 today (JDN of the calculator's date), R86 the hour now
-:LOAD:     03  ======== the port ========
-:REG:      04  X = the port's number (0: the region's count and title) to the data program of the region 
-:DAY:      05  ======== the day ========
-:TZ:       06  R23 = the port's time zone, + 1 in US daylight time (LBL :DST:)
-:DST:      07  X = 1 when the day R25 is in US daylight time: from the second Sunday of March to the firs
-:JD1:      08  X = a month (3-12) of the year R42: X = the JDN of its first day
-:SUN:      09  X = a JDN: X = the first Sunday on or after it (n + (7 - (n + 1) MOD 7) MOD 7)
-:CAL:      10  X = a JDN: R40 the day, R41 the month, R42 the year (a = n + 32044, b = (4a + 3) div 14609
-:ASTRO:    11  the angles at the day's start R22 (Meeus, as NOAA): T R30, tau R31, s R32, h R33, p R35, N
-:EVENTS:   12  the high and low waters of the day: the sign of h' at 0, 1, ..., 24 h; a change: LBL :REFI
-:DER:      13  X = AW . SIN(W t + P) = -h'(t) at the hour t = R59
-:REFINE:   14  h' changes sign between R50 - 1 and R50 (R51, R52): from the straight line between them, f
-:HAT:      15  X = the height at the hour R55 (Z0 + A . COS(W t + P))
-:SCREEN:   16  ======== the screen (Almanac 47's split view: the header, the chart above, the table below
-:DATES:    17  R34 = "SUN 25-10-2026", the day R25
-:TWO:      18  X (0-99) appended to R34 in two digits (as Zones 47)
-:CURVE:    19  HS = the height every 20 minutes (73), R80 the lowest, R81 the highest; then the chart's
-:FLOOR:    20  X = the largest whole number <= X
-:YPIX:     21  X = a height: X = its row on the chart (118 + (h - R80) x R83)
-:AXES:     22  the time axis (row 118, every 3 hours a tick and the hour), the heights (every R82 a dotte
-:PLOT:     23  the curve: 72 segments of 5 columns between the heights of HS (straight), a dot a column
-:MARKS:    24  each high / low water: a cross on the curve and its time above (high) or below (low), besi
-:SIDE:     25  the time label beside the cross (R89 its row, R91 its column): to the right, to the left n
-:NOW:      26  the day is today: a dotted line at the hour now (the calculator's clock)
-:TABLE:    27  the high and low waters (at most 5): HIGH / LOW, the time, the height, the range from the 
-:HHMM:     28  X = hours (0-24) appended to R34 as hh:mm (the minutes rounded first)
-:NUM2:     29  X appended to R34 with two decimals (a minus sign if negative)
-:NUM1:     30  X appended to R34 with one decimal when it has one (0.5 m steps)
-:KEYS:     31  ======== the keys ========
+:PROBE:    01  the data programs loaded (LBL? "TIDEME" ...: the build writes one block a region) and of t
+:MSG:      02  X = a text shown at the bottom of the screen for 3 s (GRFNT 21)
+:HAS:      03  X = a region: X = 1 when its data program was found (R79), else 0
+:ROW:      04  X = a packed row into the indexed matrix (STOEL J+): R48 values of two digits each (value 
+:CLOCK:    05  R85 today (JDN of the calculator's date), R86 the hour now
+:LOAD:     06  ======== the port ========
+:REG:      07  X = the port's number (0: the region's count and title) to the data program of the region 
+:DAY:      08  ======== the day ========
+:TZ:       09  R23 = the port's time zone, + 1 in US daylight time (LBL :DST:)
+:DST:      10  X = 1 when the day R25 is in US daylight time: from the second Sunday of March to the firs
+:JD1:      11  X = a month (3-12) of the year R42: X = the JDN of its first day
+:SUN:      12  X = a JDN: X = the first Sunday on or after it (n + (7 - (n + 1) MOD 7) MOD 7)
+:CAL:      13  X = a JDN: R40 the day, R41 the month, R42 the year (a = n + 32044, b = (4a + 3) div 14609
+:ASTRO:    14  the angles at the day's start R22 (Meeus, as NOAA): T R30, tau R31, s R32, h R33, p R35, N
+:EVENTS:   15  the high and low waters of the day: the sign of h' at 0, 1, ..., 24 h; a change: LBL :REFI
+:DER:      16  X = AW . SIN(W t + P) = -h'(t) at the hour t = R59
+:REFINE:   17  h' changes sign between R50 - 1 and R50 (R51, R52): from the straight line between them, f
+:HAT:      18  X = the height at the hour R55 (Z0 + A . COS(W t + P))
+:SCREEN:   19  ======== the screen (Almanac 47's split view: the header, the chart above, the table below
+:DATES:    20  R34 = "SUN 25-10-2026", the day R25
+:TWO:      21  X (0-99) appended to R34 in two digits (as Zones 47)
+:CURVE:    22  HS = the height every 20 minutes (73), R80 the lowest, R81 the highest; then the chart's
+:FLOOR:    23  X = the largest whole number <= X
+:YPIX:     24  X = a height: X = its row on the chart (118 + (h - R80) x R83)
+:AXES:     25  the time axis (row 118, every 3 hours a tick and the hour), the heights (every R82 a dotte
+:PLOT:     26  the curve: 72 segments of 5 columns between the heights of HS (straight), a dot a column
+:MARKS:    27  each high / low water: a cross on the curve and its time above (high) or below (low), besi
+:SIDE:     28  the time label beside the cross (R89 its row, R91 its column): to the right, to the left n
+:NOW:      29  the day is today: a dotted line at the hour now (the calculator's clock)
+:TABLE:    30  the high and low waters (at most 5): HIGH / LOW, the time, the height, the range from the 
+:HHMM:     31  X = hours (0-24) appended to R34 as hh:mm (the minutes rounded first)
+:NUM2:     32  X appended to R34 with two decimals (a minus sign if negative)
+:NUM1:     33  X appended to R34 with one decimal when it has one (0.5 m steps)
+:KEYS:     34  ======== the keys ========

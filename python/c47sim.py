@@ -290,6 +290,8 @@ class Calc:
                 self.push(D(v)); continue
             if re.fullmatch(r'-?[\d.]+(E-?\d+)?', ln): self.push(D(ln)); continue
             if op == 'LBL': continue
+            if op == 'LBL?':                                  # tide47: a test, true when the label is in the programs loaded
+                pc = self.test(arg.strip('"') in self.labels, pc); continue
             if op in STRUCT:
                 pc = self.struct(op, arg, pc); continue
             if ln.startswith('├'): self.alpha+=ln[1:].strip('"'); continue

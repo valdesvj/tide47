@@ -162,10 +162,39 @@ def test_keys():
         c.at_steps[2] - c.at_steps[1], S.secs(c.at_steps[2] - c.at_steps[1])))
 
 
+def test_probe():
+    print('5. only some data programs loaded (LBL?), an older one, none')
+    import tempfile
+    B = os.path.join(ROOT, 'build')
+    P = {k: os.path.join(B, k + '.txt') for k in ('TIDE47', 'TIDEME', 'TIDEUS', 'TIDELA')}
+    first = {lab: reg[3][0]['name'] for reg, lab in zip(stations.REGIONS, ('TIDEME', 'TIDEUS', 'TIDELA'))}
+    shots, c = S.run([S.REGION, S.REGION], progs=[P['TIDE47'], P['TIDEUS']])
+    names = [e[3] for e in c.ev]
+    check(names == [first['TIDEUS']] * 3, 'TIDE47 + TIDEUS only: USA at the start, + stays there: %s' % names)
+    shots, c = S.run([S.REGION, S.REGION], progs=[P['TIDE47'], P['TIDELA'], P['TIDEME']])
+    names = [e[3] for e in c.ev]
+    check(names == [first['TIDEME'], first['TIDELA'], first['TIDEME']], 'TIDEME + TIDELA: + goes from one to the other: %s'
+          % names)
+    old = open(P['TIDEUS'], encoding='utf-8').read().replace('\n60\nSTO 93\n', '\n', 1)
+    assert old != open(P['TIDEUS'], encoding='utf-8').read()
+    fn = os.path.join(tempfile.mkdtemp(), 'TIDEUS.txt')
+    open(fn, 'w', encoding='utf-8').write(old)
+    shots, c = S.run([S.REGION], progs=[P['TIDE47'], P['TIDEME'], fn])
+    names = [e[3] for e in c.ev]
+    check(names == [first['TIDEME']] * 2, 'an older TIDEUS (no R93) is left out (OLD DATA, REBUILD: TIDEUS): %s' % names)
+    import c47sim
+    cc = c47sim.load([P['TIDE47']])
+    cc.s = [D(11), D(22), D(33), D(44)]; cc.pix = []; cc.keys = []; cc.steps = 0; cc.clock = S.CLOCK; cc.frames = []
+    cc.run('TIDE47', maxsteps=10 ** 9)
+    check(not cc.mats and [int(v) for v in cc.s[:4]] == [11, 22, 33, 44], 'TIDE47 alone: NO TIDE DATA, the end (no '
+          'matrix left, the stack back)')
+
+
 if __name__ == '__main__':
     test_astronomy()
     test_utide()
     test_c47()
     test_keys()
+    test_probe()
     print('ALL OK' if not FAIL else '%d FAILED' % len(FAIL))
     sys.exit(1 if FAIL else 0)

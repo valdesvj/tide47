@@ -11,11 +11,11 @@ REM                                            the 10 basic factors, LH the logs
 REM   h(t) = Z0 + A . COS(W t + P)            one height: one COS of a 60-vector and one DOT
 REM High and low waters: the hourly signs of h'(t) = -AW . SIN(W t + P), then Newton (h'' = -AW2 . COS) in the
 REM hour. python/tide47ref.py is the same, step for step (tests/test_tide47.py compares them).
-REM The ports are in the data programs TIDEME, TIDEUS, TIDELA (load all three): XEQ "TIDEME" with X = the port's
-REM number sets its name (R26), time zone (R27), DST (R28: 1 = US rules), datum (R29), source (R95), Z0 (R24) and
-REM the matrix HG; X = 0: R96 the number of ports, R97 the region.
+REM The ports are in the data programs TIDEME, TIDEUS, TIDELA (load those you want: TIDE47 finds them, LBL?): XEQ
+REM "TIDEME" with X = the port's number sets its name (R26), time zone (R27), DST (R28: 1 = US rules), datum (R29),
+REM source (R95), Z0 (R24) and the matrix HG; X = 0: R96 the number of ports, R97 the region, R93 the constituents.
 REM Keys: 4 6 the day before / after, 1 3 the week before / after, 5 today, 8 2 the port before / after, + the next
-REM region (MIDDLE EAST, USA, LATIN AMERICA), 0 the end.
+REM region loaded (MIDDLE EAST, USA, LATIN AMERICA), 0 the end.
 REM Screen 400 x 240, row 0 = the bottom: the header at 220 and 210, the chart at x 26-386 (15 pixels an hour), rows
 REM 118-196 (the time axis at 115), the table rows 0-100.
 REM Registers: R20 the region, R21 the port, R22 the day's start (JD, UT), R23 the time zone of the day (DST in),
@@ -31,19 +31,24 @@ STOS R.00
 LASTx
 STO R.08
 XEQ :INIT:
-1
-STO 92
-DO
-  RCL 92
-  X≠0?
-  XEQ :LOAD:
-  XEQ :DAY:
-  XEQ :KEYS:
-  82
-  RCL 98
-  X≠Y?
-WHILE
-ENDDO
+REM the ports: only when a data program was found (R79, LBL :PROBE:)
+RCL 79
+X≠0?
+IF
+  1
+  STO 92
+  DO
+    RCL 92
+    X≠0?
+    XEQ :LOAD:
+    XEQ :DAY:
+    XEQ :KEYS:
+    82
+    RCL 98
+    X≠Y?
+  WHILE
+  ENDDO
+ENDIF
 REM ---- the end: R20-R99 cleared (R-CLR 20.79, then R99), the matrices deleted, GRMOD 0, GRFNT 20, the screen; your
 REM stack back ----
 20.79
@@ -153,8 +158,67 @@ XEQ :CLOCK:
 RCL 85
 STO 25
 1
-STO 20
 STO 21
+XEQ :PROBE:
+RTN
+REM ---- LBL :PROBE: the data programs loaded (LBL? "TIDEME" ...: the build writes one block a region) and of this
+REM version (X = 0 sets R93 = the number of constituents: an older one does not): R79 = the sum of 2^(region - 1)
+REM of those found; R92 how many older ones (their names in R94, shown 3 s); none: NO TIDE DATA (3 s) and the end;
+REM R20 the first region found ----
+LBL :PROBE:
+0
+STO 79
+STO 92
+"OLD DATA, REBUILD:"
+STO 94
+REM ==== PROBE
+RCL 92
+X≠0?
+IF
+  RCL 94
+  XEQ :MSG:
+ENDIF
+RCL 79
+X=0?
+IF
+  "NO TIDE DATA PROGRAM LOADED"
+  XEQ :MSG:
+  RTN
+ENDIF
+0
+STO 20
+DO
+  1
+  STO+ 20
+  RCL 20
+  XEQ :HAS:
+  X=0?
+WHILE
+ENDDO
+RTN
+REM ---- LBL :MSG: X = a text shown at the bottom of the screen for 3 s (GRFNT 21) ----
+LBL :MSG:
+21
+GRFNT
+DROP
+10
+2
+ATEXT Z
+PAUSE 30
+RTN
+REM ---- LBL :HAS: X = a region: X = 1 when its data program was found (R79), else 0 ----
+LBL :HAS:
+1
+-
+2
+X<>Y
+Y^X
+RCL 79
+X<>Y
+÷
+IP
+2
+MOD
 RTN
 REM ---- LBL :ROW: X = a packed row into the indexed matrix (STOEL J+): R48 values of two digits each (value x R46 +
 REM 50), the leftmost first ----
@@ -1764,15 +1828,21 @@ RCL 98
 85
 X=Y?
 IF
-  1
-  STO+ 20
-  REM ==== NREG
-  RCL 20
-  X>Y?
-  IF
+  DO
     1
-    STO 20
-  ENDIF
+    STO+ 20
+    REM ==== NREG
+    RCL 20
+    X>Y?
+    IF
+      1
+      STO 20
+    ENDIF
+    RCL 20
+    XEQ :HAS:
+    X=0?
+  WHILE
+  ENDDO
   1
   STO 21
   STO 92
