@@ -32,6 +32,9 @@ TIDECU):
   - tests/xtide_tables.json: an extract of XTide's equilibrium argument and node factor tables
     (from the same harmonics-dwf file).
 
+FLOW47's tidal stream atlas is not in this repository: it is digitized on the user's computer from a document whose
+terms are unknown, and kept private (docs/FLOW.md). The FLOW47 pictures use a synthetic atlas.
+
 NOT FOR NAVIGATION. Tide and stream predictions from harmonic constants are astronomical tides only:
 wind, pressure and river flow change the real water level and add currents of their own. Use the official tide tables of
 the port authority (UKHO Admiralty, NOAA) for navigation and operations.

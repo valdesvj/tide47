@@ -69,6 +69,16 @@ set; today, the header shows the stream **NOW** at the calculator's clock. The p
 current stations. For the Arabian Gulf fields, GEOSA's Saudi tidal current tables are fitted on your computer and
 kept private (as Aramco's tide tables are): [docs/STREAMS.md](docs/STREAMS.md).
 
+## FLOW47: the tidal stream atlas at a position
+
+![FLOW47 (synthetic atlas)](docs/FLOW47_synthetic.png)
+
+`XEQ "FLOW47"`: give the position (and the wind), and the 13 hours HW−6 … HW+6 of a tidal-stream atlas appear for
+that position: the clock time, an arrow, the set and the knots, scaled from springs to the day's range at the
+reference station, with the wind's current added; beside them, a rose of the 13 streams and the stream now. It is
+built for a private atlas of the Saudi Arabian Gulf fields (digitized from its scanned charts on your computer, with
+Ras Tanura's Aramco constants as the reference): [docs/FLOW.md](docs/FLOW.md). The public build shows a note instead.
+
 ### Your own stations (Aramco)
 
 Stations whose tables may not be published, such as Saudi Aramco's, can be added as a private region on your own

@@ -157,6 +157,11 @@ def regions(private=False):
     public = len(out)
     if private:
         found = False
+        try:
+            import flow_private                                  # noqa: F401 (an atlas alone is a private build too)
+            found = True
+        except ImportError:
+            pass
         for mod in ('stations_private', 'streams_private'):
             try:
                 out += list(__import__(mod).REGIONS)
@@ -177,10 +182,37 @@ def region_steps(regs):
     return out
 
 
-def fill(lines, regs):
+FLOW_DEFAULT = dict(lat0=26.0, lon0=48.75, step_min=10, nlat=19, nlon=13, q=0.05)
+
+
+def flow_consts(fl):
+    """FLOW47's {NAME} constants: the atlas grid (the default grid when there is no atlas) and the wind's current."""
+    import tide47ref as R
+    fl = fl or FLOW_DEFAULT
+    return dict(FLAT0=fl['lat0'], FLON0=fl['lon0'], FK=60 / fl['step_min'], FNLAT1=fl['nlat'] - 1,
+                FNLAT2=fl['nlat'] - 2, FNLON=fl['nlon'], FNLON1=fl['nlon'] - 1, FNLON2=fl['nlon'] - 2, FQ=fl['q'],
+                WFAC=R.WFAC, WDEF=R.WDEF)
+
+
+def flow_cfg(flow):
+    """REM ==== FLOWCFG: with an atlas, the reference station (its region and number) and the run; without, a note."""
+    if flow:
+        ri, pi, fl = flow
+        return ['REM the reference station of the atlas: region %d, station %d (written by the build)' % (ri, pi),
+                str(ri), 'STO 20', str(pi), 'STO 21', 'XEQ :FGO:']
+    return ['REM no atlas in this build (written by the build): a note, then the end', 'CLLCD', '21', 'GRFNT',
+            '"FLOW47: NOT IN THIS BUILD"', '130', '20', 'ATEXT Z', '10', 'GRFNT',
+            '"The atlas and its reference station are private:"', '100', '20', 'ATEXT Z',
+            '"build_tide47.py --private (docs/FLOW.md)"', '86', '20', 'ATEXT Z',
+            'DO', 'PAUSE 50', 'KEY? 98', 'WHILE', 'ENDDO']
+
+
+def fill(lines, regs, flow=None):
     """The markers and the {NAME} constants."""
     sys.path.insert(0, os.path.join(ROOT, 'python'))
     import tide47ref as R
+    consts = dict(R.K)
+    consts.update(flow_consts(flow[2] if flow else None))
     out = []
     for ln in lines:
         ind = ln[:len(ln) - len(ln.lstrip())]
@@ -194,8 +226,10 @@ def fill(lines, regs):
             out += [ind + st for st in region_steps(regs)]
         elif ln.strip() == 'REM ==== NREG':
             out.append(ind + str(len(regs)))
+        elif ln.strip() == 'REM ==== FLOWCFG':
+            out += [ind + st for st in flow_cfg(flow)]
         else:
-            for k, v in R.K.items():
+            for k, v in consts.items():
                 ln = ln.replace('{%s}' % k, repr(v))
             if re.search(r'\{[A-Z0-9]+\}', ln) and not ln.lstrip().startswith('REM'):
                 raise SystemExit('unknown constant in: ' + ln)
@@ -283,14 +317,38 @@ def labels_text(lines, num):
     return '\n'.join(out) + '\n'
 
 
-def build(regs, dirs, listings=True):
+def flow_data(fl):
+    """The data program TIDEFL: the matrix FL, a row a node (row by row from the south-west), two numbers: the hours
+    HW-6 ... HW 0 and HW+1 ... HW+6, each hour two digits u and two v (code = u / Q + 50); land: 0 0."""
+    st = ['LBL "TIDEFL"', str(len(fl['cells'])), '2', 'NEWMAT', 'STO "FL"', 'INDEX "FL"']
+    for c in fl['cells']:
+        if c is None:
+            st += ['0', 'STOEL', 'J+', '0', 'STOEL', 'J+']
+            continue
+        n1 = ''.join('%02d%02d' % uv for uv in c[:7]).lstrip('0') or '0'
+        n2 = ''.join('%02d%02d' % uv for uv in c[7:]).lstrip('0') or '0'
+        st += [n1, 'STOEL', 'J+', n2, 'STOEL', 'J+']
+    return st + ['RTN', 'END']
+
+
+def flow_find(regs, fl, want=None):
+    """The atlas's reference station (want, or fl['ref']: part of its name) in the regions: (region, station) numbers."""
+    key = (want or fl['ref']).lower()
+    for ri, (_, _, _, ports) in enumerate(regs, 1):
+        for pi, p in enumerate(ports, 1):
+            if key in p['name'].lower() and p.get('kind') not in ('rect', 'rot'):
+                return ri, pi
+    raise SystemExit('the atlas\'s reference station "%s" is in no region (python/stations_private.py?)' % (want or fl['ref']))
+
+
+def build(regs, dirs, listings=True, flow=None):
     src = os.path.join(ROOT, 'programs_rem', NAME + '.txt')
-    lines = fill([ln.rstrip() for ln in open(src, encoding='utf-8')], regs)
+    lines = fill([ln.rstrip() for ln in open(src, encoding='utf-8')], regs, flow)
     steps = source_steps(lines)
     numeric, num = resolve(steps)
     numeric = structures(numeric)
-    if [s for s in steps if s.startswith('LBL "')] != ['LBL "%s"' % NAME] or steps.count('END') != 1:
-        raise SystemExit('one program, %s' % NAME)
+    if [s for s in steps if s.startswith('LBL "')] != ['LBL "%s"' % NAME, 'LBL "FLOW47"'] or steps.count('END') != 1:
+        raise SystemExit('one program, %s (with FLOW47)' % NAME)
     listing, n = [], 0
     for ln in lines:
         if not ln.strip():
@@ -318,11 +376,26 @@ def build(regs, dirs, listings=True):
 
 if __name__ == '__main__':
     private = '--private' in sys.argv
+    want = sys.argv[sys.argv.index('--flow-ref') + 1] if '--flow-ref' in sys.argv else None
     regs, public = regions(private)
     if private:                                            # private/build/: TIDE47 with the private regions, and theirs
         dirs = [os.path.join(ROOT, 'private', 'build')]
-        st = build(regs, dirs, listings=False)
+        flow = None
+        try:
+            import flow_private
+            fl = flow_private.FLOW
+            flow = flow_find(regs, fl, want) + (fl,)
+        except ImportError:
+            pass
+        st = build(regs, dirs, listings=False, flow=flow)
         data = build_data(regs[public:], dirs)
+        if flow:
+            fst = flow_data(flow[2])
+            for d in dirs:
+                open(os.path.join(d, 'TIDEFL.txt'), 'w', encoding='utf-8').write('\n'.join(fst) + '\n')
+            data.append(('TIDEFL', len(fst), estimate(fst), sum(c is not None for c in flow[2]['cells'])))
+            print('FLOW47: the atlas (%d sea nodes), the reference station: %s' % (
+                data[-1][3], regs[flow[0] - 1][3][flow[1] - 1]['name']))
     else:
         dirs = [os.path.join(ROOT, 'programs'), os.path.join(ROOT, 'build')]
         st = build(regs, dirs)

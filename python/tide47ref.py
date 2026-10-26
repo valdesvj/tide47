@@ -467,6 +467,104 @@ def stream_now_exact(st, n, hour):
     return math.hypot(u, v), math.degrees(math.atan2(u, v)) % 360
 
 
+# ---- FLOW47: a tidal stream atlas (charts HW-6 ... HW+6 of a reference station's High Water, spring speeds) at any
+# position, as the C47 does it (LBL "FLOW47": :ATLAS:, :PICK:, :CYC:). fl: python/flow_private.py FLOW. ----
+WFAC, WDEF = 0.025, 15.0          # the wind's surface current: 2.5 % of the wind speed, 15 deg to the right of downwind
+
+
+def dm(x):
+    """DD.MMm (degrees, minutes; - south / west) -> degrees."""
+    a = abs(x)
+    d = math.floor(a + 1e-12)
+    return math.copysign(d + (a - d) * 100 / 60, x)
+
+
+def flow_cell(fl, lat, lon):
+    """The atlas at a position (degrees): 13 (u, v) spring values, bilinear between the four nodes around it (the
+    land ones left out), or None outside the grid or on land."""
+    k = 60.0 / fl['step_min']
+    fi, fj = (lat - fl['lat0']) * k, (lon - fl['lon0']) * k
+    if not (0 <= fi <= fl['nlat'] - 1 and 0 <= fj <= fl['nlon'] - 1):
+        return None
+    i, j = min(int(math.floor(fi)), fl['nlat'] - 2), min(int(math.floor(fj)), fl['nlon'] - 2)
+    a, b = fi - i, fj - j
+    FU, FV, sw = [0.0] * 13, [0.0] * 13, 0.0
+    for di, dj, w in ((0, 0, (1 - a) * (1 - b)), (1, 0, a * (1 - b)), (0, 1, (1 - a) * b), (1, 1, a * b)):
+        c = fl['cells'][(i + di) * fl['nlon'] + j + dj]
+        if c is None or w <= 0:
+            continue
+        sw += w
+        for h, (cu, cv) in enumerate(c):
+            FU[h] += w * (cu - 50) * fl['q']; FV[h] += w * (cv - 50) * fl['q']
+    if sw < 1e-9:
+        return None
+    return [x / sw for x in FU], [x / sw for x in FV]
+
+
+def flow_spring(ref):
+    """The mean spring range at the reference station: 2 (H M2 + H S2), H as the data program has it (0.1 mm)."""
+    H = lambda n: int(round(ref['hc'].get(n, (0, 0))[0] * 1e4)) / 1e4
+    return 2 * (H('M2') + H('S2'))
+
+
+def flow_pick(ref, n, target):
+    """The High Water of day n nearest the hour target (a High Water more than 6.2 h away: the next or previous
+    day's): (n, the event's index in the day's list)."""
+    ev = day(ref, n)[1]
+    hw = [m for m, e in enumerate(ev) if e[2] > 0]
+    if not hw:
+        return flow_step(ref, n, -1, 1)
+    if target - ev[hw[-1]][0] > 6.2:
+        return flow_step(ref, n, hw[-1], 1)
+    if ev[hw[0]][0] - target > 6.2:
+        return flow_step(ref, n, hw[0], -1)
+    m = min(hw, key=lambda m: abs(ev[m][0] - target))
+    return n, m
+
+
+def flow_step(ref, n, m, d):
+    """The next (d = 1) or previous (d = -1) High Water after / before the event m of day n."""
+    ev = day(ref, n)[1]
+    hw = [k for k, e in enumerate(ev) if e[2] > 0 and (k > m if d > 0 else (m < 0 or k < m))]
+    if hw:
+        return n, (hw[0] if d > 0 else hw[-1])
+    ev2 = day(ref, n + d)[1]
+    hw2 = [k for k, e in enumerate(ev2) if e[2] > 0]
+    return n + d, (hw2[0] if d > 0 else hw2[-1])
+
+
+def flow_cycle(ref, n, m):
+    """The High Water m of day n: (its hour, its height, the range: its height - the mean of the low waters next to
+    it that day, the factor on the spring speeds: range / mean spring range (1 without a low water))."""
+    ev = day(ref, n)[1]
+    t, h = ev[m][0], ev[m][1]
+    lows = [ev[k][1] for k in (m - 1, m + 1) if 0 <= k < len(ev) and ev[k][2] < 0]
+    if not lows:
+        return t, h, 0.0, 1.0
+    rng = h - sum(lows) / len(lows)
+    return t, h, rng, rng / flow_spring(ref)
+
+
+def flow_rows(cell, f, wdir=0.0, wkn=0.0):
+    """The 13 rows HW-6 ... HW+6: (u, v) = f x the atlas + the wind's current (WFAC x WKN, to WDIR + 180 + WDEF)."""
+    wu = WFAC * wkn * math.sin(math.radians(wdir + 180 + WDEF))
+    wv = WFAC * wkn * math.cos(math.radians(wdir + 180 + WDEF))
+    FU, FV = cell
+    return [(f * u + wu, f * v + wv) for u, v in zip(FU, FV)]
+
+
+def flow_now(rows, off):
+    """The stream at off hours from High Water (-6 ... 6): straight between the hours."""
+    k = min(int(math.floor(off + 6)), 11)
+    s = off + 6 - k
+    (u0, v0), (u1, v1) = rows[k], rows[k + 1]
+    return u0 + (u1 - u0) * s, v0 + (v1 - v0) * s
+
+
+def setkn(u, v):
+    return math.degrees(math.atan2(u, v)) % 360, math.hypot(u, v)
+
+
 if __name__ == '__main__':
     import sys
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

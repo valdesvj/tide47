@@ -1,45 +1,72 @@
 TIDE47 local labels: name (programs_rem/TIDE47.txt), number (build/TIDE47.txt), what it does
 
-:INIT:     00  ======== the start ========
-:ROW:      01  X = a packed row into the indexed matrix (STOEL J+): R48 values of two digits each (value 
-:CLOCK:    02  R85 today (JDN of the calculator's date), R86 the hour now
-:LOAD:     03  ======== the port ========
-:SEL:      04  the selection matrix S (NK x 60: 1 at (i, IX i)): the port's constituents out of the 60; W
-:UNPK:     05  X = a port's matrix, one number a constituent it has: its number in the 60 (IX) x 1E11 + H
-:REG:      06  X = the port's number (0: the region's count and title) to the data program of the region 
-:DAY:      07  ======== the day ========
-:VEC:      08  Y = the phases G, X = the logs LH of a component: P = VU - G (MOD 360) with VU = S x (DM x
-:TZ:       09  R23 = the port's time zone, + 1 in US daylight time (LBL :DST:; R28 odd)
-:DST:      10  X = 1 when the day R25 is in US daylight time: from the second Sunday of March to the firs
-:JD1:      11  X = a month (3-12) of the year R42: X = the JDN of its first day
-:SUN:      12  X = a JDN: X = the first Sunday on or after it (n + (7 - (n + 1) MOD 7) MOD 7)
-:CAL:      13  X = a JDN: R40 the day, R41 the month, R42 the year (a = n + 32044, b = (4a + 3) div 14609
-:ASTRO:    14  the angles at the day's start R22 (Meeus, as NOAA): T R30, tau R31, s R32, h R33, p R35, N
-:HOURS:    15  ======== tidal streams ========
-:FF:       16  the event function from R30-R36: R56 F, R57 F' (a tide: F = h', F' = h''; a stream: F = g 
-:HGET:     17  Y = the row, X = the column of HR: X = the element
-:FIND:     18  the events: F changes sign between the hours R50 - 1 and R50 (HR's F and F': R51 R46, R52 
-:ROOT:     19  the cubic of F between the hours (LBL :HERM:): from the straight line, three Newton steps 
-:HERM:     20  the cubic (Hermite) on [0, 1] through F0 R51 (slope R46) and F1 R52 (slope R47) at s = R48
-:UV:       21  one exact evaluation at the hour R55 (one COS and one SIN of the port's phases): R30 u, R3
-:SD:       22  from R30 R31: X = the value (rectilinear: the signed speed u; rotary: the speed), Y = the 
-:SCREEN:   23  ======== the screen (Almanac 47's split view: the header, the chart above, the table below
-:TITLE:    24  X = the header's right side: the region R97; a stream today: the stream now (the calculato
-:SET:      25  X = a direction (deg): appended to R34 as three digits and °
-:DATES:    26  R34 = "SUN 25-10-2026", the day R25
-:TWO:      27  X (0-99) appended to R34 in two digits (as Zones 47)
-:CURVE:    28  HS = the height (a stream: the signed stream, or the speed) every 20 minutes (73): the cub
-:FLOOR:    29  X = the largest whole number <= X
-:YPIX:     30  X = a height: X = its row on the chart (118 + (h - R80) x R83)
-:AXES:     31  the time axis (row 118, every 3 hours a tick and the hour), the heights (every R82 a dotte
-:PLOT:     32  the curve: 72 segments of 5 columns between the heights of HS (straight), a dot a column
-:MARKS:    33  each high / low water: a cross on the curve and its time above (high) or below (low), besi
-:SIDE:     34  the time label beside the cross (R89 its row, R91 its column): to the right, to the left n
-:NOW:      35  the day is today: a dotted line at the hour now (the calculator's clock)
-:TABLE:    36  the high and low waters (at most 5): HIGH / LOW, the time, the height, the range from the 
-:SMARKS:   37  a stream's events: a cross on the curve at each (the table gives their times)
-:STABLE:   38  a stream's events (at most 8, the small font): FLOOD / EBB / SLACK (rectilinear) or MAX / 
-:HHMM:     39  X = hours (0-24) appended to R34 as hh:mm (the minutes rounded first)
-:NUM2:     40  X appended to R34 with two decimals (a minus sign if negative)
-:NUM1:     41  X appended to R34 with one decimal when it has one (0.5 m steps)
-:KEYS:     42  ======== the keys ========
+:END:      00  R20-R99 cleared (R-CLR 20.79, then R99), the matrices deleted, GRMOD 0, GRFNT 20, the scre
+:INIT:     01  ======== the start ========
+:ROW:      02  X = a packed row into the indexed matrix (STOEL J+): R48 values of two digits each (value 
+:CLOCK:    03  R85 today (JDN of the calculator's date), R86 the hour now
+:LOAD:     04  ======== the port ========
+:SEL:      05  the selection matrix S (NK x 60: 1 at (i, IX i)): the port's constituents out of the 60; W
+:UNPK:     06  X = a port's matrix, one number a constituent it has: its number in the 60 (IX) x 1E11 + H
+:REG:      07  X = the port's number (0: the region's count and title) to the data program of the region 
+:DAY:      08  ======== the day ========
+:DAYC:     09  the day's computation (no screen; FLOW47 uses it for its reference station)
+:VEC:      10  Y = the phases G, X = the logs LH of a component: P = VU - G (MOD 360) with VU = S x (DM x
+:TZ:       11  R23 = the port's time zone, + 1 in US daylight time (LBL :DST:; R28 odd)
+:DST:      12  X = 1 when the day R25 is in US daylight time: from the second Sunday of March to the firs
+:JD1:      13  X = a month (3-12) of the year R42: X = the JDN of its first day
+:SUN:      14  X = a JDN: X = the first Sunday on or after it (n + (7 - (n + 1) MOD 7) MOD 7)
+:CAL:      15  X = a JDN: R40 the day, R41 the month, R42 the year (a = n + 32044, b = (4a + 3) div 14609
+:ASTRO:    16  the angles at the day's start R22 (Meeus, as NOAA): T R30, tau R31, s R32, h R33, p R35, N
+:HOURS:    17  ======== tidal streams ========
+:FF:       18  the event function from R30-R36: R56 F, R57 F' (a tide: F = h', F' = h''; a stream: F = g 
+:HGET:     19  Y = the row, X = the column of HR: X = the element
+:FIND:     20  the events: F changes sign between the hours R50 - 1 and R50 (HR's F and F': R51 R46, R52 
+:ROOT:     21  the cubic of F between the hours (LBL :HERM:): from the straight line, three Newton steps 
+:HERM:     22  the cubic (Hermite) on [0, 1] through F0 R51 (slope R46) and F1 R52 (slope R47) at s = R48
+:UV:       23  one exact evaluation at the hour R55 (one COS and one SIN of the port's phases): R30 u, R3
+:SD:       24  from R30 R31: X = the value (rectilinear: the signed speed u; rotary: the speed), Y = the 
+:SCREEN:   25  ======== the screen (Almanac 47's split view: the header, the chart above, the table below
+:TITLE:    26  X = the header's right side: the region R97; a stream today: the stream now (the calculato
+:SET:      27  X = a direction (deg): appended to R34 as three digits and °
+:DATES:    28  R34 = "SUN 25-10-2026", the day R25
+:TWO:      29  X (0-99) appended to R34 in two digits (as Zones 47)
+:CURVE:    30  HS = the height (a stream: the signed stream, or the speed) every 20 minutes (73): the cub
+:FLOOR:    31  X = the largest whole number <= X
+:YPIX:     32  X = a height: X = its row on the chart (118 + (h - R80) x R83)
+:AXES:     33  the time axis (row 118, every 3 hours a tick and the hour), the heights (every R82 a dotte
+:PLOT:     34  the curve: 72 segments of 5 columns between the heights of HS (straight), a dot a column
+:MARKS:    35  each high / low water: a cross on the curve and its time above (high) or below (low), besi
+:SIDE:     36  the time label beside the cross (R89 its row, R91 its column): to the right, to the left n
+:NOW:      37  the day is today: a dotted line at the hour now (the calculator's clock)
+:TABLE:    38  the high and low waters (at most 5): HIGH / LOW, the time, the height, the range from the 
+:SMARKS:   39  a stream's events: a cross on the curve at each (the table gives their times)
+:STABLE:   40  a stream's events (at most 8, the small font): FLOOD / EBB / SLACK (rectilinear) or MAX / 
+:HHMM:     41  X = hours (0-24) appended to R34 as hh:mm (the minutes rounded first)
+:NUM2:     42  X appended to R34 with two decimals (a minus sign if negative)
+:NUM1:     43  X appended to R34 with one decimal when it has one (0.5 m steps)
+:KEYS:     44  ======== the keys ========
+:FGO:      45  ======== FLOW47's routines ========
+:FIN:      46  INPUT the position and the wind; R80 R81 in degrees; R82 R83 the wind's current (WFAC x WK
+:DMD:      47  X = DD.MMm (- south / west): X = degrees
+:ATLAS:    48  FU FV = the 13 spring streams at R80 R81: bilinear between the four nodes around (LBL :COR
+:CORN:     49  the node R58 (a row of FL) with the weight R57: unless land (0) or no weight, its 13 hours
+:DEC:      50  R49 hours of the packed number R44 (two digits u, two v an hour, the last hour on the righ
+:SPRNG:    51  R89 = the mean spring range at the reference station: 2 (H M2 + H S2) (the constituents 1 
+:HWF:      52  the day's High Waters (R72 + the kinds): R46 the first (an index from 0; -1: none), R47 th
+:PICK:     53  the High Water of day R25 nearest the hour R99 (LBL :NEAR:); none that day, or the hour mo
+:NEAR:     54  R84 = the High Water of the day nearest the hour R99 (the first of equals)
+:FNEXT:    55  R84 = the next High Water (that day, else the next day's first)
+:FPREV:    56  R84 = the previous High Water (that day, else the previous day's last)
+:FNOW:     57  today, the High Water nearest the clock
+:CYC:      58  the High Water R84: R87 its hour; R88 = its range (its height - the mean of the low waters
+:FROW:     59  X = the row (0-12: HW-6 ... HW+6): R30 u, R31 v (R88 x the atlas + the wind's current), R3
+:FOFF:     60  R92 = now - the High Water (hours), R90 = 1 when it is within the cycle (-6 ... 6)
+:FNOWV:    61  the stream now (R92 from the High Water): straight between the hours; R30 R31 R32 R33 as :
+:FKEYS:    62  wait for a key and do it
+:FSCR:     63  ======== FLOW47's screen: the header; the table on the left (13 rows, the small font), the
+:DMS:      64  R43 degrees (R44 1: a latitude, 2: a longitude) appended to R34 as DD°MM.M'N (DDD° for a l
+:FTAB:     65  the 13 rows: HW-6 ... HW+6, the clock time, an arrow (LBL :GLYPH:), the set, the knots; > 
+:GLYPH:    66  an arrow of 12 pixels centred at R50 (column) R51 (row), the stream R30 R31 (R32 knots): a
+:ARROW:    67  a line from R44 R45 to the tip R54 R55 and a head of R56 pixels (the unit direction R52 R5
+:LINE:     68  the pixels from R44 R45 to R46 R47 (column, row), a pixel a step of the longer side
+:ROSE:     69  the rose (centre 302 104, radius 76): the rings (every R57 knots, R54 of them: the scale R

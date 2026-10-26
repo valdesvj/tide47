@@ -24,6 +24,8 @@
   made there first, then copied here.
 - The data's terms (NOTICE): NOAA public domain (attribution), TICON-3 CC-BY 4.0. No Admiralty (UKHO) or Aramco data in
   the repo: private stations stay in private/ and python/stations_private.py, python/streams_private.py (git-ignored;
-  docs/ARAMCO.md, docs/STREAMS.md). No GEOSA data in the repo either.
+  docs/ARAMCO.md, docs/STREAMS.md). No GEOSA data in the repo either, nor the tidal stream atlas of FLOW47
+  (private/atlas/, python/flow_private.py, TIDEFL: docs/FLOW.md); its pictures in docs/ use a synthetic atlas.
+- TIDE47.txt holds two programs' entries, LBL "TIDE47" and LBL "FLOW47", sharing the engine (LBL :DAYC:).
 - Work in one repository at a time (this one); the other 47 repositories are for reference only.
 - Ask before anything that can't be undone. Pull requests only for tide47.

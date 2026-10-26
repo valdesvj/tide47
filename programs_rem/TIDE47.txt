@@ -51,8 +51,36 @@ DO
   X≠Y?
 WHILE
 ENDDO
-REM ---- the end: R20-R99 cleared (R-CLR 20.79, then R99), the matrices deleted, GRMOD 0, GRFNT 20, the screen; your
-REM stack back ----
+XEQ :END:
+RCL R.08
+STO L
+RCLS R.00
+RTN
+REM ======== FLOW47: the tidal stream atlas at a position ========
+REM XEQ "FLOW47": the position LAT LON (DD.MMm, - south / west, the variables of Almanac 47) and the wind WDIR (from,
+REM deg) WKN (knots, 0: none) by INPUT, then the 13 hours HW-6 ... HW+6 of the reference station's High Water (the
+REM charts of a private atlas; python/flow_private.py, the data program TIDEFL): the clock time, an arrow, the set and
+REM the knots, scaled by the day's range (the charts are spring tides) with the wind's current added; beside, the
+REM rose: the 13 streams as a curve from the centre and the stream NOW. Keys: 4 6 the High Water before / after, 1 3
+REM the day before / after, 5 now, 7 a new position or wind, 0 the end. python/tide47ref.py flow_* is the twin.
+REM Registers (besides the engine's): R80 R81 the position (deg), R82 R83 the wind's current east / north, R84 the
+REM High Water (its index in the day's events), R87 its hour, R88 the factor on the spring speeds, R89 the mean spring
+REM range, R90 1: now is in the cycle, R92 now - High Water (h), R93 1: the atlas covers the position, R99 the hour
+REM looked for. Matrices FL (the atlas: a row a node, two packed numbers), FU FV (the 13 spring streams there).
+LBL "FLOW47"
+LocR 9
+STOS R.00
+LASTx
+STO R.08
+XEQ :INIT:
+REM ==== FLOWCFG
+XEQ :END:
+RCL R.08
+STO L
+RCLS R.00
+RTN
+REM ---- LBL :END: R20-R99 cleared (R-CLR 20.79, then R99), the matrices deleted, GRMOD 0, GRFNT 20, the screen
+LBL :END:
 20.79
 R-CLR
 0
@@ -104,14 +132,14 @@ DELITM "E2"
 DELITM "E4"
 DELITM "E5"
 DELITM "HSV"
+DELITM "FL"
+DELITM "FU"
+DELITM "FV"
 0
 GRMOD
 20
 GRFNT
 CLLCD
-RCL R.08
-STO L
-RCLS R.00
 RTN
 REM ======== the start ========
 REM ---- LBL :INIT: R20-R99 cleared, the constant matrices (DM UM EM, the speeds W = DM x SPD, LW = the logs of W in
@@ -202,6 +230,9 @@ STO "WK"
 STO "LWK"
 STO "NK"
 STO "HSV"
+STO "FL"
+STO "FU"
+STO "FV"
 REM the Hermite weights of the curve (LBL :CURVE:): B1 the values, B2 the slopes, a row a point every 20 minutes
 REM (s = 0: 1; s = 1/3: 20/27 7/27 and 4/27 -2/27; s = 2/3: 7/27 20/27 and 2/27 -4/27); E1 E2 E4 E5 pick HR's columns
 73
@@ -513,6 +544,11 @@ REM ======== the day ========
 REM ---- LBL :DAY: the day R25 at the port: the time zone, the start JD0 = R25 - 0.5 - tz / 24 (UT), the angles, the
 REM vectors P A AW AW2, the high and low waters, the screen ----
 LBL :DAY:
+XEQ :DAYC:
+XEQ :SCREEN:
+RTN
+REM ---- LBL :DAYC: the day's computation (no screen; FLOW47 uses it for its reference station) ----
+LBL :DAYC:
 XEQ :TZ:
 RCL 25
 0.5
@@ -566,7 +602,6 @@ RCL "LH"
 XEQ :VEC:
 XEQ :HOURS:
 XEQ :FIND:
-XEQ :SCREEN:
 RTN
 REM ---- LBL :VEC: Y = the phases G, X = the logs LH of a component: P = VU - G (MOD 360) with VU = S x (DM x AV + UM x
 REM BV), A = e^(EL + LH) with EL = S x EM x LF (f x H), AW = A x the speeds (rad / h), AW2 = AW x the speeds: vectors
@@ -2712,6 +2747,1554 @@ IF
   1
   STO 21
   STO 92
+ENDIF
+RTN
+REM ======== FLOW47's routines ========
+REM ---- LBL :FGO: the reference station (R20 R21, set by the build), its spring range, the atlas, the position, the
+REM High Water nearest now; then the screen and the keys until 0 ----
+LBL :FGO:
+XEQ :LOAD:
+XEQ :SPRNG:
+XEQ "TIDEFL"
+XEQ :FIN:
+XEQ :FNOW:
+DO
+  XEQ :FSCR:
+  XEQ :FKEYS:
+  82
+  RCL 98
+  X≠Y?
+WHILE
+ENDDO
+RTN
+REM ---- LBL :FIN: INPUT the position and the wind; R80 R81 in degrees; R82 R83 the wind's current (WFAC x WKN towards
+REM WDIR + 180 + WDEF: downwind, turned to the right); the atlas there (LBL :ATLAS:) ----
+LBL :FIN:
+INPUT "LAT"
+INPUT "LON"
+INPUT "WDIR"
+INPUT "WKN"
+RCL "LAT"
+XEQ :DMD:
+STO 80
+RCL "LON"
+XEQ :DMD:
+STO 81
+RCL "WDIR"
+180
++
+{WDEF}
++
+STO 43
+SIN
+RCL "WKN"
+×
+{WFAC}
+×
+STO 82
+RCL 43
+COS
+RCL "WKN"
+×
+{WFAC}
+×
+STO 83
+XEQ :ATLAS:
+RTN
+REM ---- LBL :DMD: X = DD.MMm (- south / west): X = degrees ----
+LBL :DMD:
+STO 43
+ABS
+STO 44
+IP
+STO 45
+RCL 44
+RCL- 45
+100
+×
+60
+÷
+RCL+ 45
+STO 46
+RCL 43
+X<0?
+IF
+  RCL 46
+  CHS
+  STO 46
+ENDIF
+RCL 46
+RTN
+REM ---- LBL :ATLAS: FU FV = the 13 spring streams at R80 R81: bilinear between the four nodes around (LBL :CORN:; the
+REM land ones left out); R93 = 1, or 0 outside the grid or on land ----
+LBL :ATLAS:
+0
+STO 93
+13
+1
+NEWMAT
+STO "FU"
+13
+1
+NEWMAT
+STO "FV"
+RCL 80
+{FLAT0}
+-
+{FK}
+×
+STO 50
+RCL 81
+{FLON0}
+-
+{FK}
+×
+STO 51
+1
+STO 52
+RCL 50
+X<0?
+IF
+  0
+  STO 52
+ENDIF
+RCL 50
+{FNLAT1}
+X<Y?
+IF
+  0
+  STO 52
+ENDIF
+RCL 51
+X<0?
+IF
+  0
+  STO 52
+ENDIF
+RCL 51
+{FNLON1}
+X<Y?
+IF
+  0
+  STO 52
+ENDIF
+RCL 52
+X=0?
+RTN
+RCL 50
+IP
+{FNLAT2}
+X>Y?
+IF
+  RCL 50
+  IP
+ELSE
+  {FNLAT2}
+ENDIF
+STO 52
+RCL 50
+RCL- 52
+STO 53
+RCL 51
+IP
+{FNLON2}
+X>Y?
+IF
+  RCL 51
+  IP
+ELSE
+  {FNLON2}
+ENDIF
+STO 54
+RCL 51
+RCL- 54
+STO 55
+0
+STO 56
+1
+RCL- 53
+1
+RCL- 55
+×
+STO 57
+RCL 52
+{FNLON}
+×
+RCL+ 54
+1
++
+STO 58
+XEQ :CORN:
+RCL 53
+1
+RCL- 55
+×
+STO 57
+RCL 52
+1
++
+{FNLON}
+×
+RCL+ 54
+1
++
+STO 58
+XEQ :CORN:
+1
+RCL- 53
+RCL× 55
+STO 57
+RCL 52
+{FNLON}
+×
+RCL+ 54
+2
++
+STO 58
+XEQ :CORN:
+RCL 53
+RCL× 55
+STO 57
+RCL 52
+1
++
+{FNLON}
+×
+RCL+ 54
+2
++
+STO 58
+XEQ :CORN:
+RCL 56
+1E-9
+X>Y?
+RTN
+1
+RCL÷ 56
+STO 57
+RCL "FU"
+RCL 57
+×
+STO "FU"
+RCL "FV"
+RCL 57
+×
+STO "FV"
+1
+STO 93
+RTN
+REM ---- LBL :CORN: the node R58 (a row of FL) with the weight R57: unless land (0) or no weight, its 13 hours (LBL
+REM :DEC:) x R57 added to FU FV, R57 to R56 ----
+LBL :CORN:
+RCL 57
+0
+X≥Y?
+RTN
+INDEX "FL"
+RCL 58
+1
+STOIJ
+DROP
+DROP
+RCLEL
+STO 43
+J+
+RCLEL
+STO 44
+RCL 43
+X=0?
+RTN
+RCL 57
+STO+ 56
+13
+STO 59
+6
+STO 49
+XEQ :DEC:
+RCL 43
+STO 44
+7
+STO 49
+XEQ :DEC:
+RTN
+REM ---- LBL :DEC: R49 hours of the packed number R44 (two digits u, two v an hour, the last hour on the right), from
+REM the hour R59 down: (code - 50) x Q x R57 added to FU FV ----
+LBL :DEC:
+DO
+  RCL 44
+  100
+  MOD
+  50
+  -
+  {FQ}
+  ×
+  RCL× 57
+  INDEX "FV"
+  RCL 59
+  1
+  STOIJ
+  DROP
+  DROP
+  RCLEL
+  +
+  STOEL
+  RCL 44
+  100
+  ÷
+  IP
+  STO 44
+  100
+  MOD
+  50
+  -
+  {FQ}
+  ×
+  RCL× 57
+  INDEX "FU"
+  RCL 59
+  1
+  STOIJ
+  DROP
+  DROP
+  RCLEL
+  +
+  STOEL
+  RCL 44
+  100
+  ÷
+  IP
+  STO 44
+  1
+  STO- 59
+  DSE 49
+WHILE
+ENDDO
+RTN
+REM ---- LBL :SPRNG: R89 = the mean spring range at the reference station: 2 (H M2 + H S2) (the constituents 1 and 2 of
+REM the 60, among IX) ----
+LBL :SPRNG:
+0
+STO 89
+1
+STO 50
+DO
+  INDEX "IX"
+  RCL 50
+  1
+  STOIJ
+  DROP
+  DROP
+  RCLEL
+  3
+  X>Y?
+  IF
+    INDEX "HH"
+    RCL 50
+    1
+    STOIJ
+    DROP
+    DROP
+    RCLEL
+    STO+ 89
+  ENDIF
+  1
+  STO+ 50
+  RCL "NK"
+  RCL 50
+  X≤Y?
+WHILE
+ENDDO
+RCL 89
+0.0002
+×
+STO 89
+RTN
+REM ---- LBL :HWF: the day's High Waters (R72 + the kinds): R46 the first (an index from 0; -1: none), R47 the last ----
+LBL :HWF:
+-1
+STO 46
+STO 47
+0
+STO 49
+RCL 78
+X=0?
+RTN
+DO
+  72
+  RCL+ 49
+  STO 43
+  RCL IND 43
+  X>0?
+  IF
+    RCL 46
+    X<0?
+    IF
+      RCL 49
+      STO 46
+    ENDIF
+    RCL 49
+    STO 47
+  ENDIF
+  1
+  STO+ 49
+  RCL 78
+  RCL 49
+  X<Y?
+WHILE
+ENDDO
+RTN
+REM ---- LBL :PICK: the High Water of day R25 nearest the hour R99 (LBL :NEAR:); none that day, or the hour more than 6.2
+REM h after the last / before the first: the next day's first / the previous day's last; R84 its index ----
+LBL :PICK:
+XEQ :DAYC:
+XEQ :HWF:
+0
+STO 48
+RCL 46
+X<0?
+IF
+  1
+  STO 48
+ELSE
+  60
+  RCL+ 47
+  STO 43
+  RCL 99
+  RCL IND 43
+  -
+  6.2
+  X<Y?
+  IF
+    1
+    STO 48
+  ENDIF
+  60
+  RCL+ 46
+  STO 43
+  RCL IND 43
+  RCL- 99
+  6.2
+  X<Y?
+  IF
+    -1
+    STO 48
+  ENDIF
+ENDIF
+RCL 48
+X=0?
+IF
+  XEQ :NEAR:
+ELSE
+  RCL 48
+  STO 99
+  STO+ 25
+  XEQ :DAYC:
+  XEQ :HWF:
+  RCL 99
+  X>0?
+  IF
+    RCL 46
+  ELSE
+    RCL 47
+  ENDIF
+  STO 84
+ENDIF
+RTN
+REM ---- LBL :NEAR: R84 = the High Water of the day nearest the hour R99 (the first of equals) ----
+LBL :NEAR:
+1E9
+STO 48
+0
+STO 49
+DO
+  72
+  RCL+ 49
+  STO 43
+  RCL IND 43
+  X>0?
+  IF
+    60
+    RCL+ 49
+    STO 43
+    RCL IND 43
+    RCL- 99
+    ABS
+    RCL 48
+    X>Y?
+    IF
+      X<>Y
+      STO 48
+      RCL 49
+      STO 84
+    ENDIF
+  ENDIF
+  1
+  STO+ 49
+  RCL 78
+  RCL 49
+  X<Y?
+WHILE
+ENDDO
+RTN
+REM ---- LBL :FNEXT: R84 = the next High Water (that day, else the next day's first) ----
+LBL :FNEXT:
+-1
+STO 48
+RCL 84
+1
++
+STO 49
+DO
+  RCL 78
+  RCL 49
+  X<Y?
+WHILE
+  72
+  RCL+ 49
+  STO 43
+  RCL IND 43
+  X>0?
+  IF
+    RCL 48
+    X<0?
+    IF
+      RCL 49
+      STO 48
+    ENDIF
+  ENDIF
+  1
+  STO+ 49
+ENDDO
+RCL 48
+X<0?
+IF
+  1
+  STO+ 25
+  XEQ :DAYC:
+  XEQ :HWF:
+  RCL 46
+  STO 48
+ENDIF
+RCL 48
+STO 84
+RTN
+REM ---- LBL :FPREV: R84 = the previous High Water (that day, else the previous day's last) ----
+LBL :FPREV:
+-1
+STO 48
+RCL 84
+1
+-
+STO 49
+DO
+  0
+  RCL 49
+  X≥Y?
+WHILE
+  72
+  RCL+ 49
+  STO 43
+  RCL IND 43
+  X>0?
+  IF
+    RCL 48
+    X<0?
+    IF
+      RCL 49
+      STO 48
+    ENDIF
+  ENDIF
+  1
+  STO- 49
+ENDDO
+RCL 48
+X<0?
+IF
+  1
+  STO- 25
+  XEQ :DAYC:
+  XEQ :HWF:
+  RCL 47
+  STO 48
+ENDIF
+RCL 48
+STO 84
+RTN
+REM ---- LBL :FNOW: today, the High Water nearest the clock ----
+LBL :FNOW:
+XEQ :CLOCK:
+RCL 85
+STO 25
+RCL 86
+STO 99
+XEQ :PICK:
+XEQ :CYC:
+RTN
+REM ---- LBL :CYC: the High Water R84: R87 its hour; R88 = its range (its height - the mean of the low waters next to it
+REM that day) / the mean spring range R89 (1 without a low water) ----
+LBL :CYC:
+60
+RCL+ 84
+STO 43
+RCL IND 43
+STO 87
+66
+RCL+ 84
+STO 43
+RCL IND 43
+STO 53
+0
+STO 54
+STO 55
+RCL 84
+1
+-
+STO 49
+0
+RCL 49
+X≥Y?
+IF
+  72
+  RCL+ 49
+  STO 43
+  RCL IND 43
+  X<0?
+  IF
+    66
+    RCL+ 49
+    STO 43
+    RCL IND 43
+    STO+ 54
+    1
+    STO+ 55
+  ENDIF
+ENDIF
+RCL 84
+1
++
+STO 49
+RCL 78
+RCL 49
+X<Y?
+IF
+  72
+  RCL+ 49
+  STO 43
+  RCL IND 43
+  X<0?
+  IF
+    66
+    RCL+ 49
+    STO 43
+    RCL IND 43
+    STO+ 54
+    1
+    STO+ 55
+  ENDIF
+ENDIF
+RCL 55
+X=0?
+IF
+  1
+ELSE
+  RCL 53
+  RCL 54
+  RCL÷ 55
+  -
+  RCL÷ 89
+ENDIF
+STO 88
+RTN
+REM ---- LBL :FROW: X = the row (0-12: HW-6 ... HW+6): R30 u, R31 v (R88 x the atlas + the wind's current), R32 the
+REM knots, R33 the set ----
+LBL :FROW:
+1
++
+STO 59
+INDEX "FU"
+RCL 59
+1
+STOIJ
+DROP
+DROP
+RCLEL
+RCL× 88
+RCL+ 82
+STO 30
+INDEX "FV"
+RCL 59
+1
+STOIJ
+DROP
+DROP
+RCLEL
+RCL× 88
+RCL+ 83
+STO 31
+RCL 30
+RCL 31
+→POL
+STO 32
+X<>Y
+360
+MOD
+STO 33
+RTN
+REM ---- LBL :FOFF: R92 = now - the High Water (hours), R90 = 1 when it is within the cycle (-6 ... 6) ----
+LBL :FOFF:
+XEQ :CLOCK:
+RCL 85
+RCL- 25
+24
+×
+RCL+ 86
+RCL- 87
+STO 92
+0
+STO 90
+RCL 92
+ABS
+6
+X≥Y?
+IF
+  1
+  STO 90
+ENDIF
+RTN
+REM ---- LBL :FNOWV: the stream now (R92 from the High Water): straight between the hours; R30 R31 R32 R33 as :FROW: ----
+LBL :FNOWV:
+RCL 92
+6
++
+STO 53
+IP
+11
+X>Y?
+IF
+  RCL 53
+  IP
+ELSE
+  11
+ENDIF
+STO 54
+RCL 53
+RCL- 54
+STO 55
+RCL 54
+1
++
+XEQ :FROW:
+RCL 30
+STO 56
+RCL 31
+STO 57
+RCL 54
+XEQ :FROW:
+RCL 56
+RCL- 30
+RCL× 55
+STO+ 30
+RCL 57
+RCL- 31
+RCL× 55
+STO+ 31
+RCL 30
+RCL 31
+→POL
+STO 32
+X<>Y
+360
+MOD
+STO 33
+RTN
+REM ---- LBL :FKEYS: wait for a key and do it ----
+LBL :FKEYS:
+DO
+  PAUSE 50
+  KEY? 98
+WHILE
+ENDDO
+RCL 98
+64
+X=Y?
+IF
+  XEQ :FNEXT:
+  XEQ :CYC:
+ENDIF
+RCL 98
+62
+X=Y?
+IF
+  XEQ :FPREV:
+  XEQ :CYC:
+ENDIF
+RCL 98
+74
+X=Y?
+IF
+  RCL 87
+  STO 99
+  1
+  STO+ 25
+  XEQ :PICK:
+  XEQ :CYC:
+ENDIF
+RCL 98
+72
+X=Y?
+IF
+  RCL 87
+  STO 99
+  1
+  STO- 25
+  XEQ :PICK:
+  XEQ :CYC:
+ENDIF
+RCL 98
+63
+X=Y?
+IF
+  XEQ :FNOW:
+ENDIF
+RCL 98
+52
+X=Y?
+IF
+  XEQ :FIN:
+ENDIF
+RTN
+REM ======== FLOW47's screen: the header; the table on the left (13 rows, the small font), the rose on the right ========
+LBL :FSCR:
+CLLCD
+0
+GRMOD
+21
+GRFNT
+""
+STO 34
+RCL 80
+STO 43
+1
+STO 44
+XEQ :DMS:
+" "
+x→α 34
+RCL 81
+STO 43
+2
+STO 44
+XEQ :DMS:
+RCL 34
+220
+2
+ATEXT Z
+XEQ :DATES:
+RCL 34
+220
+256
+ATEXT Z
+10
+GRFNT
+RCL 93
+X=0?
+IF
+  "NO ATLAS HERE: OUTSIDE THE CHARTS OR ON LAND"
+  130
+  40
+  ATEXT Z
+  "7: A NEW POSITION    0: THE END"
+  112
+  40
+  ATEXT Z
+ELSE
+  RCL 26
+  STO 34
+  "  HW "
+  x→α 34
+  RCL 87
+  XEQ :HHMM:
+  RCL 34
+  209
+  2
+  ATEXT Z
+  "RANGE X"
+  STO 34
+  RCL 88
+  XEQ :NUM2:
+  " OF SPRINGS"
+  x→α 34
+  RCL 34
+  2
+  8
+  ATEXT Z
+  XEQ :FOFF:
+  RCL 90
+  X≠0?
+  IF
+    XEQ :FNOWV:
+    "NOW "
+    STO 34
+    RCL 86
+    XEQ :HHMM:
+    " "
+    x→α 34
+    RCL 32
+    XEQ :NUM2:
+    " KN "
+    x→α 34
+    RCL 33
+    XEQ :SET:
+    RCL 34
+    209
+    256
+    ATEXT Z
+  ENDIF
+  12
+  STO 49
+  DO
+    RCL 49
+    198
+    PIXEL
+    3
+    STO+ 49
+    200
+    RCL 49
+    X≤Y?
+  WHILE
+  ENDDO
+  XEQ :FTAB:
+  XEQ :ROSE:
+  RCL "WKN"
+  X>0?
+  IF
+    "WIND "
+    STO 34
+    RCL "WDIR"
+    XEQ :SET:
+    " "
+    x→α 34
+    RCL "WKN"
+    0.5
+    +
+    IP
+    αIP 34
+    " KN"
+    x→α 34
+  ELSE
+    "NO WIND"
+    STO 34
+  ENDIF
+  RCL 34
+  2
+  204
+  ATEXT Z
+ENDIF
+21
+GRFNT
+RTN
+REM ---- LBL :DMS: R43 degrees (R44 1: a latitude, 2: a longitude) appended to R34 as DD°MM.M'N (DDD° for a longitude) ----
+LBL :DMS:
+RCL 43
+ABS
+600
+×
+0.5
++
+IP
+STO 45
+600
+÷
+IP
+STO 46
+RCL 45
+RCL 46
+600
+×
+-
+STO 45
+RCL 44
+1
+X≠Y?
+IF
+  RCL 46
+  100
+  X>Y?
+  IF
+    "0"
+    x→α 34
+  ENDIF
+ENDIF
+RCL 46
+XEQ :TWO:
+"°"
+x→α 34
+RCL 45
+10
+÷
+IP
+XEQ :TWO:
+"."
+x→α 34
+RCL 45
+10
+MOD
+αIP 34
+"'"
+x→α 34
+RCL 44
+1
+X=Y?
+IF
+  RCL 43
+  X<0?
+  IF
+    "S"
+  ELSE
+    "N"
+  ENDIF
+ELSE
+  RCL 43
+  X<0?
+  IF
+    "W"
+  ELSE
+    "E"
+  ENDIF
+ENDIF
+x→α 34
+RTN
+REM ---- LBL :FTAB: the 13 rows: HW-6 ... HW+6, the clock time, an arrow (LBL :GLYPH:), the set, the knots; > now ----
+LBL :FTAB:
+"HW"
+196
+8
+ATEXT Z
+"TIME"
+196
+30
+ATEXT Z
+"SET"
+196
+112
+ATEXT Z
+"KN"
+196
+160
+ATEXT Z
+0
+STO 58
+DO
+  183
+  RCL 58
+  14
+  ×
+  -
+  STO 57
+  RCL 58
+  6
+  -
+  STO 56
+  X=0?
+  IF
+    "HW"
+    STO 34
+  ELSE
+    RCL 56
+    X<0?
+    IF
+      "-"
+    ELSE
+      "+"
+    ENDIF
+    STO 34
+    RCL 56
+    ABS
+    αIP 34
+  ENDIF
+  RCL 34
+  RCL 57
+  8
+  ATEXT Z
+  ""
+  STO 34
+  RCL 87
+  RCL+ 56
+  24
+  MOD
+  XEQ :HHMM:
+  RCL 34
+  RCL 57
+  30
+  ATEXT Z
+  RCL 58
+  XEQ :FROW:
+  88
+  STO 50
+  RCL 57
+  4
+  +
+  STO 51
+  XEQ :GLYPH:
+  ""
+  STO 34
+  RCL 33
+  XEQ :SET:
+  RCL 34
+  RCL 57
+  112
+  ATEXT Z
+  ""
+  STO 34
+  RCL 32
+  XEQ :NUM2:
+  RCL 34
+  RCL 57
+  160
+  ATEXT Z
+  RCL 90
+  X≠0?
+  IF
+    RCL 92
+    6.5
+    +
+    IP
+    RCL 58
+    X=Y?
+    IF
+      ">"
+      RCL 57
+      1
+      ATEXT Z
+    ENDIF
+  ENDIF
+  1
+  STO+ 58
+  12
+  RCL 58
+  X≤Y?
+WHILE
+ENDDO
+RTN
+REM ---- LBL :GLYPH: an arrow of 12 pixels centred at R50 (column) R51 (row), the stream R30 R31 (R32 knots): a dot when
+REM under 0.03 kn (LBL :ARROW:, head 4) ----
+LBL :GLYPH:
+RCL 32
+0.03
+X>Y?
+IF
+  RCL 51
+  RCL 50
+  PIXEL
+ELSE
+  RCL 30
+  RCL÷ 32
+  STO 52
+  RCL 31
+  RCL÷ 32
+  STO 53
+  RCL 52
+  -6
+  ×
+  RCL+ 50
+  STO 44
+  RCL 53
+  -6
+  ×
+  RCL+ 51
+  STO 45
+  RCL 52
+  6
+  ×
+  RCL+ 50
+  STO 54
+  RCL 53
+  6
+  ×
+  RCL+ 51
+  STO 55
+  4
+  STO 56
+  XEQ :ARROW:
+ENDIF
+RTN
+REM ---- LBL :ARROW: a line from R44 R45 to the tip R54 R55 and a head of R56 pixels (the unit direction R52 R53; the
+REM head's sides at +-150 degrees: cos 150 = -0.866, sin 150 = 0.5) ----
+LBL :ARROW:
+RCL 54
+STO 46
+RCL 55
+STO 47
+XEQ :LINE:
+RCL 54
+STO 44
+RCL 55
+STO 45
+RCL 52
+-0.866
+×
+RCL 53
+0.5
+×
+-
+RCL× 56
+RCL+ 54
+STO 46
+RCL 52
+0.5
+×
+RCL 53
+-0.866
+×
++
+RCL× 56
+RCL+ 55
+STO 47
+XEQ :LINE:
+RCL 52
+-0.866
+×
+RCL 53
+0.5
+×
++
+RCL× 56
+RCL+ 54
+STO 46
+RCL 52
+-0.5
+×
+RCL 53
+-0.866
+×
++
+RCL× 56
+RCL+ 55
+STO 47
+XEQ :LINE:
+RTN
+REM ---- LBL :LINE: the pixels from R44 R45 to R46 R47 (column, row), a pixel a step of the longer side ----
+LBL :LINE:
+RCL 46
+RCL- 44
+ABS
+RCL 47
+RCL- 45
+ABS
+X<Y?
+X<>Y
+0.5
++
+IP
+1
+X>Y?
+IF
+  1
+ELSE
+  X<>Y
+ENDIF
+STO 48
+0
+STO 49
+DO
+  RCL 46
+  RCL- 44
+  RCL× 49
+  RCL÷ 48
+  RCL+ 44
+  0.5
+  +
+  IP
+  STO 43
+  RCL 47
+  RCL- 45
+  RCL× 49
+  RCL÷ 48
+  RCL+ 45
+  0.5
+  +
+  IP
+  RCL 43
+  PIXEL
+  1
+  STO+ 49
+  RCL 48
+  RCL 49
+  X≤Y?
+WHILE
+ENDDO
+RTN
+REM ---- LBL :ROSE: the rose (centre 302 104, radius 76): the rings (every R57 knots, R54 of them: the scale R56 the
+REM fastest of the 13 rounded up), the cross, N E S W, the 13 streams as a curve from the centre (-6, HW and +6
+REM marked), the stream now as a bold arrow; R55 pixels a knot ----
+LBL :ROSE:
+0
+STO 58
+0
+STO 50
+DO
+  RCL 50
+  XEQ :FROW:
+  RCL 58
+  RCL 32
+  X>Y?
+  IF
+    RCL 32
+    STO 58
+  ENDIF
+  1
+  STO+ 50
+  12
+  RCL 50
+  X≤Y?
+WHILE
+ENDDO
+0.25
+STO 57
+RCL 58
+0.5
+X<Y?
+IF
+  0.5
+  STO 57
+ENDIF
+RCL 58
+2
+X<Y?
+IF
+  1
+  STO 57
+ENDIF
+RCL 58
+RCL÷ 57
+STO 54
+IP
+STO 53
+RCL 54
+FP
+X≠0?
+IF
+  1
+  STO+ 53
+ENDIF
+RCL 53
+STO 54
+1
+RCL 54
+X<Y?
+IF
+  1
+  STO 54
+ENDIF
+RCL 54
+RCL× 57
+STO 56
+76
+RCL÷ 56
+STO 55
+1
+STO 50
+DO
+  76
+  RCL× 50
+  RCL÷ 54
+  STO 51
+  0
+  STO 52
+  DO
+    RCL 52
+    SIN
+    RCL× 51
+    302
+    +
+    0.5
+    +
+    IP
+    STO 43
+    RCL 52
+    COS
+    RCL× 51
+    104
+    +
+    0.5
+    +
+    IP
+    RCL 43
+    PIXEL
+    9
+    STO+ 52
+    351
+    RCL 52
+    X≤Y?
+  WHILE
+  ENDDO
+  1
+  STO+ 50
+  RCL 54
+  RCL 50
+  X≤Y?
+WHILE
+ENDDO
+-76
+STO 50
+DO
+  104
+  RCL 50
+  302
+  +
+  PIXEL
+  RCL 50
+  104
+  +
+  302
+  PIXEL
+  4
+  STO+ 50
+  76
+  RCL 50
+  X≤Y?
+WHILE
+ENDDO
+"N"
+184
+300
+ATEXT Z
+"S"
+18
+300
+ATEXT Z
+"E"
+101
+382
+ATEXT Z
+"W"
+101
+214
+ATEXT Z
+"RING "
+STO 34
+RCL 57
+XEQ :NUM2:
+" KN"
+x→α 34
+RCL 34
+2
+322
+ATEXT Z
+RCL 55
+STO 58
+0
+STO 50
+DO
+  RCL 50
+  XEQ :FROW:
+  RCL 30
+  RCL× 55
+  302
+  +
+  STO 46
+  RCL 31
+  RCL× 55
+  104
+  +
+  STO 47
+  RCL 50
+  X≠0?
+  IF
+    XEQ :LINE:
+  ENDIF
+  RCL 46
+  STO 44
+  RCL 47
+  STO 45
+  RCL 50
+  6
+  MOD
+  X=0?
+  IF
+    RCL 50
+    6
+    -
+    X=0?
+    IF
+      "HW"
+    ELSE
+      RCL 50
+      X=0?
+      IF
+        "-6"
+      ELSE
+        "+6"
+      ENDIF
+    ENDIF
+    RCL 47
+    2
+    +
+    RCL 46
+    3
+    +
+    ATEXT Z
+  ENDIF
+  1
+  STO+ 50
+  12
+  RCL 50
+  X≤Y?
+WHILE
+ENDDO
+RCL 90
+X≠0?
+IF
+  XEQ :FNOWV:
+  RCL 32
+  0.03
+  X<Y?
+  IF
+    RCL 30
+    RCL÷ 32
+    STO 52
+    RCL 31
+    RCL÷ 32
+    STO 53
+    RCL 30
+    RCL× 58
+    302
+    +
+    STO 54
+    RCL 31
+    RCL× 58
+    104
+    +
+    STO 55
+    302
+    STO 44
+    104
+    STO 45
+    7
+    STO 56
+    XEQ :ARROW:
+    303
+    STO 44
+    104
+    STO 45
+    RCL 54
+    1
+    +
+    STO 46
+    RCL 55
+    STO 47
+    XEQ :LINE:
+    302
+    STO 44
+    105
+    STO 45
+    RCL 54
+    STO 46
+    RCL 55
+    1
+    +
+    STO 47
+    XEQ :LINE:
+  ENDIF
 ENDIF
 RTN
 END

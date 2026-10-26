@@ -268,6 +268,69 @@ def test_streams():
             os.remove(priv)
 
 
+def test_flow():
+    print('6. FLOW47: the C47 against the twin (tide47ref.flow_*) with a synthetic atlas and Mina Salman as the reference')
+    import build_tide47 as B, synth_flow as SF, tempfile, shutil, c47sim
+    fl = SF.atlas()
+    ref = stations.REGIONS[0][3][0]
+    tmp = tempfile.mkdtemp()
+    try:
+        regs = list(ALLREG)
+        flow = B.flow_find(regs, fl) + (fl,)
+        B.build(regs, [tmp], listings=False, flow=flow)
+        open(os.path.join(tmp, 'TIDEFL.txt'), 'w').write('\n'.join(B.flow_data(fl)) + '\n')
+        progs = [os.path.join(tmp, 'TIDE47.txt')] + [os.path.join(ROOT, 'build', r[1] + '.txt') for r in regs] + \
+            [os.path.join(tmp, 'TIDEFL.txt')]
+        K = S.FLOWKEYS
+        keys = [K['NEXT'], K['NEXT'], K['PREV'], K['DAYF'], K['DAYB'], K['PREV'], K['NOW']]
+        today = R.jdn(2026, 10, 25)
+        worst = 0
+        for lat, lon, wd, wk in ((28.24, 49.36, 320, 25), (27.15, 50.03, 0, 0), (26.3, 50.4, 90, 12), (26.2, 49.0, 0, 0),
+                                 (29.5, 49.0, 0, 0)):
+            shots, c = S.run_flow(keys, lat, lon, wd, wk, progs=progs)
+            cell = R.flow_cell(fl, R.dm(lat), R.dm(lon))
+            st = [f for _, f in c.fl]
+            if cell is None:
+                check(all(f['ok'] == 0 for f in st), '%.2f %.2f: no atlas here (land or outside), as the twin' % (lat, lon))
+                continue
+            n, m = R.flow_pick(ref, today, 13.0)
+            want = [(n, m)]
+            for k in keys:
+                if k == K['NEXT']:
+                    n, m = R.flow_step(ref, n, m, 1)
+                elif k == K['PREV']:
+                    n, m = R.flow_step(ref, n, m, -1)
+                elif k in (K['DAYF'], K['DAYB']):
+                    t = R.flow_cycle(ref, n, m)[0]
+                    n, m = R.flow_pick(ref, n + (1 if k == K['DAYF'] else -1), t)
+                else:
+                    n, m = R.flow_pick(ref, today, 13.0)
+                want.append((n, m))
+            ok = len(st) == len(want)
+            for f, (n, m) in zip(st, want):
+                t, h, rng, fac = R.flow_cycle(ref, n, m)
+                ok = ok and f['ok'] == 1 and f['n'] == n and f['m'] == m
+                worst = max(worst, abs(f['t'] - t) * 3600, abs(f['f'] - fac) * 1e4)
+            for a, b in zip(st[0]['FU'] + st[0]['FV'], cell[0] + cell[1]):
+                worst = max(worst, abs(a - b) * 1e4)
+            check(ok, '%.2f %.2f: the same High Waters through the keys %s' % (lat, lon, [(f['n'] - today, f['m']) for f in st]))
+        check(worst < 1e-3, 'the hours, the factors and the atlas values the same (worst %.2g: s, 1E-4 of the factor, '
+              '1E-4 kn)' % worst)
+        S.png(os.path.join(ROOT, 'docs', 'FLOW47_synthetic.png'), S.run_flow([], 28.24, 49.36, 0, 0, progs=progs)[0][0])
+        cc = c47sim.load(progs)
+        from decimal import Decimal as Dd
+        cc.s = [Dd(11), Dd(22), Dd(33), Dd(44)]; cc.pix = []; cc.keys = [S.END]; cc.steps = 0; cc.clock = S.CLOCK
+        cc.frames = []; cc.lastx = Dd(55)
+        for k, v in (('LAT', 27.3), ('LON', 50.1), ('WDIR', 0), ('WKN', 0)):
+            cc.reg[k] = Dd(v)
+        cc.run('FLOW47', maxsteps=10 ** 9)
+        left = [k for k in cc.mats]
+        check(not left and [int(v) for v in cc.s[:4]] == [11, 22, 33, 44], 'the end of FLOW47: no matrix left, the stack '
+              'back %s' % (left or ''))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == '__main__':
     test_astronomy()
     test_utide()
@@ -275,5 +338,6 @@ if __name__ == '__main__':
     test_c47()
     test_keys()
     test_streams()
+    test_flow()
     print('ALL OK' if not FAIL else '%d FAILED' % len(FAIL))
     sys.exit(1 if FAIL else 0)

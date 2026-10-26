@@ -40,6 +40,37 @@ def run(ks, clock=CLOCK, maxsteps=10 ** 9, progs=None):
     return shots, c
 
 
+FLOWKEYS = dict(NEXT=64, PREV=62, DAYF=74, DAYB=72, NOW=63, POS=52)
+
+
+def run_flow(ks, lat, lon, wdir=0, wkn=0, clock=CLOCK, progs=None, maxsteps=10 ** 9):
+    """FLOW47 in the simulator: LAT LON (DD.MMm) WDIR WKN as the INPUTs answer them; progs: TIDE47 of a private
+    build, the data programs, TIDEFL. -> the screens and the simulator (c.fl: at each key wait the state: day R25,
+    High Water R84, its hour R87, the factor R88, FU, FV, R93)."""
+    c = c47sim.load(progs)
+    c.s = [D(0)] * 4; c.pix = []; c.keys = list(ks) + [END]; c.steps = 0; c.clock = clock
+    for k, v in (('LAT', lat), ('LON', lon), ('WDIR', wdir), ('WKN', wkn)):
+        c.reg[k] = D(repr(v))
+    c.at_steps = []
+
+    class F(list):
+        def append(self, f): c.at_steps.append(c.steps); super().append(f)
+    c.frames = F()
+    c.fl = []
+
+    def hook(op, x):
+        if op == 'KEY?' and (not c.fl or c.fl[-1][0] != len(c.frames)):
+            g = lambda k: float(c.reg.get(str(k), 0))
+            c.fl.append((len(c.frames), dict(n=int(g(25)), m=int(g(84)), t=g(87), f=g(88), ok=int(g(93)),
+                                             FU=[float(r[0]) for r in c.mats.get('FU', [])] if 'FU' in c.mats else None,
+                                             FV=[float(r[0]) for r in c.mats.get('FV', [])] if 'FV' in c.mats else None,
+                                             spring=g(89))))
+    c.count = hook
+    c.run('FLOW47', maxsteps=maxsteps)
+    shots = [{(x, H - 1 - y) for y, x in f if 0 <= y < H and 0 <= x < W} for f in c.frames]
+    return shots, c
+
+
 def events(c):
     """The high and low waters [(hours, metres, +1 / -1)]; a stream station (R28 >= 2): the rows of EV [(hours,
     value kn, set deg, +1 max / -1 min)]."""

@@ -106,6 +106,33 @@
   curve 0.8 mm; streams 1 s (16 s worst over 60 days), 0.0004 kn. The C47 = the twin as before (tests 3, 5).
 - Work a day: Bahrain 2 320 element trig (from 8 040), Boston 1 680 (7 500); steps 22 500 (20 000).
 
+## Oct 26, 2026 - FLOW47: the tidal stream atlas at a position (branch claude/tide47-streams)
+
+- Victor sent "Arabian Gulf Tidal Flow" (Mermaid Asiana 2022, a copy of a Saudi document, source unknown): 13 charts
+  HW-6 ... HW+6, Safaniya to Dammam, the spring speed as five colour bands; the reference port not named. Victor:
+  take Ras Tanura (the Aramco constants of the private build); a program: lat / lon -> 13 rows (set, knots, arrows)
+  in a split view; the wind correction.
+- tools/digitize_atlas.py: pages at 200 dpi; upside-down pages found by where the white land and legend are (the
+  tick fit first chosen wrongly: spurious ticks); graticule from the frame lines (Hough) and the ticks (darkness
+  just outside), Mercator fit 2.8-4.9 px rms; arrows: dark against the local median (and g < 125 for the thick
+  brown ones, saturated: first missed), not blue text / red pipelines, 3x3 dilation joins faint shafts, PCA axis,
+  head = the wider third; neighbour consensus turns heads read backwards. Speed: the background colour, nearest of
+  the band colours in Lab (white: from neighbours). 420-555 arrows a chart.
+- The charts are one cycle with a daily inequality: HW-6 and HW+6 correlate 0.32 only (mean speed 0.18 vs 0.55 kn);
+  consecutive hours 0.6-0.87. Used as they are (Admiralty practice), the range scaling for the size only.
+- tools/make_flow.py: a 10' grid (19 x 13, 192 sea), Gaussian-weighted arrows within 7.5', sea where half the charts
+  have an arrow near; u, v rounded to 0.05 kn, packed 2 digits each (+50), 7 hours in one number (28 digits), 6 in a
+  second: the data program TIDEFL (matrix FL, 247 x 2; about 13 KB).
+- FLOW47 (LBL "FLOW47" in TIDE47.txt; LBL :DAY: split into :DAYC: + :SCREEN:; the end in LBL :END:): INPUT LAT LON
+  (DD.MMm, Almanac 47's variables) WDIR WKN; :ATLAS: bilinear over the sea corners (:CORN: :DEC: unpack from the
+  right); :SPRNG: 2 (H M2 + H S2); :PICK: the HW nearest an hour (6.2 h rule to the next / previous day), :FNEXT:
+  :FPREV:, :CYC: the factor range / spring range; the screen: header, 13 rows (tiny font, :GLYPH: :ARROW: :LINE:),
+  the rose (rings, cross, the 13-point curve, the bold NOW arrow). Bugs found in the simulator: FLOOR uses R90 (the
+  NOW flag) -> ceil and the marker without it; :FNOWV: overwrote R55 (pixels a knot) -> kept in R58; :GLYPH: uses
+  R56 -> the marker from R58.
+- Tests 6: a synthetic atlas (tests/synth_flow.py), Mina Salman as the reference: the C47 = tide47ref.flow_* through
+  the keys (2E-9), land and outside give "no atlas", the end clean. The first screen 62 000 steps, a new HW 27 000.
+
 ## Plans
 
 - Tidal streams: done (v0.2.0). Next: the GEOSA tables (Victor) -> private/streams/; the vessel's own DP / ADCP
