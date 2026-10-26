@@ -87,6 +87,16 @@ Ras Tanura's Aramco constants as the reference), and built apart: `python3 tools
 table on the left (FLOW47's) and, on the right, the tide of the Aramco station nearest the position: its curve with
 the table's 13 hours marked, now, and its high and low waters. [docs/ARTF.md](docs/ARTF.md)
 
+## The PC app (GTK)
+
+`python3 app/tide47_gtk.py` (PyGObject with GTK 4 and pycairo; on Arch: `sudo pacman -S python-gobject gtk4
+python-cairo`): the same engine as the calculator (python/tide47ref.py, its twin) in four tabs: **Tide** (an Aramco
+station's day), **Flow** (the 13-hour stream table at a position and the rose), **ARTF** (the table and the nearest
+station's tide) and **Map** (the atlas over the whole area as a colour gradient of the speed with its arrows, the
+stations marked, your position as a triangle; ◀ ▶ or the arrow keys step through the 13 charts; click to move the
+position). It reads your private data (python/stations_private.py, python/flow_private.py); without them it runs on
+public stand-ins and says so in red. `--png DIR` writes the four views as pictures.
+
 ### Your own stations (Aramco)
 
 Stations whose tables may not be published, such as Saudi Aramco's, can be added as a private region on your own

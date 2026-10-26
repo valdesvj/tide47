@@ -182,6 +182,16 @@
   twin. A first screen about 76 000 steps, a new High Water about 46 000 (two days when the nearest is not the
   reference).
 
+## Oct 27, 2026 - the PC app (branch claude/artf47)
+
+- Victor: a Python GTK app with TIDE47, FLOW47 and ARTF47 on the Aramco data; then a full-area colour gradient of the
+  speed, the stations marked in the atlas, the position as a triangle, the 13 charts stepped with arrows.
+- app/tide47_gtk.py: GTK 4 (PyGObject), cairo drawing shared with --png (offscreen, for checks); tide47ref for all
+  numbers (day, flow_pick / step / cycle / rows / now, art_nearest), an exact height function for a smooth curve.
+  The station's "now" is UTC + its time zone (not the computer's zone). The map's gradient: bilinear over the sea
+  nodes every 3 pixels (land where under 35 % of the weight is sea), the bands' colours smoothed.
+- Checked under Xvfb (the window) and with --png. The container's GTK is on Python 3.12 (/usr/bin/python3.12).
+
 ## Plans
 
 - Tidal streams: done (v0.2.0). Next: the GEOSA tables (Victor) -> private/streams/; the vessel's own DP / ADCP
