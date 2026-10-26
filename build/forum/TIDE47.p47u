@@ -1,0 +1,2396 @@
+@ Index:   Tide predictions: the high and low waters and the tide curve of a day, by harmonic constants
+@ Author:  Victor Valdes
+@ Version: 0.1.0
+@ Source:  https://github.com/valdesvj/tide47
+@ Tested:  C47 simulator (python/c47sim.py): tests/test_tide47.py, the astronomy against NOAA's tables (XTide),
+@ Tested:  the constants back from a year of predictions (UTide), the C47 against python/tide47ref.py (25 ports x 3
+@ Tested:  days, to 0.01 s and 1E-12 m); not yet run on a calculator (LN and LBL? are new there)
+@ Input:   the data programs loaded (TIDEME, TIDEUS, TIDELA: any of them); the day from the calculator's date
+@ Output:  Mina Salman (Bahrain) 2026-10-25: the day's curve and the table of its high and low waters (LAT)
+@
+@ ---- What it is ----
+@ Tide 47 predicts the tide on the C47 / R47: for any day at a port, the times and heights of the high and low waters
+@ and the tide curve of the day, worked out on the calculator by the harmonic method that NOAA's and the Admiralty's
+@ tables use (60 constituents with the 18.6-year nodal corrections, as whole matrices). The ports come in data
+@ programs by region: TIDEME (the Middle East: Bahrain, Oman, Iran, Pakistan, Yemen, Djibouti), TIDEUS (ten US ports)
+@ and TIDELA (Latin America). Heights are in metres above the chart datum (LAT, or MLLW for the US ports).
+@ NOT FOR NAVIGATION: the astronomical tide only (wind, pressure and surges add to it); the official tables of the
+@ port authority are the reference.
+@
+@ ---- How to use it ----
+@ Load TIDE47 and the data programs of the regions you want (one is enough: TIDE47 finds those loaded), then press
+@ XEQ TIDE47. Setting up takes about 8 seconds; it shows today at the first port. The day is the calculator's date;
+@ the dotted line on the curve is its clock (set the calculator to the port's local time).
+@   4 6   the day before / after            1 3   the week before / after          5   today
+@   8 2   the port before / after           +     the next region loaded           0   the end
+@ The screen: the port, the date, its time zone, the datum and the source; the day's curve (hours 00-24) with each
+@ high and low water marked; the table of the high and low waters with their heights and ranges. A new day or port
+@ takes about 3.5 seconds. A data program from an older version is left out with OLD DATA, REBUILD.
+@
+@ ---- What it changes on your calculator ----
+@ Your stack and LASTx are given back at the end. Registers R00-R19 are not touched; R20-R99 are used and cleared at
+@ the end. It makes its matrices while it runs (DM UM EM SPD W LW ONES AV BV LF HG HH G LH P L A AW AW2 Z HS) and
+@ deletes them at the end. The angle mode is left in DEG; GRMOD 0 and GRFNT 20 are set.
+@
+@ ---- Programs and labels ----
+@ TIDE47 is one program with one global label (TIDE47); every routine is a local label. Each data program is one
+@ program with one global label (TIDEME, TIDEUS, TIDELA) and a local label per port. Written with the STRUCT commands,
+@ the matrix functions, ATEXT and GRFNT of the C47 / R47 firmware (00.109.05.00a0.ALPHA of 5 Oct 2026 or later); LN
+@ and LBL? are used here for the first time on a calculator (see the README).
+@
+@ ---- Technical notes (from the commented source) ----
+@ TIDE47 v0.1.0 - Tide 47: tide predictions for the C47 / R47 (and the DM42n with the C47 firmware)
+@ The harmonic method of NOAA and the Admiralty (Schureman, US C&GS Special Publication 98):
+@ h(t) = Z0 + sum f H cos(V + u - g + w t)
+@ over 60 constituents (NOAA's 37, 8 of TICON's, 15 for the Aramco tables), with the 18.6-year nodal corrections f and u, as whole
+@ matrices (the firmware works on every element: SIN COS LN e^x, M + M, M - M, M x r, M MOD r):
+@ P = DM x AV + UM x BV - G  (MOD 360)     the phases at the day's start: DM the Doodson numbers (60 x 7), AV
+@ the angles tau s h p N' p1 90; UM the u combinations, BV xi nu nu'
+@ 2nu'' Q R p
+@ A = e^(EM x LF + LH)                     the amplitudes f H: EM the node-factor powers (60 x 10), LF the logs of
+@ the 10 basic factors, LH the logs of the port's H (no loop for f x H)
+@ h(t) = Z0 + A . COS(W t + P)            one height: one COS of a 60-vector and one DOT
+@ High and low waters: the hourly signs of h'(t) = -AW . SIN(W t + P), then Newton (h'' = -AW2 . COS) in the
+@ hour. python/tide47ref.py is the same, step for step (tests/test_tide47.py compares them).
+@ The ports are in the data programs TIDEME, TIDEUS, TIDELA (load those you want: TIDE47 finds them, LBL?): XEQ
+@ "TIDEME" with X = the port's number sets its name (R26), time zone (R27), DST (R28: 1 = US rules), datum (R29),
+@ source (R95), Z0 (R24) and the matrix HG; X = 0: R96 the number of ports, R97 the region, R93 the constituents.
+@ Keys: 4 6 the day before / after, 1 3 the week before / after, 5 today, 8 2 the port before / after, + the next
+@ region loaded (MIDDLE EAST, USA, LATIN AMERICA), 0 the end.
+@ Screen 400 x 240, row 0 = the bottom: the header at 220 and 210, the chart at x 26-386 (15 pixels an hour), rows
+@ 118-196 (the time axis at 115), the table rows 0-100.
+@ Registers: R20 the region, R21 the port, R22 the day's start (JD, UT), R23 the time zone of the day (DST in),
+@ R24 Z0, R25 the day (JDN of the local date), R26-R29 R95-R97 the port, R30-R39 R50-R59 the astronomy, R40-R47
+@ the calendar, R50-R58 the events' search, R60-R65 the event times (hours), R66-R71 their heights, R72-R77 their
+@ kinds (1 high, -1 low), R78 how many, R80 R81 the chart's lowest and highest heights, R82 its step, R83 pixels a
+@ metre, R84 R87-R91 R93 drawing, R85 today (JDN), R86 the hour now, R92 1: load the port, R98 the key.
+@ The user's stack and LASTx are kept (LocR 9: STOS R.00, LASTx in R.08); R00-R19 are not touched; at the end
+@ R20-R99 are cleared and the matrices deleted; the angle mode is left in DEG.
+@
+
+LBL "TIDE47"
+LocR 9
+STOS R.00
+LASTx
+STO R.08
+XEQ 00                          ; -> :INIT:
+@ the ports: only when a data program was found (R79, LBL :PROBE:)
+RCL 79
+X≠0?
+IF 01
+  1
+  STO 92
+  DO 01
+    RCL 92
+    X≠0?
+    XEQ 06                      ; -> :LOAD:
+    XEQ 08                      ; -> :DAY:
+    XEQ 34                      ; -> :KEYS:
+    82
+    RCL 98
+    X≠Y?
+  WHILE 01
+  ENDDO 01
+ENDIF 01
+@
+@ ---- the end: R20-R99 cleared (R-CLR 20.79, then R99), the matrices deleted, GRMOD 0, GRFNT 20, the screen; your
+@ stack back ----
+20.79
+R-CLR
+0
+STO 99
+DELITM "DM"
+DELITM "UM"
+DELITM "EM"
+DELITM "SPD"
+DELITM "W"
+DELITM "LW"
+DELITM "ONES"
+DELITM "AV"
+DELITM "BV"
+DELITM "LF"
+DELITM "HG"
+DELITM "HH"
+DELITM "G"
+DELITM "LH"
+DELITM "P"
+DELITM "L"
+DELITM "A"
+DELITM "AW"
+DELITM "AW2"
+DELITM "Z"
+DELITM "HS"
+0
+GRMOD
+20
+GRFNT
+CLLCD
+RCL R.08
+STO L
+RCLS R.00
+RTN
+@ ======== the start ========
+@ ---- LBL :INIT: R20-R99 cleared, the constant matrices (DM UM EM, the speeds W = DM x SPD, LW = the logs of W in
+@ radians an hour, ONES), the day's vectors, today, the first port ----
+LBL 00                          ; :INIT:
+20.79
+R-CLR
+0
+STO 99
+CLLCD
+21
+GRFNT
+0
+GRMOD
+"TIDE 47 - SETTING UP ..."
+110
+100
+ATEXT Z
+DEG
+@ the matrices DM UM EM of python/tide47ref.py CONS, a row a number (written by the build)
+60
+7
+NEWMAT
+STO "DM"
+INDEX "DM"
+7
+STO 48
+1
+STO 46
+52505050505050
+XEQ 04                          ; -> :ROW:
+52524850505050
+XEQ 04                          ; -> :ROW:
+52495051505050
+XEQ 04                          ; -> :ROW:
+51515050505049
+XEQ 04                          ; -> :ROW:
+54505050505050
+XEQ 04                          ; -> :ROW:
+51495050505051
+XEQ 04                          ; -> :ROW:
+56505050505050
+XEQ 04                          ; -> :ROW:
+53515050505049
+XEQ 04                          ; -> :ROW:
+54544650505050
+XEQ 04                          ; -> :ROW:
+54495051505050
+XEQ 04                          ; -> :ROW:
+52495249505050
+XEQ 04                          ; -> :ROW:
+56564450505050
+XEQ 04                          ; -> :ROW:
+52485250505050
+XEQ 04                          ; -> :ROW:
+52485052505050
+XEQ 04                          ; -> :ROW:
+51535050505049
+XEQ 04                          ; -> :ROW:
+52514851505052
+XEQ 04                          ; -> :ROW:
+51514950505050
+XEQ 04                          ; -> :ROW:
+51505051505049
+XEQ 04                          ; -> :ROW:
+51525049505049
+XEQ 04                          ; -> :ROW:
+50515049505050
+XEQ 04                          ; -> :ROW:
+50505250505050
+XEQ 04                          ; -> :ROW:
+50505150505050
+XEQ 04                          ; -> :ROW:
+50524850505050
+XEQ 04                          ; -> :ROW:
+50525050505050
+XEQ 04                          ; -> :ROW:
+51485249505051
+XEQ 04                          ; -> :ROW:
+51485051505051
+XEQ 04                          ; -> :ROW:
+52524750505150
+XEQ 04                          ; -> :ROW:
+52524950504952
+XEQ 04                          ; -> :ROW:
+51475052505051
+XEQ 04                          ; -> :ROW:
+51514850505051
+XEQ 04                          ; -> :ROW:
+52544650505050
+XEQ 04                          ; -> :ROW:
+53505050505050
+XEQ 04                          ; -> :ROW:
+52515049505052
+XEQ 04                          ; -> :ROW:
+53495050505051
+XEQ 04                          ; -> :ROW:
+52525050505050
+XEQ 04                          ; -> :ROW:
+58505050505050
+XEQ 04                          ; -> :ROW:
+54524850505050
+XEQ 04                          ; -> :ROW:
+52475251505050
+XEQ 04                          ; -> :ROW:
+52505250505050
+XEQ 04                          ; -> :ROW:
+52504950505050
+XEQ 04                          ; -> :ROW:
+52505150505050
+XEQ 04                          ; -> :ROW:
+50535049505050
+XEQ 04                          ; -> :ROW:
+50544850505050
+XEQ 04                          ; -> :ROW:
+54485052505050
+XEQ 04                          ; -> :ROW:
+53534750505050
+XEQ 04                          ; -> :ROW:
+50505350504950
+XEQ 04                          ; -> :ROW:
+50514851505050
+XEQ 04                          ; -> :ROW:
+51475250505051
+XEQ 04                          ; -> :ROW:
+51495250505051
+XEQ 04                          ; -> :ROW:
+51515150504949
+XEQ 04                          ; -> :ROW:
+51515250505049
+XEQ 04                          ; -> :ROW:
+51534850505049
+XEQ 04                          ; -> :ROW:
+52504850505050
+XEQ 04                          ; -> :ROW:
+52534849505050
+XEQ 04                          ; -> :ROW:
+51495150505051
+XEQ 04                          ; -> :ROW:
+51494950505051
+XEQ 04                          ; -> :ROW:
+51485151505051
+XEQ 04                          ; -> :ROW:
+50505450505050
+XEQ 04                          ; -> :ROW:
+50525150505050
+XEQ 04                          ; -> :ROW:
+50535149505050
+XEQ 04                          ; -> :ROW:
+60
+7
+NEWMAT
+STO "UM"
+INDEX "UM"
+7
+STO 48
+1
+STO 46
+52485050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+52485050505050
+XEQ 04                          ; -> :ROW:
+50504950505050
+XEQ 04                          ; -> :ROW:
+54465050505050
+XEQ 04                          ; -> :ROW:
+52495050505050
+XEQ 04                          ; -> :ROW:
+56445050505050
+XEQ 04                          ; -> :ROW:
+52484950505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+54465050505050
+XEQ 04                          ; -> :ROW:
+52485050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+52485050505050
+XEQ 04                          ; -> :ROW:
+52485050505050
+XEQ 04                          ; -> :ROW:
+48495050505050
+XEQ 04                          ; -> :ROW:
+52485050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+51495050515049
+XEQ 04                          ; -> :ROW:
+50495050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+48525050505050
+XEQ 04                          ; -> :ROW:
+48505050505050
+XEQ 04                          ; -> :ROW:
+52495050505050
+XEQ 04                          ; -> :ROW:
+52495050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+52495050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+48525050505050
+XEQ 04                          ; -> :ROW:
+53475050505050
+XEQ 04                          ; -> :ROW:
+52485050504950
+XEQ 04                          ; -> :ROW:
+54465150505050
+XEQ 04                          ; -> :ROW:
+50505049505050
+XEQ 04                          ; -> :ROW:
+58425050505050
+XEQ 04                          ; -> :ROW:
+52485050505050
+XEQ 04                          ; -> :ROW:
+52485050505050
+XEQ 04                          ; -> :ROW:
+52485049505050
+XEQ 04                          ; -> :ROW:
+52485050505050
+XEQ 04                          ; -> :ROW:
+52485050505050
+XEQ 04                          ; -> :ROW:
+48505050505050
+XEQ 04                          ; -> :ROW:
+48505050505050
+XEQ 04                          ; -> :ROW:
+54465050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+52495050505050
+XEQ 04                          ; -> :ROW:
+52495050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+48515050505050
+XEQ 04                          ; -> :ROW:
+52485050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+52495050505050
+XEQ 04                          ; -> :ROW:
+52495050505050
+XEQ 04                          ; -> :ROW:
+52495050505050
+XEQ 04                          ; -> :ROW:
+50505050505050
+XEQ 04                          ; -> :ROW:
+48505050505050
+XEQ 04                          ; -> :ROW:
+48505050505050
+XEQ 04                          ; -> :ROW:
+60
+10
+NEWMAT
+STO "EM"
+INDEX "EM"
+10
+STO 48
+2
+STO 46
+50505050505052505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+50505050505052505050
+XEQ 04                          ; -> :ROW:
+50505052505050505050
+XEQ 04                          ; -> :ROW:
+50505050505054505050
+XEQ 04                          ; -> :ROW:
+50505250505050505050
+XEQ 04                          ; -> :ROW:
+50505050505056505050
+XEQ 04                          ; -> :ROW:
+50505052505052505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+50505050505054505050
+XEQ 04                          ; -> :ROW:
+50505050505052505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+50505050505052505050
+XEQ 04                          ; -> :ROW:
+50505050505052505050
+XEQ 04                          ; -> :ROW:
+50505050505250505050
+XEQ 04                          ; -> :ROW:
+50505050505052505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050505052
+XEQ 04                          ; -> :ROW:
+50505050525050505050
+XEQ 04                          ; -> :ROW:
+52505050505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+50505050505052505050
+XEQ 04                          ; -> :ROW:
+50525050505050505050
+XEQ 04                          ; -> :ROW:
+50505250505050505050
+XEQ 04                          ; -> :ROW:
+50505250505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+50505250505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+50505050505052505050
+XEQ 04                          ; -> :ROW:
+50505050505053505050
+XEQ 04                          ; -> :ROW:
+50505050505050505250
+XEQ 04                          ; -> :ROW:
+50505052505054505050
+XEQ 04                          ; -> :ROW:
+50505050505050525050
+XEQ 04                          ; -> :ROW:
+50505050505058505050
+XEQ 04                          ; -> :ROW:
+50505050505052505050
+XEQ 04                          ; -> :ROW:
+50505050505052505050
+XEQ 04                          ; -> :ROW:
+50505050505052525050
+XEQ 04                          ; -> :ROW:
+50505050505052505050
+XEQ 04                          ; -> :ROW:
+50505050505052505050
+XEQ 04                          ; -> :ROW:
+50525050505050505050
+XEQ 04                          ; -> :ROW:
+50525050505050505050
+XEQ 04                          ; -> :ROW:
+50505050505054505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+52505050505050505050
+XEQ 04                          ; -> :ROW:
+50505250505050505050
+XEQ 04                          ; -> :ROW:
+50505250505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+50505250505050505050
+XEQ 04                          ; -> :ROW:
+50505050505052505050
+XEQ 04                          ; -> :ROW:
+50505050505054505050
+XEQ 04                          ; -> :ROW:
+50505250505050505050
+XEQ 04                          ; -> :ROW:
+50505250505050505050
+XEQ 04                          ; -> :ROW:
+50505250505050505050
+XEQ 04                          ; -> :ROW:
+50505050505050505050
+XEQ 04                          ; -> :ROW:
+50525050505050505050
+XEQ 04                          ; -> :ROW:
+50525050505050505050
+XEQ 04                          ; -> :ROW:
+7
+1
+NEWMAT
+STO "SPD"
+INDEX "SPD"
+14.4920521
+STOEL
+J+
+0.5490165
+STOEL
+J+
+0.0410686
+STOEL
+J+
+0.0046418
+STOEL
+J+
+0.0022064
+STOEL
+J+
+0.000002
+STOEL
+J+
+0
+STOEL
+RCL "DM"
+RCL "SPD"
+×
+STO "W"
+0
+×
+eˣ
+STO "ONES"
+RCL "W"
+0.017453292519943295
+×
+LN
+STO "LW"
+7
+1
+NEWMAT
+STO "AV"
+7
+1
+NEWMAT
+STO "BV"
+10
+1
+NEWMAT
+STO "LF"
+XEQ 05                          ; -> :CLOCK:
+RCL 85
+STO 25
+1
+STO 21
+XEQ 01                          ; -> :PROBE:
+RTN
+@
+@ ---- LBL :PROBE: the data programs loaded (LBL? "TIDEME" ...: the build writes one block a region) and of this
+@ version (X = 0 sets R93 = the number of constituents: an older one does not): R79 = the sum of 2^(region - 1)
+@ of those found; R92 how many older ones (their names in R94, shown 3 s); none: NO TIDE DATA (3 s) and the end;
+@ R20 the first region found ----
+LBL 01                          ; :PROBE:
+0
+STO 79
+STO 92
+"OLD DATA, REBUILD:"
+STO 94
+@ the data programs TIDEME TIDEUS TIDELA (written by the build)
+0
+STO 93
+STO 96
+LBL? "TIDEME"
+XEQ "TIDEME"
+RCL 96
+X≠0?
+IF 02
+  60
+  RCL 93
+  X=Y?
+  IF 03
+    1
+    STO+ 79
+  ELSE 03
+    " TIDEME"
+    x→α 94
+    1
+    STO+ 92
+  ENDIF 03
+ENDIF 02
+0
+STO 93
+STO 96
+LBL? "TIDEUS"
+XEQ "TIDEUS"
+RCL 96
+X≠0?
+IF 04
+  60
+  RCL 93
+  X=Y?
+  IF 05
+    2
+    STO+ 79
+  ELSE 05
+    " TIDEUS"
+    x→α 94
+    1
+    STO+ 92
+  ENDIF 05
+ENDIF 04
+0
+STO 93
+STO 96
+LBL? "TIDELA"
+XEQ "TIDELA"
+RCL 96
+X≠0?
+IF 06
+  60
+  RCL 93
+  X=Y?
+  IF 07
+    4
+    STO+ 79
+  ELSE 07
+    " TIDELA"
+    x→α 94
+    1
+    STO+ 92
+  ENDIF 07
+ENDIF 06
+RCL 92
+X≠0?
+IF 08
+  RCL 94
+  XEQ 02                        ; -> :MSG:
+ENDIF 08
+RCL 79
+X=0?
+IF 09
+  "NO TIDE DATA PROGRAM LOADED"
+  XEQ 02                        ; -> :MSG:
+  RTN
+ENDIF 09
+0
+STO 20
+DO 02
+  1
+  STO+ 20
+  RCL 20
+  XEQ 03                        ; -> :HAS:
+  X=0?
+WHILE 02
+ENDDO 02
+RTN
+@
+@ ---- LBL :MSG: X = a text shown at the bottom of the screen for 3 s (GRFNT 21) ----
+LBL 02                          ; :MSG:
+21
+GRFNT
+DROP
+10
+2
+ATEXT Z
+PAUSE 30
+RTN
+@
+@ ---- LBL :HAS: X = a region: X = 1 when its data program was found (R79), else 0 ----
+LBL 03                          ; :HAS:
+1
+-
+2
+X<>Y
+Y^X
+RCL 79
+X<>Y
+÷
+IP
+2
+MOD
+RTN
+@
+@ ---- LBL :ROW: X = a packed row into the indexed matrix (STOEL J+): R48 values of two digits each (value x R46 +
+@ 50), the leftmost first ----
+LBL 04                          ; :ROW:
+STO 47
+RCL 48
+STO 49
+DO 03
+  RCL 47
+  100
+  RCL 49
+  1
+  -
+  Y^X
+  ÷
+  IP
+  100
+  MOD
+  50
+  -
+  RCL÷ 46
+  STOEL
+  J+
+  DSE 49
+WHILE 03
+ENDDO 03
+RTN
+@
+@ ---- LBL :CLOCK: R85 today (JDN of the calculator's date), R86 the hour now ----
+LBL 05                          ; :CLOCK:
+Date→ⅅ
+Time→ℸ
+ⅅℸ→J
+0.5
++
+STO 86
+IP
+STO 85
+RCL 86
+FP
+24
+×
+STO 86
+RTN
+@ ======== the port ========
+@ ---- LBL :LOAD: the port R21 of the region R20: its data program; G = the phases (deg), LH = the logs of the
+@ amplitudes (m; a missing constituent: H = 0, LN(1E-40) = -92, so e^ makes it 0) ----
+LBL 06                          ; :LOAD:
+0
+STO 92
+XEQ 07                          ; -> :REG:
+RCL 21
+XEQ 07                          ; -> :REG:
+RCL "HG"
+0.00001
+×
+IP
+STO "HH"
+RCL "HG"
+RCL "HH"
+100000
+×
+-
+0.01
+×
+STO "G"
+RCL "HH"
+0.0001
+×
+RCL "ONES"
+1E-40
+×
++
+LN
+STO "LH"
+RTN
+@
+@ ---- LBL :REG: X = the port's number (0: the region's count and title) to the data program of the region R20 (the
+@ build writes one IF a region: TIDEME TIDEUS TIDELA, and TIDEAR in the private build) ----
+LBL 07                          ; :REG:
+STO 90
+@ the regions TIDEME TIDEUS TIDELA (written by the build)
+1
+RCL 20
+X=Y?
+IF 10
+  RCL 90
+  XEQ "TIDEME"
+ENDIF 10
+2
+RCL 20
+X=Y?
+IF 11
+  RCL 90
+  XEQ "TIDEUS"
+ENDIF 11
+3
+RCL 20
+X=Y?
+IF 12
+  RCL 90
+  XEQ "TIDELA"
+ENDIF 12
+RTN
+@ ======== the day ========
+@ ---- LBL :DAY: the day R25 at the port: the time zone, the start JD0 = R25 - 0.5 - tz / 24 (UT), the angles, the
+@ vectors P A AW AW2, the high and low waters, the screen ----
+LBL 08                          ; :DAY:
+XEQ 09                          ; -> :TZ:
+RCL 25
+0.5
+-
+RCL 23
+24
+÷
+-
+STO 22
+XEQ 14                          ; -> :ASTRO:
+RCL "DM"
+RCL "AV"
+×
+RCL "UM"
+RCL "BV"
+×
++
+RCL "G"
+-
+360
+MOD
+STO "P"
+RCL "EM"
+RCL "LF"
+×
+RCL "LH"
++
+STO "L"
+eˣ
+STO "A"
+RCL "L"
+RCL "LW"
++
+STO "L"
+eˣ
+STO "AW"
+RCL "L"
+RCL "LW"
++
+eˣ
+STO "AW2"
+XEQ 15                          ; -> :EVENTS:
+XEQ 19                          ; -> :SCREEN:
+RTN
+@
+@ ---- LBL :TZ: R23 = the port's time zone, + 1 in US daylight time (LBL :DST:) ----
+LBL 09                          ; :TZ:
+RCL 27
+STO 23
+RCL 28
+X≠0?
+IF 13
+  XEQ 10                        ; -> :DST:
+  STO+ 23
+ENDIF 13
+RTN
+@
+@ ---- LBL :DST: X = 1 when the day R25 is in US daylight time: from the second Sunday of March to the first Sunday
+@ of November (the whole day: the change at 2:00 is not shown) ----
+LBL 10                          ; :DST:
+RCL 25
+XEQ 13                          ; -> :CAL:
+3
+XEQ 11                          ; -> :JD1:
+XEQ 12                          ; -> :SUN:
+7
++
+STO 46
+11
+XEQ 11                          ; -> :JD1:
+XEQ 12                          ; -> :SUN:
+STO 47
+0
+STO 48
+RCL 46
+RCL 25
+X≥Y?
+IF 14
+  RCL 47
+  RCL 25
+  X<Y?
+  IF 15
+    1
+    STO 48
+  ENDIF 15
+ENDIF 14
+RCL 48
+RTN
+@
+@ ---- LBL :JD1: X = a month (3-12) of the year R42: X = the JDN of its first day ----
+LBL 11                          ; :JD1:
+3
+-
+153
+×
+2
++
+5
+÷
+IP
+1
++
+STO 43
+RCL 42
+4800
++
+STO 44
+365
+×
+STO+ 43
+RCL 44
+4
+÷
+IP
+STO+ 43
+RCL 44
+100
+÷
+IP
+STO- 43
+RCL 44
+400
+÷
+IP
+STO+ 43
+32045
+STO- 43
+RCL 43
+RTN
+@
+@ ---- LBL :SUN: X = a JDN: X = the first Sunday on or after it (n + (7 - (n + 1) MOD 7) MOD 7) ----
+LBL 12                          ; :SUN:
+STO 45
+1
++
+7
+MOD
+7
+X<>Y
+-
+7
+MOD
+RCL+ 45
+RTN
+@
+@ ---- LBL :CAL: X = a JDN: R40 the day, R41 the month, R42 the year (a = n + 32044, b = (4a + 3) div 146097,
+@ c = a - 146097b div 4, d = (4c + 3) div 1461, e = c - 1461d div 4, m = (5e + 2) div 153) ----
+LBL 13                          ; :CAL:
+32044
++
+STO 43
+4
+×
+3
++
+146097
+÷
+IP
+STO 44
+146097
+×
+4
+÷
+IP
+STO- 43
+RCL 43
+4
+×
+3
++
+1461
+÷
+IP
+STO 45
+1461
+×
+4
+÷
+IP
+STO- 43
+RCL 43
+5
+×
+2
++
+153
+÷
+IP
+STO 46
+153
+×
+2
++
+5
+÷
+IP
+RCL 43
+X<>Y
+-
+1
++
+STO 40
+RCL 46
+10
+÷
+IP
+STO 47
+12
+×
+CHS
+RCL+ 46
+3
++
+STO 41
+RCL 44
+100
+×
+RCL+ 45
+4800
+-
+RCL+ 47
+STO 42
+RTN
+@
+@ ---- LBL :ASTRO: the angles at the day's start R22 (Meeus, as NOAA): T R30, tau R31, s R32, h R33, p R35, N R36,
+@ p1 R37; Schureman's I R38, nu R52, xi R53, nu' R54, 2nu'' R55, P = p - xi R56, Q R57, R R58 (the arctangents
+@ with ->POL); AV = tau s h p -N p1 90, BV = xi nu nu' 2nu'' Q R p, LF = the logs of f Mm Mf O1 K1 J1 OO1 M2 K2
+@ L2 M1 (eqs. 73-78, 207, 215, 227, 235) ----
+LBL 14                          ; :ASTRO:
+RCL 22
+2451545
+-
+36525
+÷
+STO 30
+-0.0015786
+RCL× 30
+481267.88123421
++
+RCL× 30
+218.3164477
++
+360
+MOD
+STO 32
+0.0003032
+RCL× 30
+36000.76983
++
+RCL× 30
+280.46646
++
+360
+MOD
+STO 33
+-0.01032
+RCL× 30
+4069.0137287
++
+RCL× 30
+83.3532465
++
+360
+MOD
+STO 35
+0.0020708
+RCL× 30
+-1934.136261
++
+RCL× 30
+125.04452
++
+360
+MOD
+STO 36
+0.00045688
+RCL× 30
+1.71946
++
+RCL× 30
+282.93734
++
+360
+MOD
+STO 37
+RCL 22
+0.5
++
+FP
+360
+×
+180
++
+RCL+ 33
+RCL- 32
+360
+MOD
+STO 31
+@ I: cos I = cos i cos w - sin i sin w cos N
+0.9136975738062775
+0.03568953533475775
+RCL 36
+COS
+×
+-
+ACOS
+STO 38
+@ A, B = atan(K tan N/2) on the branch of N/2: ->POL of (cos N/2, K sin N/2); nu = A - B, xi = N - A - B
+RCL 36
+2
+÷
+STO 39
+SIN
+1.018826708603684
+×
+RCL 39
+COS
+→POL
+X<>Y
+STO 50
+RCL 39
+SIN
+0.6441173011812455
+×
+RCL 39
+COS
+→POL
+X<>Y
+STO 51
+RCL 50
+RCL- 51
+STO 52
+RCL 36
+RCL- 50
+RCL- 51
+STO 53
+@ nu' = atan2(sin 2I sin nu, sin 2I cos nu + 0.3347) (eq. 224)
+RCL 38
+2
+×
+SIN
+RCL 52
+SIN
+×
+RCL 38
+2
+×
+SIN
+RCL 52
+COS
+×
+0.3347
++
+→POL
+X<>Y
+STO 54
+@ 2nu'' = atan2(sin^2 I sin 2nu, sin^2 I cos 2nu + 0.0727) (eq. 232)
+RCL 38
+SIN
+x²
+RCL 52
+2
+×
+SIN
+×
+RCL 38
+SIN
+x²
+RCL 52
+2
+×
+COS
+×
+0.0727
++
+→POL
+X<>Y
+STO 55
+RCL 35
+RCL- 53
+STO 56
+@ R = atan2(sin 2P, 1 / (6 tan^2 I/2) - cos 2P) (eq. 214)
+RCL 56
+2
+×
+SIN
+1
+RCL 38
+2
+÷
+TAN
+x²
+6
+×
+÷
+RCL 56
+2
+×
+COS
+-
+→POL
+X<>Y
+STO 58
+@ Q = atan2((5 cos I - 1) sin P, (7 cos I + 1) cos P) (eq. 203)
+RCL 38
+COS
+5
+×
+1
+-
+RCL 56
+SIN
+×
+RCL 38
+COS
+7
+×
+1
++
+RCL 56
+COS
+×
+→POL
+X<>Y
+STO 57
+@ the logs of the basic node factors into LF
+INDEX "LF"
+2
+3
+÷
+RCL 38
+SIN
+x²
+-
+0.5021467945123499
+÷
+LN
+STOEL
+J+
+RCL 38
+SIN
+x²
+0.15775108720438805
+÷
+LN
+STOEL
+J+
+RCL 38
+SIN
+RCL 38
+2
+÷
+COS
+x²
+×
+0.38000711121522995
+÷
+STO 59
+LN
+STOEL
+J+
+RCL 38
+2
+×
+SIN
+STO 39
+x²
+0.2523
+×
+RCL 39
+RCL 52
+COS
+×
+0.1689
+×
++
+0.0283
++
+SQRT
+0.5305
+÷
+LN
+STOEL
+J+
+RCL 38
+2
+×
+SIN
+0.7214015792683364
+÷
+LN
+STOEL
+J+
+RCL 38
+SIN
+RCL 38
+2
+÷
+SIN
+x²
+×
+0.016371670937015536
+÷
+LN
+STOEL
+J+
+RCL 38
+2
+÷
+COS
+x²
+x²
+0.9154003762081668
+÷
+STO 34
+LN
+STOEL
+J+
+RCL 38
+SIN
+x²
+STO 39
+x²
+0.2533
+×
+RCL 39
+RCL 52
+2
+×
+COS
+×
+0.0367
+×
++
+0.0013
++
+SQRT
+0.1151
+÷
+LN
+STOEL
+J+
+@ L2: f M2 x sqrt(1 - 12 tan^2 (I/2) cos 2P + 36 tan^4 (I/2))
+RCL 38
+2
+÷
+TAN
+x²
+STO 39
+1
+RCL 39
+12
+×
+RCL 56
+2
+×
+COS
+×
+-
+RCL 39
+x²
+36
+×
++
+SQRT
+RCL× 34
+LN
+STOEL
+J+
+@ M1: f O1 x sqrt(0.25 + 1.5 cos I / cos^2 (I/2) cos 2P + 2.25 cos^2 I / cos^4 (I/2))
+RCL 38
+2
+÷
+COS
+x²
+STO 39
+0.25
+RCL 38
+COS
+RCL÷ 39
+1.5
+×
+RCL 56
+2
+×
+COS
+×
++
+RCL 38
+COS
+x²
+RCL 39
+x²
+÷
+2.25
+×
++
+SQRT
+RCL× 59
+LN
+STOEL
+INDEX "AV"
+RCL 31
+STOEL
+J+
+RCL 32
+STOEL
+J+
+RCL 33
+STOEL
+J+
+RCL 35
+STOEL
+J+
+RCL 36
+CHS
+STOEL
+J+
+RCL 37
+STOEL
+J+
+90
+STOEL
+INDEX "BV"
+RCL 53
+STOEL
+J+
+RCL 52
+STOEL
+J+
+RCL 54
+STOEL
+J+
+RCL 55
+STOEL
+J+
+RCL 57
+STOEL
+J+
+RCL 58
+STOEL
+J+
+RCL 35
+STOEL
+RTN
+@
+@ ---- LBL :EVENTS: the high and low waters of the day: the sign of h' at 0, 1, ..., 24 h; a change: LBL :REFINE: ----
+LBL 15                          ; :EVENTS:
+0
+STO 78
+0
+STO 59
+XEQ 16                          ; -> :DER:
+STO 51
+1
+STO 50
+DO 04
+  RCL 50
+  STO 59
+  XEQ 16                        ; -> :DER:
+  STO 52
+  RCL× 51
+  X<0?
+  IF 16
+    XEQ 17                      ; -> :REFINE:
+  ENDIF 16
+  RCL 52
+  STO 51
+  1
+  STO+ 50
+  24
+  RCL 50
+  X≤Y?
+WHILE 04
+ENDDO 04
+RTN
+@
+@ ---- LBL :DER: X = AW . SIN(W t + P) = -h'(t) at the hour t = R59 ----
+LBL 16                          ; :DER:
+RCL "W"
+RCL 59
+×
+RCL "P"
++
+SIN
+RCL "AW"
+DOT
+RTN
+@
+@ ---- LBL :REFINE: h' changes sign between R50 - 1 and R50 (R51, R52): from the straight line between them, four
+@ Newton steps x - S / C2 (S = AW . SIN, C2 = AW2 . COS at x), kept in the hour; the event R78 + 1: its time
+@ R60 +, height R66 +, kind R72 + (1 high water: h'' = -C2 < 0) ----
+LBL 17                          ; :REFINE:
+RCL 78
+6
+X≤Y?
+RTN
+RCL 50
+1
+-
+STO 53
+RCL 50
+STO 54
+RCL 51
+RCL 51
+RCL- 52
+÷
+RCL+ 53
+STO 55
+4
+STO 58
+DO 05
+  RCL "W"
+  RCL 55
+  ×
+  RCL "P"
+  +
+  STO "Z"
+  SIN
+  RCL "AW"
+  DOT
+  STO 56
+  RCL "Z"
+  COS
+  RCL "AW2"
+  DOT
+  STO 57
+  RCL 56
+  RCL 57
+  ÷
+  STO- 55
+  RCL 53
+  RCL 55
+  X<Y?
+  IF 17
+    RCL 53
+    STO 55
+  ENDIF 17
+  RCL 54
+  RCL 55
+  X>Y?
+  IF 18
+    RCL 54
+    STO 55
+  ENDIF 18
+  DSE 58
+WHILE 05
+ENDDO 05
+60
+RCL+ 78
+STO 59
+RCL 55
+STO IND 59
+XEQ 18                          ; -> :HAT:
+STO 90
+6
+STO+ 59
+RCL 90
+STO IND 59
+RCL 57
+X>0?
+IF 19
+  1
+ELSE 19
+  -1
+ENDIF 19
+STO 91
+6
+STO+ 59
+RCL 91
+STO IND 59
+1
+STO+ 78
+RTN
+@
+@ ---- LBL :HAT: X = the height at the hour R55 (Z0 + A . COS(W t + P)) ----
+LBL 18                          ; :HAT:
+RCL "W"
+RCL 55
+×
+RCL "P"
++
+COS
+RCL "A"
+DOT
+RCL+ 24
+RTN
+@ ======== the screen (Almanac 47's split view: the header, the chart above, the table below) ========
+LBL 19                          ; :SCREEN:
+CLLCD
+0
+GRMOD
+21
+GRFNT
+RCL 26
+220
+2
+ATEXT Z
+XEQ 20                          ; -> :DATES:
+RCL 34
+220
+256
+ATEXT Z
+10
+GRFNT
+"UTC"
+STO 34
+RCL 23
+X<0?
+IF 20
+  "-"
+ELSE 20
+  "+"
+ENDIF 20
+x→α 34
+RCL 23
+ABS
+αIP 34
+RCL 23
+FP
+X≠0?
+IF 21
+  ":30"
+  x→α 34
+ENDIF 21
+"   DATUM "
+x→α 34
+RCL 29
+x→α 34
+"   "
+x→α 34
+RCL 95
+x→α 34
+RCL 34
+209
+2
+ATEXT Z
+RCL 97
+209
+256
+ATEXT Z
+XEQ 22                          ; -> :CURVE:
+XEQ 25                          ; -> :AXES:
+XEQ 26                          ; -> :PLOT:
+XEQ 27                          ; -> :MARKS:
+XEQ 29                          ; -> :NOW:
+XEQ 30                          ; -> :TABLE:
+21
+GRFNT
+RTN
+@
+@ ---- LBL :DATES: R34 = "SUN 25-10-2026", the day R25 ----
+LBL 20                          ; :DATES:
+"SUNMONTUEWEDTHUFRISAT"
+STO 47
+RCL 25
+1
++
+7
+MOD
+3
+×
+αSL 47
+3
+αLEFT 47
+STO 34
+" "
+x→α 34
+RCL 25
+XEQ 13                          ; -> :CAL:
+RCL 40
+XEQ 21                          ; -> :TWO:
+"-"
+x→α 34
+RCL 41
+XEQ 21                          ; -> :TWO:
+"-"
+x→α 34
+RCL 42
+αIP 34
+RTN
+@
+@ ---- LBL :TWO: X (0-99) appended to R34 in two digits (as Zones 47) ----
+LBL 21                          ; :TWO:
+STO 94
+10
+X>Y?
+IF 22
+  "0"
+  x→α 34
+ENDIF 22
+RCL 94
+αIP 34
+RTN
+@
+@ ---- LBL :CURVE: HS = the height every 20 minutes (73), R80 the lowest, R81 the highest; then the chart's
+@ range: the step R82 (0.5 m, 1 m over 3 m of range), R80 R81 to whole steps, R83 = 78 pixels / the range ----
+LBL 22                          ; :CURVE:
+73
+1
+NEWMAT
+STO "HS"
+INDEX "HS"
+1E9
+STO 80
+-1E9
+STO 81
+0
+STO 59
+DO 06
+  RCL 59
+  3
+  ÷
+  STO 55
+  XEQ 18                        ; -> :HAT:
+  STOEL
+  J+
+  STO 90
+  RCL 80
+  X>Y?
+  IF 23
+    RCL 90
+    STO 80
+  ENDIF 23
+  RCL 90
+  RCL 81
+  X<Y?
+  IF 24
+    RCL 90
+    STO 81
+  ENDIF 24
+  1
+  STO+ 59
+  72
+  RCL 59
+  X≤Y?
+WHILE 06
+ENDDO 06
+0.5
+STO 82
+RCL 81
+RCL- 80
+3
+X<Y?
+IF 25
+  1
+  STO 82
+ENDIF 25
+RCL 80
+RCL÷ 82
+XEQ 23                          ; -> :FLOOR:
+RCL× 82
+STO 80
+RCL 81
+RCL÷ 82
+CHS
+XEQ 23                          ; -> :FLOOR:
+CHS
+RCL× 82
+STO 81
+78
+RCL 81
+RCL- 80
+÷
+STO 83
+RTN
+@
+@ ---- LBL :FLOOR: X = the largest whole number <= X ----
+LBL 23                          ; :FLOOR:
+STO 90
+IP
+STO 91
+RCL 90
+RCL 91
+X>Y?
+IF 26
+  1
+  STO- 91
+ENDIF 26
+RCL 91
+RTN
+@
+@ ---- LBL :YPIX: X = a height: X = its row on the chart (118 + (h - R80) x R83) ----
+LBL 24                          ; :YPIX:
+RCL- 80
+RCL× 83
+118
++
+RTN
+@
+@ ---- LBL :AXES: the time axis (row 118, every 3 hours a tick and the hour), the heights (every R82 a dotted line
+@ and its value) ----
+LBL 25                          ; :AXES:
+-115
+0
+PIXEL
+0
+STO 84
+DO 07
+  RCL 84
+  45
+  ×
+  26
+  +
+  STO 87
+  114
+  X<>Y
+  PIXEL
+  113
+  RCL 87
+  PIXEL
+  112
+  RCL 87
+  PIXEL
+  ""
+  STO 34
+  RCL 84
+  3
+  ×
+  XEQ 21                        ; -> :TWO:
+  RCL 34
+  103
+  RCL 87
+  4
+  -
+  ATEXT Z
+  1
+  STO+ 84
+  8
+  RCL 84
+  X≤Y?
+WHILE 07
+ENDDO 07
+RCL 80
+STO 84
+DO 08
+  RCL 84
+  XEQ 24                        ; -> :YPIX:
+  0.5
+  +
+  IP
+  STO 88
+  26
+  STO 89
+  DO 09
+    RCL 88
+    RCL 89
+    PIXEL
+    6
+    STO+ 89
+    386
+    RCL 89
+    X≤Y?
+  WHILE 09
+  ENDDO 09
+  ""
+  STO 34
+  RCL 84
+  XEQ 33                        ; -> :NUM1:
+  RCL 34
+  RCL 88
+  3
+  -
+  2
+  ATEXT Z
+  RCL 82
+  STO+ 84
+  RCL 81
+  RCL 84
+  X≤Y?
+WHILE 08
+ENDDO 08
+RTN
+@
+@ ---- LBL :PLOT: the curve: 72 segments of 5 columns between the heights of HS (straight), a dot a column ----
+LBL 26                          ; :PLOT:
+INDEX "HS"
+RCLEL
+XEQ 24                          ; -> :YPIX:
+STO 87
+0
+STO 84
+DO 10
+  J+
+  RCLEL
+  XEQ 24                        ; -> :YPIX:
+  STO 88
+  0
+  STO 89
+  DO 11
+    RCL 88
+    RCL- 87
+    RCL× 89
+    5
+    ÷
+    RCL+ 87
+    0.5
+    +
+    IP
+    RCL 84
+    5
+    ×
+    RCL+ 89
+    26
+    +
+    PIXEL
+    1
+    STO+ 89
+    5
+    RCL 89
+    X<Y?
+  WHILE 11
+  ENDDO 11
+  RCL 88
+  STO 87
+  1
+  STO+ 84
+  72
+  RCL 84
+  X<Y?
+WHILE 10
+ENDDO 10
+RCL 87
+0.5
++
+IP
+386
+PIXEL
+RTN
+@
+@ ---- LBL :MARKS: each high / low water: a cross on the curve and its time above (high) or below (low), beside it
+@ when that leaves the chart (LBL :SIDE:) ----
+LBL 27                          ; :MARKS:
+RCL 78
+X=0?
+RTN
+0
+STO 84
+DO 12
+  60
+  RCL+ 84
+  STO 90
+  RCL IND 90
+  15
+  ×
+  26
+  +
+  0.5
+  +
+  IP
+  STO 87
+  6
+  STO+ 90
+  RCL IND 90
+  XEQ 24                        ; -> :YPIX:
+  0.5
+  +
+  IP
+  STO 88
+  -2
+  STO 89
+  DO 13
+    RCL 88
+    RCL 87
+    RCL+ 89
+    PIXEL
+    RCL 88
+    RCL+ 89
+    RCL 87
+    PIXEL
+    1
+    STO+ 89
+    2
+    RCL 89
+    X≤Y?
+  WHILE 13
+  ENDDO 13
+  ""
+  STO 34
+  60
+  RCL+ 84
+  STO 90
+  RCL IND 90
+  XEQ 31                        ; -> :HHMM:
+  6
+  STO+ 90
+  6
+  STO+ 90
+  RCL IND 90
+  X>0?
+  IF 27
+    RCL 88
+    4
+    +
+  ELSE 27
+    RCL 88
+    11
+    -
+  ENDIF 27
+  STO 89
+  RCL 87
+  9
+  -
+  STO 91
+  117
+  RCL 89
+  X<Y?
+  IF 28
+    XEQ 28                      ; -> :SIDE:
+  ENDIF 28
+  RCL 89
+  199
+  X<Y?
+  IF 29
+    XEQ 28                      ; -> :SIDE:
+  ENDIF 29
+  RCL 34
+  RCL 89
+  RCL 91
+  ATEXT Z
+  1
+  STO+ 84
+  RCL 78
+  RCL 84
+  X<Y?
+WHILE 12
+ENDDO 12
+RTN
+@
+@ ---- LBL :SIDE: the time label beside the cross (R89 its row, R91 its column): to the right, to the left near the
+@ right edge ----
+LBL 28                          ; :SIDE:
+RCL 88
+3
+-
+STO 89
+RCL 87
+5
++
+STO 91
+340
+X<Y?
+IF 30
+  RCL 87
+  42
+  -
+  STO 91
+ENDIF 30
+RTN
+@
+@ ---- LBL :NOW: the day is today: a dotted line at the hour now (the calculator's clock) ----
+LBL 29                          ; :NOW:
+XEQ 05                          ; -> :CLOCK:
+RCL 85
+RCL 25
+X≠Y?
+RTN
+RCL 86
+15
+×
+26
++
+0.5
++
+IP
+STO 87
+119
+STO 89
+DO 14
+  RCL 89
+  RCL 87
+  PIXEL
+  3
+  STO+ 89
+  196
+  RCL 89
+  X≤Y?
+WHILE 14
+ENDDO 14
+RTN
+@
+@ ---- LBL :TABLE: the high and low waters (at most 5): HIGH / LOW, the time, the height, the range from the one
+@ before ----
+LBL 30                          ; :TABLE:
+10
+GRFNT
+"TIDE"
+93
+10
+ATEXT Z
+"TIME"
+93
+80
+ATEXT Z
+"HEIGHT"
+93
+170
+ATEXT Z
+"RANGE"
+93
+290
+ATEXT Z
+21
+GRFNT
+RCL 78
+X=0?
+RTN
+0
+STO 84
+DO 15
+  74
+  RCL 84
+  18.5
+  ×
+  -
+  IP
+  STO 93
+  72
+  RCL+ 84
+  STO 90
+  RCL IND 90
+  X>0?
+  IF 31
+    "HIGH"
+  ELSE 31
+    "LOW"
+  ENDIF 31
+  RCL 93
+  10
+  ATEXT Z
+  ""
+  STO 34
+  60
+  RCL+ 84
+  STO 90
+  RCL IND 90
+  XEQ 31                        ; -> :HHMM:
+  RCL 34
+  RCL 93
+  80
+  ATEXT Z
+  ""
+  STO 34
+  66
+  RCL+ 84
+  STO 90
+  RCL IND 90
+  XEQ 32                        ; -> :NUM2:
+  " m"
+  x→α 34
+  RCL 34
+  RCL 93
+  170
+  ATEXT Z
+  RCL 84
+  X≠0?
+  IF 32
+    ""
+    STO 34
+    65
+    RCL+ 84
+    STO 91
+    RCL IND 90
+    RCL IND 91
+    -
+    ABS
+    XEQ 32                      ; -> :NUM2:
+    " m"
+    x→α 34
+    RCL 34
+    RCL 93
+    290
+    ATEXT Z
+  ENDIF 32
+  1
+  STO+ 84
+  RCL 78
+  5
+  X>Y?
+  IF 33
+    RCL 78
+  ELSE 33
+    5
+  ENDIF 33
+  RCL 84
+  X<Y?
+WHILE 15
+ENDDO 15
+RTN
+@
+@ ---- LBL :HHMM: X = hours (0-24) appended to R34 as hh:mm (the minutes rounded first) ----
+LBL 31                          ; :HHMM:
+60
+×
+0.5
++
+IP
+STO 91
+60
+÷
+IP
+XEQ 21                          ; -> :TWO:
+":"
+x→α 34
+RCL 91
+60
+MOD
+XEQ 21                          ; -> :TWO:
+RTN
+@
+@ ---- LBL :NUM2: X appended to R34 with two decimals (a minus sign if negative) ----
+LBL 32                          ; :NUM2:
+X<0?
+IF 34
+  "-"
+  x→α 34
+  DROP
+  ABS
+ENDIF 34
+100
+×
+0.5
++
+IP
+STO 91
+100
+÷
+IP
+αIP 34
+"."
+x→α 34
+RCL 91
+100
+MOD
+XEQ 21                          ; -> :TWO:
+RTN
+@
+@ ---- LBL :NUM1: X appended to R34 with one decimal when it has one (0.5 m steps) ----
+LBL 33                          ; :NUM1:
+X<0?
+IF 35
+  "-"
+  x→α 34
+  DROP
+  ABS
+ENDIF 35
+10
+×
+0.5
++
+IP
+STO 91
+10
+÷
+IP
+αIP 34
+RCL 91
+10
+MOD
+X≠0?
+IF 36
+  "."
+  x→α 34
+  RCL 91
+  10
+  MOD
+  αIP 34
+ENDIF 36
+RTN
+@ ======== the keys ========
+@ ---- LBL :KEYS: wait for a key (DO / PAUSE 50 / KEY? 98 / WHILE / ENDDO, as Elements 47) and do it ----
+LBL 34                          ; :KEYS:
+DO 16
+  PAUSE 50
+  KEY? 98
+WHILE 16
+ENDDO 16
+RCL 98
+64
+X=Y?
+IF 37
+  1
+  STO+ 25
+ENDIF 37
+RCL 98
+62
+X=Y?
+IF 38
+  1
+  STO- 25
+ENDIF 38
+RCL 98
+74
+X=Y?
+IF 39
+  7
+  STO+ 25
+ENDIF 39
+RCL 98
+72
+X=Y?
+IF 40
+  7
+  STO- 25
+ENDIF 40
+RCL 98
+63
+X=Y?
+IF 41
+  XEQ 05                        ; -> :CLOCK:
+  RCL 85
+  STO 25
+ENDIF 41
+RCL 98
+73
+X=Y?
+IF 42
+  1
+  STO+ 21
+  RCL 96
+  RCL 21
+  X>Y?
+  IF 43
+    1
+    STO 21
+  ENDIF 43
+  1
+  STO 92
+ENDIF 42
+RCL 98
+53
+X=Y?
+IF 44
+  1
+  STO- 21
+  RCL 21
+  X=0?
+  IF 45
+    RCL 96
+    STO 21
+  ENDIF 45
+  1
+  STO 92
+ENDIF 44
+RCL 98
+85
+X=Y?
+IF 46
+  DO 17
+    1
+    STO+ 20
+    3
+    RCL 20
+    X>Y?
+    IF 47
+      1
+      STO 20
+    ENDIF 47
+    RCL 20
+    XEQ 03                      ; -> :HAS:
+    X=0?
+  WHILE 17
+  ENDDO 17
+  1
+  STO 21
+  STO 92
+ENDIF 46
+RTN
+END

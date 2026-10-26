@@ -1,0 +1,15 @@
+---- What it is ----
+{LABEL} is a data program of Tide 47: the harmonic constants of the {N} ports of the region {TITLE}, for TIDE47 to
+predict their tides. The ports: {PORTS}.
+
+---- How to use it ----
+Load it with TIDE47 and press XEQ TIDE47 (not XEQ {LABEL}: TIDE47 calls it). Load only the regions you want:
+TIDE47 finds the data programs on the calculator, and + goes from one region to the next. Load the {LABEL} built
+together with your TIDE47: an older one is left out with OLD DATA, REBUILD.
+
+---- What it changes on your calculator ----
+Called by TIDE47 with a port's number, it sets the port's name, time zone, datum, source and mean level in TIDE47's
+registers and writes the matrix HG (one number a constituent); TIDE47 deletes HG at its end. Nothing else.
+
+---- Programs and labels ----
+One program with one global label ({LABEL}); each port is a local label (LBL 01-{N}), LBL 99 the region.

@@ -97,6 +97,8 @@ DOT, M × r, MOD); new here: **LN** (of a number and of a matrix, element by ele
 | `tools/build_tide47.py` | writes `programs/`, `build/` and `listings/`: TIDE47 and the data programs |
 | `tools/make_stations.py` | writes `python/stations.py` from XTide's NOAA data and TICON-3 (LAT computed) |
 | `tools/aramco_pdf.py`, `tools/make_private.py`, `tools/compare_tables.py` | a private region from the Aramco tables' PDF or typed tables, and the comparison with them (docs/ARAMCO.md) |
+| `build/forum/*.p47u` | the files for the forum and the C47's PROGRAMS folder (TIDE47 and the data programs): how to use them in plain words (`tools/forum/TIDE47.txt`, `DATA.txt`), then the steps with the source's comments as `@` lines and notes after `;` (rejig compiles neither: no REM step); written by the build (`tools/build_forum.py`), checked by `tests/test_forum.py` |
+| `tools/build_p47.py` | on your computer with rejig: `build/p47/*.p47` from the forum files (`--validate=r47`), each checked byte for byte against the plain listing's; `--private`: the private build (`private/build/p47/`, with TIDEAR) |
 | `python/tide47ref.py` | the engine in Python, step for step as the program (`python3 python/tide47ref.py Bahrain 2026-10-25`) |
 | `python/tide47sim.py` | runs the programs in the simulator and writes the screens in `docs/` |
 | `python/c47sim.py`, `stdfont.py`, `tinyfont.py` | the C47 simulator and fonts, from Almanac 47 |
