@@ -87,6 +87,13 @@ CONS = [
     ('SO1',  (1, 3, -2, 0, 0, 0), -1, {'xi': -2, 'nu': 1}, {'O1': 1}),
     ('MSSA2', (2, 0, -2, 0, 0, 0), 0, UM2, {'M2': 1}),
     ('MSN2', (2, 3, -2, -1, 0, 0), 0, {}, {'M2': 2}),
+    # the seasonal sidebands (+- SA) of O1, Q1, MF, MTM and 4 SA: in the Aramco tables' residual (O1 + SA 1.7 cm)
+    ('O1SA', (1, -1, 1, 0, 0, 0), 1, UO1, {'O1': 1}),
+    ('O1SB', (1, -1, -1, 0, 0, 0), 1, UO1, {'O1': 1}),
+    ('Q1SA', (1, -2, 1, 1, 0, 0), 1, UO1, {'O1': 1}),
+    ('SA4',  (0, 0, 4, 0, 0, 0), 0, {}, {}),
+    ('MFSA', (0, 2, 1, 0, 0, 0), 0, {'xi': -2}, {'Mf': 1}),
+    ('MTSA', (0, 3, 1, -1, 0, 0), 0, {'xi': -2}, {'Mf': 1}),
 ]
 NOAA37 = 37                                                        # the first 37: NOAA's set
 UB = ['xi', 'nu', 'nup', 'nupp2', 'Q', 'R', 'p']                   # the columns of U (p: NOAA's M1, below)

@@ -46,10 +46,11 @@ LW 2025-01-01 22:58 0.71
 minutes and about 1 cm (a test with a synthetic table: 2 min rms, worst 9 min, 0.9 cm rms). Less than a year cannot
 separate the seasonal tide SA from the mean level: the heights then drift by some centimetres over the seasons.
 
-**From the tables' PDF:** the Aramco tables come with hourly predictions as text, so they need not be typed: the
+**From the tables' PDF:** `python3 tools/aramco_pdf.py "Arabian_Gulf_Tide_Tables_2026.pdf"` writes the 13 station
+files into `private/aramco/` (it needs `pdftotext`, from poppler-utils). The Aramco tables come with hourly predictions as text, so they need not be typed: the
 hourly heights of the 2026 Arabian Gulf tables (13 stations) were read from the PDF in a few seconds (each month
-checked to have exactly 24 heights a day). Their fit with Tide 47's 54 constituents reproduces the tables within
-0.7-1.9 cm rms (worst 2.4-6.3 cm).
+checked to have exactly 24 heights a day). Their fit with Tide 47's 60 constituents reproduces the tables within
+0.4-0.6 cm rms (worst 1.2-2.2 cm); the tables are rounded to the cm, so 0.3 cm rms is the floor.
 
 ## 2. Work out the constants
 
@@ -79,5 +80,18 @@ python3 tools/build_tide47.py --private
 writes `private/build/TIDE47.txt` (the program with a 4th region, ARAMCO: + cycles MIDDLE EAST, USA, LATIN AMERICA,
 ARAMCO) and `private/build/TIDEAR.txt`. Convert both with rejig and load them with TIDEME, TIDEUS and TIDELA from
 `build/` (the private TIDE47 replaces the public one: it calls TIDEAR, so TIDEAR must be loaded).
+
+### Only the data you need
+
+To save memory, build a TIDE47 that calls only some regions, and load only their data programs:
+
+```bash
+python3 tools/build_tide47.py --regions AR        # TIDE47 + TIDEAR only (the Aramco stations)
+python3 tools/build_tide47.py --regions ME,AR     # TIDE47 + TIDEME + TIDEAR
+```
+
+The regions are ME (Middle East), US, LA (Latin America) and AR (Aramco), in the order given (the first is where TIDE47
+starts; + cycles through them). The files are in `private/build/`. A TIDE47 built for some regions must not be loaded
+with another build's TIDE47: the C47 keeps one program of a name.
 
 Not for navigation: the official tables are the reference.

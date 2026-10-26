@@ -6,23 +6,23 @@ Admiralty.
 
 ![Mina Salman, Bahrain](docs/TIDE47_bahrain.png)
 
-The program sums 54 harmonic constituents (NOAA's standard 37, 8 more from TICON and 9 for the Aramco tables) with the 18.6-year nodal
+The program sums 60 harmonic constituents (NOAA's standard 37, 8 more from TICON and 15 for the Aramco tables) with the 18.6-year nodal
 corrections f and u of Schureman's *Manual of Harmonic Analysis and Prediction of Tides* - the method behind NOAA's and
 the Admiralty's tables. The work is done with whole matrices, so the firmware does it element by element:
 
 | | |
 |---|---|
-| the phases | `P = DM × AV + UM × BV − G` (MOD 360): DM the Doodson numbers (54 × 7), AV the astronomical angles τ s h p N′ p′ of the day, UM and BV the nodal phases u |
-| the amplitudes | `A = eˣ(EM × LF + LH)`: EM the node-factor powers (54 × 10), LF the logs of the 10 basic factors, LH the logs of the port's amplitudes: f × H without a loop |
-| a height | `Z0 + A · COS(W t + P)`: one COS of a 54-vector and one DOT |
+| the phases | `P = DM × AV + UM × BV − G` (MOD 360): DM the Doodson numbers (60 × 7), AV the astronomical angles τ s h p N′ p′ of the day, UM and BV the nodal phases u |
+| the amplitudes | `A = eˣ(EM × LF + LH)`: EM the node-factor powers (60 × 10), LF the logs of the 10 basic factors, LH the logs of the port's amplitudes: f × H without a loop |
+| a height | `Z0 + A · COS(W t + P)`: one COS of a 60-vector and one DOT |
 | high and low waters | the sign of h′ every hour (`AW · SIN(W t + P)`), then four Newton steps (`AW2 · COS`) |
 
 | | |
 |---|---|
-| Files | `build/TIDE47.txt` (the program) and the data programs `build/TIDEME.txt`, `TIDEUS.txt`, `TIDELA.txt` (convert each with rejig; load all four); commented source `programs_rem/TIDE47.txt` |
+| Files | `build/TIDE47.txt` (the program) and the data programs `build/TIDEME.txt`, `TIDEUS.txt`, `TIDELA.txt` (convert each with rejig; load all four, or build a TIDE47 for only the regions you need: `tools/build_tide47.py --regions ME`); commented source `programs_rem/TIDE47.txt` |
 | Needs | C47 / R47 firmware with STRUCT, ATEXT, GRFNT (00.109.05.00a0.ALPHA, 5 Oct 2026, or later) |
-| Size | TIDE47 2 060 steps (about 8 KB); TIDEME 1 461, TIDEUS 1 823, TIDELA 1 280 steps (about 5-7 KB each) |
-| Speed | the start about 7.5 s, a new day or port about 3.5 s (the simulator's step count) |
+| Size | TIDE47 2 096 steps (about 9 KB); TIDEME 1 605, TIDEUS 2 003, TIDELA 1 406 steps (about 6-7 KB each) |
+| Speed | the start about 8 s, a new day or port about 3.5 s (the simulator's step count) |
 | At the end (0) | your stack and LASTx as before; R00-R19 untouched, R20-R99 cleared; the matrices deleted; GRMOD 0, GRFNT 20; the angle mode DEG |
 
 ## Using it
@@ -95,7 +95,7 @@ DOT, M × r, MOD); new here: **LN** (of a number and of a matrix, element by ele
 | `programs_rem/TIDE47.txt` | the commented source (STRUCT, named labels) |
 | `tools/build_tide47.py` | writes `programs/`, `build/` and `listings/`: TIDE47 and the data programs |
 | `tools/make_stations.py` | writes `python/stations.py` from XTide's NOAA data and TICON-3 (LAT computed) |
-| `tools/make_private.py`, `tools/compare_tables.py` | a private region from typed tide tables, and the comparison with them (docs/ARAMCO.md) |
+| `tools/aramco_pdf.py`, `tools/make_private.py`, `tools/compare_tables.py` | a private region from the Aramco tables' PDF or typed tables, and the comparison with them (docs/ARAMCO.md) |
 | `python/tide47ref.py` | the engine in Python, step for step as the program (`python3 python/tide47ref.py Bahrain 2026-10-25`) |
 | `python/tide47sim.py` | runs the programs in the simulator and writes the screens in `docs/` |
 | `python/c47sim.py`, `stdfont.py`, `tinyfont.py` | the C47 simulator and fonts, from Almanac 47 |
