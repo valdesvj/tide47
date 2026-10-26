@@ -19,7 +19,7 @@ the Admiralty's tables. The work is done with whole matrices, so the firmware do
 
 | | |
 |---|---|
-| Files | `build/TIDE47.txt` (the program) and the data programs `build/TIDEME.txt`, `TIDEUS.txt`, `TIDELA.txt` (convert each with rejig; load all four, or build a TIDE47 for only the regions you need: `tools/build_tide47.py --regions ME`); commented source `programs_rem/TIDE47.txt` |
+| Files | `build/TIDE47.txt` (the program) and the data programs `build/TIDEME.txt`, `TIDEUS.txt`, `TIDELA.txt` (convert each with rejig; load TIDE47 and the data programs you want: TIDE47 finds those loaded, with `LBL?`, and + goes through them only; an older data program is left out with OLD DATA, REBUILD); commented source `programs_rem/TIDE47.txt` |
 | Needs | C47 / R47 firmware with STRUCT, ATEXT, GRFNT (00.109.05.00a0.ALPHA, 5 Oct 2026, or later) |
 | Size | TIDE47 2 096 steps (about 9 KB); TIDEME 1 605, TIDEUS 2 003, TIDELA 1 406 steps (about 6-7 KB each) |
 | Speed | the start about 8 s, a new day or port about 3.5 s (the simulator's step count) |
@@ -36,7 +36,7 @@ calculator to the port's local time).
 | **1 3** | the week before / after |
 | **5** | today |
 | **8 2** | the port before / after |
-| **+** | the next region: MIDDLE EAST, USA, LATIN AMERICA |
+| **+** | the next region loaded: MIDDLE EAST, USA, LATIN AMERICA (ARAMCO in the private build) |
 | **0** | the end |
 
 The screen follows Almanac 47's split view: the port and the date, the time zone, the datum and the source; the day's
@@ -86,7 +86,8 @@ end (registers, matrices, the stack).
 
 **Not yet run on a real C47.** The matrix commands are those of Almanac 47 (M × M, M + M, COS / SIN / eˣ of a matrix,
 DOT, M × r, MOD); new here: **LN** (of a number and of a matrix, element by element) and IP / MOD of a matrix. Please try
-`2 LN` and the program.
+`2 LN` and the program. Also new: **LBL?** (is a label there? TIDE47 finds the data programs loaded with it): please try
+`LBL? "TIDE47"` (the next step runs when the label exists).
 
 ## Files
 

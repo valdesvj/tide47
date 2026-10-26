@@ -21,8 +21,9 @@ STEP_MS = 0.17                                   # ms a step on the C47 (Almanac
 CLOCK = 2461339.0 + 1 / 24                        # 2026-10-25 13:00 (c47sim's clock: a JD of the local time, .0 = noon)
 
 
-def run(ks, clock=CLOCK, maxsteps=10 ** 9):
-    c = c47sim.load(PROGS)
+def run(ks, clock=CLOCK, maxsteps=10 ** 9, progs=None):
+    """progs: the programs loaded (default all four: TIDE47 and the three data programs)"""
+    c = c47sim.load(progs or PROGS)
     c.s = [D(0)] * 4; c.pix = []; c.keys = list(ks) + [END]; c.steps = 0; c.clock = clock
     c.at_steps = []
 

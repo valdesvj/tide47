@@ -171,6 +171,17 @@ def region_steps(regs):
     return out
 
 
+def probe_steps(regs, ncons):
+    """LBL :PROBE:'s body: a region whose data program is loaded (LBL?) and sets R93 = the constituents (this version)
+    adds 2^(i - 1) to R79; loaded but older (R96 set, R93 not): its name into R94, R92 + 1."""
+    out = []
+    for i, (code, label, title, ports) in enumerate(regs, 1):
+        out += ['0', 'STO 93', 'STO 96', 'LBL? "%s"' % label, 'XEQ "%s"' % label, 'RCL 96', 'X≠0?', 'IF',
+                '  %d' % ncons, '  RCL 93', '  X=Y?', '  IF', '    %d' % (1 << (i - 1)), '    STO+ 79', '  ELSE',
+                '    " %s"' % label, '    x→α 94', '    1', '    STO+ 92', '  ENDIF', 'ENDIF']
+    return out
+
+
 def fill(lines, regs):
     """The markers and the {NAME} constants."""
     sys.path.insert(0, os.path.join(ROOT, 'python'))
@@ -186,6 +197,9 @@ def fill(lines, regs):
         elif ln.strip() == 'REM ==== REGIONS':
             out.append(ind + 'REM the regions %s (written by the build)' % ' '.join(r[1] for r in regs))
             out += [ind + st for st in region_steps(regs)]
+        elif ln.strip() == 'REM ==== PROBE':
+            out.append(ind + 'REM the data programs %s (written by the build)' % ' '.join(r[1] for r in regs))
+            out += [ind + st for st in probe_steps(regs, len(R.CONS))]
         elif ln.strip() == 'REM ==== NREG':
             out.append(ind + str(len(regs)))
         else:
@@ -225,7 +239,7 @@ def data_program(code, label, title, ports):
     import tide47ref as R
     names = [c[0] for c in R.CONS]
     st = ['LBL "%s"' % label, 'X=0?', 'GTO 99', 'STO 99', 'XEQ IND 99', 'RTN',
-          'LBL 99', '"%s"' % title, 'STO 97', str(len(ports)), 'STO 96', 'RTN']
+          'LBL 99', '"%s"' % title, 'STO 97', str(len(ports)), 'STO 96', str(len(names)), 'STO 93', 'RTN']
     for i, p in enumerate(ports, 1):
         st += ['LBL %02d' % i, '"%s"' % p['name'], 'STO 26', repr(p['tz']), 'STO 27', '1' if p['dst'] == 'US' else '0',
                'STO 28', '"%s"' % p['datum'], 'STO 29', '"%s"' % p['src'], 'STO 95', repr(p['z0']), 'STO 24',
