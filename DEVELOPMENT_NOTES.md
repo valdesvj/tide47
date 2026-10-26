@@ -191,6 +191,12 @@
   The station's "now" is UTC + its time zone (not the computer's zone). The map's gradient: bilinear over the sea
   nodes every 3 pixels (land where under 35 % of the weight is sea), the bands' colours smoothed.
 - Checked under Xvfb (the window) and with --png. The container's GTK is on Python 3.12 (/usr/bin/python3.12).
+- Victor: ARTF showed the wrong station after a change in the Station list (ARTF used the station nearest the
+  position, the Tide tab the list's): now one state, State.set_station (the position goes to the station) and
+  set_position (the station becomes the nearest), the widgets synced both ways; the labels say "Tide: name" and
+  "Stream reference"; the Map says when the station is outside the atlas. tests/test_app.py: every station of the
+  region (Aramco's on Victor's computer) shows in the Tide, ARTF and Map labels, and ARTF47 in c47sim at its
+  position gives the same station, High Water, factor, tides and streams as the app.
 
 ## Plans
 

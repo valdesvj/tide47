@@ -95,7 +95,9 @@ station's day), **Flow** (the 13-hour stream table at a position and the rose), 
 station's tide) and **Map** (the atlas over the whole area as a colour gradient of the speed with its arrows, the
 stations marked, your position as a triangle; ◀ ▶ or the arrow keys step through the 13 charts; click to move the
 position). It reads your private data (python/stations_private.py, python/flow_private.py); without them it runs on
-public stand-ins and says so in red. `--png DIR` writes the four views as pictures.
+public stand-ins and says so in red. `--png DIR` writes the four views as pictures. Choosing a station moves the
+position to it; a position typed or clicked picks the nearest station. `python3 tests/test_app.py` checks every
+station's labels and the app against the calculator (ARTF47 in the simulator).
 
 ### Your own stations (Aramco)
 

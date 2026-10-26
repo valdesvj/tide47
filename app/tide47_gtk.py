@@ -79,6 +79,14 @@ def parse_dm(text):
     return -v if neg else v
 
 
+def to_dm(v):
+    """degrees -> DD.MM (whole minutes, as the entries and the calculator's LAT LON)"""
+    a = abs(v); d = int(a); m = int(round((a - d) * 60))
+    if m == 60:
+        d, m = d + 1, 0
+    return ('-' if v < 0 else '') + '%d.%02d' % (d, m)
+
+
 def fmt_pos(lat, lon):
     def one(v, w, h):
         a = abs(v); d = int(a); m = (a - d) * 60
@@ -102,12 +110,22 @@ def datestr(n):
 class State:
     def __init__(self, data):
         self.d = data
-        self.lat, self.lon = R.dm(28.24), R.dm(49.36)
         self.wdir, self.wkn = 0.0, 0.0
-        self.station = data.ref
+        self.set_station(data.ref)                      # the position: the reference station's, at the start
         self.tday = data.now(data.ref)[0]
         self.hour = 0                                   # the MAP's hour: HW + hour
         self.to_now()
+
+    # the position and the station always agree: the station is the one nearest the position (ARTF's tide station)
+    def set_station(self, p):
+        """a station chosen: the position goes to it (so the Tide, ARTF and Map tabs all show that station)"""
+        self.station = p
+        self.lat, self.lon = float(p['lat']), float(p['lon'])
+
+    def set_position(self, lat, lon):
+        """a position given (typed or clicked): the station becomes the one nearest it"""
+        self.lat, self.lon = lat, lon
+        self.station = self.nearest()[0]
 
     # the cycle (Ras Tanura's High Water)
     def to_now(self):
@@ -141,7 +159,12 @@ INK, SOFT, GRID, ACCENT, WARN, PAPER = (0.10, 0.12, 0.14), (0.45, 0.48, 0.52), (
     (0.05, 0.38, 0.62), (0.75, 0.10, 0.10), (0.98, 0.98, 0.97)
 
 
+RECORD = None                     # a list: every text drawn is added to it (tests/test_app.py checks the labels)
+
+
 def text(cr, x, y, s, size=12, bold=False, color=INK, align='l'):
+    if RECORD is not None:
+        RECORD.append(s)
     cr.select_font_face('Sans', 0, 1 if bold else 0)
     cr.set_font_size(size)
     w = cr.text_extents(s).x_advance
@@ -259,7 +282,7 @@ def header(cr, w, st, cyc, note):
     t, h, rng, f, rows, off, nowuv = cyc
     text(cr, 16, 28, fmt_pos(st.lat, st.lon), 18, True)
     text(cr, w - 16, 28, datestr(st.n), 18, True, align='r')
-    text(cr, 16, 50, '%s  HW %s   range %.2f m = %.2f x springs   %s' % (
+    text(cr, 16, 50, 'Stream reference %s: HW %s   range %.2f m = %.2f x springs   %s' % (
         st.d.ref['name'], hhmm(t), rng, f, ('wind %03.0f° %.0f kn' % (st.wdir, st.wkn)) if st.wkn else 'no wind'),
         12, color=SOFT)
     if nowuv:
@@ -297,7 +320,7 @@ def view_artf(cr, w, h, st):
     n0, h0 = st.d.now(s)
     x0 = w * 0.46
     cr.set_source_rgb(*GRID); cr.set_line_width(1); cr.move_to(x0 - 10, 84); cr.line_to(x0 - 10, h - 10); cr.stroke()
-    text(cr, x0, 98, '%s  (%.1f nm)' % (s['name'], dnm), 14, True)
+    text(cr, x0, 98, 'Tide: %s  (%.1f nm)' % (s['name'], dnm), 14, True)
     draw_tide(cr, x0, 104, w - x0 - 16, h - 120, s, st.n, h0 if n0 == st.n else None, bar=(t - 6, t + 6),
               title=False)
 
@@ -370,6 +393,9 @@ def view_map(cr, w, h, st):
             cr.set_source_rgb(1, 1, 1); cr.rectangle(px - 4, py - 4, 8, 8); cr.fill()
             cr.set_source_rgb(*INK); cr.set_line_width(1.5); cr.rectangle(px - 4, py - 4, 8, 8); cr.stroke()
             text(cr, px + 7, py + 4, p['name'], 10, True, INK)
+    if not (lon0 - 0.3 < st.station['lon'] < lon1 + 0.3 and lat0 - 0.3 < st.station['lat'] < lat1 + 0.3):
+        text(cr, 40, h - 6, '%s is outside the atlas area (%s - %s)' % (
+            st.station['name'], fmt_pos(lat0, lon0), fmt_pos(lat1, lon1)), 12, True, WARN)
     # the position: a triangle
     px, py = X(st.lon), Y(st.lat)
     cr.new_path(); cr.move_to(px, py - 10); cr.line_to(px + 9, py + 6); cr.line_to(px - 9, py + 6); cr.close_path()
@@ -460,7 +486,7 @@ def main():
             bar = Gtk.Box(spacing=6)
             box.append(bar)
             lat_e, lon_e = Gtk.Entry(width_chars=9), Gtk.Entry(width_chars=10)
-            lat_e.set_text('%.2f' % (int(st.lat) + (st.lat % 1) * 0.6)); lon_e.set_text('%.2f' % (int(st.lon) + (st.lon % 1) * 0.6))
+            lat_e.set_text(to_dm(st.lat)); lon_e.set_text(to_dm(st.lon))
             wdir = Gtk.SpinButton.new_with_range(0, 359, 10); wkn = Gtk.SpinButton.new_with_range(0, 60, 5)
             for lab, wid in (('Lat (DD.MM)', lat_e), ('Lon', lon_e), ('Wind from', wdir), ('kn', wkn)):
                 bar.append(Gtk.Label(label=lab)); bar.append(wid)
@@ -510,20 +536,37 @@ def main():
             err = Gtk.Label(label='')
             nav.append(err)
 
+            busy = [False]
+
+            def sync():
+                """the widgets from the state (the station list follows the position, and the other way)"""
+                busy[0] = True
+                lat_e.set_text(to_dm(st.lat)); lon_e.set_text(to_dm(st.lon))
+                stn.set_selected(data.ports.index(st.station))
+                busy[0] = False
+                redraw()
+
             def apply(*_):
+                if busy[0]:
+                    return
                 try:
-                    st.lat, st.lon = parse_dm(lat_e.get_text()), parse_dm(lon_e.get_text())
+                    st.set_position(parse_dm(lat_e.get_text()), parse_dm(lon_e.get_text()))
                     err.set_text('')
                 except ValueError:
                     err.set_markup('<span foreground="red">  the position: DD.MM (28.24 = 28°24\')</span>')
                 st.wdir, st.wkn = wdir.get_value(), wkn.get_value()
-                redraw()
+                sync()
+
+            def on_station(d, _p):
+                if busy[0]:
+                    return
+                st.set_station(data.ports[d.get_selected()])
+                sync()
             for wdg in (lat_e, lon_e):
                 wdg.connect('activate', apply)
             for wdg in (wdir, wkn):
                 wdg.connect('value-changed', apply)
-            stn.connect('notify::selected', lambda d, _p: (setattr(st, 'station', data.ports[d.get_selected()]),
-                                                            redraw()))
+            stn.connect('notify::selected', on_station)
             box.append(stack)
             stack.set_vexpand(True)
             for name, fn in VIEWS:
@@ -536,10 +579,8 @@ def main():
                         if not hasattr(st, '_map'):
                             return
                         X, Y, sc, cl, lat1, lon0 = st._map
-                        st.lon = lon0 + (x - 40) / (cl * sc); st.lat = lat1 - (y - 84) / sc
-                        lat_e.set_text('%.2f' % (int(st.lat) + (st.lat % 1) * 0.6))
-                        lon_e.set_text('%.2f' % (int(st.lon) + (st.lon % 1) * 0.6))
-                        redraw()
+                        st.set_position(lat1 - (y - 84) / sc, lon0 + (x - 40) / (cl * sc))
+                        sync()
                     click.connect('pressed', on_click)
                     a.add_controller(click)
                 areas.append(a)
