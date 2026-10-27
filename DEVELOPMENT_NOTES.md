@@ -198,6 +198,19 @@
   region (Aramco's on Victor's computer) shows in the Tide, ARTF and Map labels, and ARTF47 in c47sim at its
   position gives the same station, High Water, factor, tides and streams as the app.
 
+## Oct 27, 2026 - FLOW47's big arrow; which reference port (branch claude/artf47)
+
+- Victor: one arrow instead of the rose. LBL :BIGAR: (replaces :ROSE:): the stream now (or at HW), 100 px, set and
+  knots in GRFNT 21 below. A new HW 23 700 steps (the rose's 26 700).
+- The reference port (Victor: Dammam?). The charts' own evidence: the Dammam - Bahrain channel (4 nodes, the north
+  component fitted with a 12.42 h sinusoid, 0.20 kn rms residual) runs south HW-3 ... HW+3, strongest at HW-0.1,
+  slack turning north at HW+2.9: a basin's flood ends at its High Water, so the reference leads the Gulf of Bahrain
+  by about 2.9 h; Dammam (about Bahrain's time) would not. tools/flow_refcheck.py prints each Gulf station's lead
+  (Victor's constants) and scores observations (private/obs/currents.txt) with an offset search.
+- Sensitivity: a reference off by 0.5 / 1 / 2 / 3 h changes the streams at ten fields by 0.08 / 0.17 / 0.25 /
+  0.32 kn rms (the streams 0.1-0.35 kn).
+- Aramco only: build_tide47.py --flow --regions AR (checked with ME).
+
 ## Plans
 
 - Tidal streams: done (v0.2.0). Next: the GEOSA tables (Victor) -> private/streams/; the vessel's own DP / ADCP
