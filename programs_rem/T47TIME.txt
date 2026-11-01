@@ -3,9 +3,9 @@ REM choose the next speed-ups on the calculator itself (the simulator's times ar
 REM wait (a minute or two), read the screen (1 tick = 0.1 s; also in R01-R07; R00 R08 R09 used), any key ends:
 REM   R01 COS of a 40-vector, 10 times          (TIDE47: one a node, 13 a day; v0.3: 25 + the events)
 REM   R02 DOT of two 40-vectors, 10 times       (four a node)
-REM   R03 a real 40 x 40 matrix x 40 x 1, 10 times (how fast whole-matrix products are)
-REM   R04 a complex 40 x 40 x 40 x 1, 10 times  (the phasor idea: turn the constituents by complex products)
-REM   R05 a complex 40-vector + another, 10 times
+REM   R03 a real 20 x 20 matrix x 20 x 1, 10 times (how fast whole-matrix products are; 40 x 40: about x 4)
+REM   R04 a complex 20 x 20 x 20 x 1, 10 times  (the phasor idea; small: the C47 copies a matrix on each RCL)
+REM   R05 a complex 20-vector + another, 10 times
 REM   R06 1000 simple steps (RCL, STO, DSE)     (the drawing is mostly simple steps)
 REM   R07 360 PIXELs in a loop                  (the curve)
 REM COMPLEX on matrices and the complex matrix product are not in Tide 47 yet: this is their first try.
@@ -41,8 +41,8 @@ DO
   X≤Y?
 WHILE
 ENDDO
-40
-40
+20
+20
 NEWMAT
 STO "TM"
 INDEX "TM"
@@ -57,15 +57,34 @@ DO
   J+
   1
   STO+ 09
-  1600
+  400
   RCL 09
   X≤Y?
 WHILE
 ENDDO
-RCL "TV"
-COS
-RCL "TV"
-SIN
+20
+1
+NEWMAT
+STO "TW"
+INDEX "TW"
+1
+STO 09
+DO
+  RCL 09
+  0.7
+  ×
+  COS
+  STOEL
+  I+
+  1
+  STO+ 09
+  20
+  RCL 09
+  X≤Y?
+WHILE
+ENDDO
+RCL "TW"
+RCL "TW"
 COMPLEX
 STO "TC"
 RCL "TM"
@@ -107,7 +126,7 @@ STO 00
 STO 09
 DO
   RCL "TM"
-  RCL "TV"
+  RCL "TW"
   ×
   DROP
   DSE 09
@@ -201,7 +220,7 @@ RCL 34
 198
 2
 ATEXT Z
-"RE 40X40 X 40 X10: "
+"RE 20X20 X 20 X10: "
 STO 34
 RCL 03
 αIP 34
@@ -211,7 +230,7 @@ RCL 34
 176
 2
 ATEXT Z
-"CX 40X40 X 40 X10: "
+"CX 20X20 X 20 X10: "
 STO 34
 RCL 04
 αIP 34
@@ -221,7 +240,7 @@ RCL 34
 154
 2
 ATEXT Z
-"CX 40 + 40 X10: "
+"CX 20 + 20 X10: "
 STO 34
 RCL 05
 αIP 34
@@ -266,6 +285,7 @@ DELITM "TV"
 DELITM "TM"
 DELITM "TC"
 DELITM "TD"
+DELITM "TW"
 20
 GRFNT
 0
