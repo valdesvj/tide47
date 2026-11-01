@@ -165,3 +165,10 @@ The simulator counts steps, not the firmware's time for a cosine of a 40-vector 
 also in R01-R07; it uses R00-R09): `COS` and `DOT` of 40-vectors, a real and a complex 40 x 40 x 40-vector product, a
 complex vector sum, 1000 simple steps, 360 `PIXEL`s. Send the screen: it says where the next speed-up is. *Not yet run
 on a C47: `COMPLEX` on matrices and the complex matrix product are new to Tide 47 (only in T47TIME).*
+
+## The firmware's plot (T47PLOT, branch claude/tide47-fwplot)
+
+A try: can the C47's own statistics plot (`CLΣ`, `Σ+`, `PLSTAT`) draw the tide curve faster than TIDE47's loop of
+`PIXEL`s? `XEQ "T47PLOT"` draws a test curve both ways and shows the two times; tell whether `PLSTAT` returns to the
+program and whether it keeps or clears the rest of the screen. *Not yet run on a C47: `CLΣ`, `Σ+` and `PLSTAT` are new
+to Tide 47.*
