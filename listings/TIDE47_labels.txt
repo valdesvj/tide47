@@ -9,51 +9,52 @@ TIDE47 local labels: name (programs_rem/TIDE47.txt), number (build/TIDE47.txt), 
 :ROW:      06  X = a packed row into the indexed matrix (STOEL J+): R48 values of two digits each (value 
 :CLOCK:    07  R85 today (JDN of the calculator's date), R86 the hour now
 :LOAD:     08  ======== the port ========
-:SEL:      09  the selection matrix S (NK x 60: 1 at (i, IX i)): the port's constituents out of the 60; W
-:UNPK:     10  X = a port's matrix, one number a constituent it has: its number in the 60 (IX) x 1E11 + H
-:REG:      11  X = the port's number (0: the region's count and title) to the data program of the region 
-:DAY:      12  ======== the day ========
-:DAYC:     13  the day's computation (no screen; FLOW47 uses it for its reference station)
-:VEC:      14  Y = the phases G, X = the logs LH of a component: P = VU - G (MOD 360) with VU = S x (DM x
-:TZ:       15  R23 = the port's time zone, + 1 in US daylight time (LBL :DST:; R28 odd)
-:DST:      16  X = 1 when the day R25 is in US daylight time: from the second Sunday of March to the firs
-:JD1:      17  X = a month (3-12) of the year R42: X = the JDN of its first day
-:SUN:      18  X = a JDN: X = the first Sunday on or after it (n + (7 - (n + 1) MOD 7) MOD 7)
-:CAL:      19  X = a JDN: R40 the day, R41 the month, R42 the year (a = n + 32044, b = (4a + 3) div 14609
-:ASTRO:    20  the angles at the day's start R22 (Meeus, as NOAA): T R30, tau R31, s R32, h R33, p R35, N
-:HOURS:    21  ======== tidal streams ========
-:FFF:      22  the event function from R30-R39: R56 F, R57 F', R58 F''. A tide: F = h' (then h'' h'''); a
-:FIND:     23  the events. The quintics' coefficients of all 12 intervals at once (LBL :COEF:): CF (F), C
-:COEF:     24  X = a selector of HR's columns (GU GV GF): X = (H0 x X) x QA + (H1 x X) x QB, the 12 inter
-:CROW:     25  X = a coefficient matrix: its row R50 into R40-R45 (c0 ... c5)
-:HORN:     26  X = c0 + c1 s + ... + c5 s^5 (R40-R45, s = R48)
-:HORND:    27  Y = the slope (d / ds), X = the value of the quintic R40-R45 at s = R48
-:SOLVE:    28  the quintic R40-R45 changes sign (R51 to R52) in the quarter R54 (s from R46 = (R54 - 1) /
-:EVSTO:    29  the event at s = R48 of the interval R50 (R91 the kind; R49 1: a root of F, 0: a slack): t
-:UV:       30  one exact evaluation at the hour R55 (one COS and one SIN of the port's phases): R30 u, R3
-:SD:       31  from R30 R31: X = the value (rectilinear: the signed speed u; rotary: the speed), Y = the 
-:SCREEN:   32  ======== the screen (Almanac 47's split view: the header, the chart above, the table below
-:TITLE:    33  X = the header's right side: the region R97; a stream today: the stream now (the calculato
-:SET:      34  X = a direction (deg): appended to R34 as three digits and °
-:DATES:    35  R34 = "SUN 25-10-2026", the day R25
-:TWO:      36  X (0-99) appended to R34 in two digits (as Zones 47)
-:CRVU:     37  X = u every 20 minutes (73 x 1, in GT): CU x SP6 (12 x 6: the quintic of each interval at 
-:CRVV:     38  
-:CRV6:     39  
-:CURVE:    40  HS = the height (a stream: the signed stream, or the speed) every 20 minutes (73): the qui
-:FLOOR:    41  X = the largest whole number <= X
-:YPIX:     42  X = a height: X = its row on the chart (118 + (h - R80) x R83)
-:AXES:     43  the time axis (row 118, every 3 hours a tick and the hour), the heights (every R82 a dotte
-:PLOT:     44  the curve, a dot a column: a tide or a rectilinear stream from its quintics (LBL :PLOTQ:),
-:PLOTQ:    45  PY = CU x SPX x R83 (12 x 30: u every 4 minutes, the rows' heights in pixels from R80), re
-:PLOTS:    46  72 segments of 5 columns between the values of HS (straight), a dot a column
-:MARKS:    47  each high / low water: a cross on the curve and its time above (high) or below (low), besi
-:SIDE:     48  the time label beside the cross (R89 its row, R91 its column): to the right, to the left n
-:NOW:      49  the day is today: a dotted line at the hour now (the calculator's clock)
-:TABLE:    50  the high and low waters (at most 5): HIGH / LOW, the time, the height, the range from the 
-:SMARKS:   51  a stream's events: a cross on the curve at each (the table gives their times)
-:STABLE:   52  a stream's events (at most 8, the small font): FLOOD / EBB / SLACK (rectilinear) or MAX / 
-:HHMM:     53  X = hours (0-24) appended to R34 as hh:mm (the minutes rounded first)
-:NUM2:     54  X appended to R34 with two decimals (a minus sign if negative)
-:NUM1:     55  X appended to R34 with one decimal when it has one (0.5 m steps)
-:KEYS:     56  ======== the keys ========
+:SEL:      09  WK, LWK the speeds and their logs of the port's NK constituents (LBL :GATH: of W, LW). v0.
+:GATH:     10  X = a 60 x 1 vector: X = its elements IX (the port's NK constituents), NK x 1 (GT, GA; R50
+:UNPK:     11  X = a port's matrix, one number a constituent it has: its number in the 60 (IX) x 1E11 + H
+:REG:      12  X = the port's number (0: the region's count and title) to the data program of the region 
+:DAY:      13  ======== the day ========
+:DAYC:     14  the day's computation (no screen; FLOW47 uses it for its reference station)
+:VEC:      15  Y = the phases G, X = the logs LH of a component: P = VU - G (MOD 360) with VU = S x (DM x
+:TZ:       16  R23 = the port's time zone, + 1 in US daylight time (LBL :DST:; R28 odd)
+:DST:      17  X = 1 when the day R25 is in US daylight time: from the second Sunday of March to the firs
+:JD1:      18  X = a month (3-12) of the year R42: X = the JDN of its first day
+:SUN:      19  X = a JDN: X = the first Sunday on or after it (n + (7 - (n + 1) MOD 7) MOD 7)
+:CAL:      20  X = a JDN: R40 the day, R41 the month, R42 the year (a = n + 32044, b = (4a + 3) div 14609
+:ASTRO:    21  the angles at the day's start R22 (Meeus, as NOAA): T R30, tau R31, s R32, h R33, p R35, N
+:HOURS:    22  ======== tidal streams ========
+:FFF:      23  the event function from R30-R39: R56 F, R57 F', R58 F''. A tide: F = h' (then h'' h'''); a
+:FIND:     24  the events. The quintics' coefficients of all 12 intervals at once (LBL :COEF:): CF (F), C
+:COEF:     25  X = a selector of HR's columns (GU GV GF): X = (H0 x X) x QA + (H1 x X) x QB, the 12 inter
+:CROW:     26  X = a coefficient matrix: its row R50 into R40-R45 (c0 ... c5)
+:HORN:     27  X = c0 + c1 s + ... + c5 s^5 (R40-R45, s = R48)
+:HORND:    28  Y = the slope (d / ds), X = the value of the quintic R40-R45 at s = R48
+:SOLVE:    29  the quintic R40-R45 changes sign (R51 to R52) in the quarter R54 (s from R46 = (R54 - 1) /
+:EVSTO:    30  the event at s = R48 of the interval R50 (R91 the kind; R49 1: a root of F, 0: a slack): t
+:UV:       31  one exact evaluation at the hour R55 (one COS and one SIN of the port's phases): R30 u, R3
+:SD:       32  from R30 R31: X = the value (rectilinear: the signed speed u; rotary: the speed), Y = the 
+:SCREEN:   33  ======== the screen (Almanac 47's split view: the header, the chart above, the table below
+:TITLE:    34  X = the header's right side: the region R97; a stream today: the stream now (the calculato
+:SET:      35  X = a direction (deg): appended to R34 as three digits and °
+:DATES:    36  R34 = "SUN 25-10-2026", the day R25
+:TWO:      37  X (0-99) appended to R34 in two digits (as Zones 47)
+:CRVU:     38  X = u every 20 minutes (73 x 1, in GT): CU x SP6 (12 x 6: the quintic of each interval at 
+:CRVV:     39  
+:CRV6:     40  
+:CURVE:    41  HS = the height (a stream: the signed stream, or the speed) every 20 minutes (73): the qui
+:FLOOR:    42  X = the largest whole number <= X
+:YPIX:     43  X = a height: X = its row on the chart (118 + (h - R80) x R83)
+:AXES:     44  the time axis (row 118, every 3 hours a tick and the hour), the heights (every R82 a dotte
+:PLOT:     45  the curve, a dot a column: a tide or a rectilinear stream from its quintics (LBL :PLOTQ:),
+:PLOTQ:    46  PY = CU x SPX x R83 (12 x 30: u every 4 minutes, the rows' heights in pixels from R80), re
+:PLOTS:    47  72 segments of 5 columns between the values of HS (straight), a dot a column
+:MARKS:    48  each high / low water: a cross on the curve and its time above (high) or below (low), besi
+:SIDE:     49  the time label beside the cross (R89 its row, R91 its column): to the right, to the left n
+:NOW:      50  the day is today: a dotted line at the hour now (the calculator's clock)
+:TABLE:    51  the high and low waters (at most 5): HIGH / LOW, the time, the height, the range from the 
+:SMARKS:   52  a stream's events: a cross on the curve at each (the table gives their times)
+:STABLE:   53  a stream's events (at most 8, the small font): FLOOD / EBB / SLACK (rectilinear) or MAX / 
+:HHMM:     54  X = hours (0-24) appended to R34 as hh:mm (the minutes rounded first)
+:NUM2:     55  X appended to R34 with two decimals (a minus sign if negative)
+:NUM1:     56  X appended to R34 with one decimal when it has one (0.5 m steps)
+:KEYS:     57  ======== the keys ========

@@ -27,3 +27,7 @@
   B2 (3 x 73 x 13) and E1-E6 gone; LBL :CRV6: makes the 73 values from CU x SP6 (12 x 6, SP6 7 x 6) with a copy loop
   (about 600 steps). Matrix elements at a key wait: TIDE47 6 776 (v0.3: 8 831, v0.4.0 about 9 000), ARTF47 7 084
   (v0.3: 9 294). The largest left: S (NK x 60, 2 400 for 40 constituents).
+- v0.4.1 (Victor's c47 simulator, an Aramco station with 50 constituents: "Out of range" storing the selection matrix S,
+  50 x 60): S gone; LBL :GATH: picks the port's NK constituents out of a 60-vector with a loop (VU, EL a day; WK, LWK
+  a port). Matrix elements at a key wait: TIDE47 4 416, ARTF47 4 724 (v0.3: 8 831 and 9 294). Not measured by
+  c47sim (it has no memory limit): the C47's own simulator is the check.

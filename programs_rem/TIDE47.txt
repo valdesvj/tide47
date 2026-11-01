@@ -133,7 +133,7 @@ DELITM "ZW"
 DELITM "CZ"
 DELITM "EV"
 DELITM "HR"
-DELITM "S"
+DELITM "GA"
 DELITM "IX"
 DELITM "WK"
 DELITM "LWK"
@@ -283,7 +283,7 @@ STO "ZW"
 STO "CZ"
 STO "EV"
 STO "HR"
-STO "S"
+STO "GA"
 STO "IX"
 STO "WK"
 STO "LWK"
@@ -637,13 +637,25 @@ RCL "HG"
 XEQ :UNPK:
 XEQ :SEL:
 RTN
-REM ---- LBL :SEL: the selection matrix S (NK x 60: 1 at (i, IX i)): the port's constituents out of the 60; WK, LWK
-REM the speeds and their logs of those (S x W, S x LW) ----
+REM ---- LBL :SEL: WK, LWK the speeds and their logs of the port's NK constituents (LBL :GATH: of W, LW). v0.4.1: no
+REM selection matrix S (NK x 60): with 50 constituents it was 3000 numbers, too much for the C47's memory ----
 LBL :SEL:
+RCL "W"
+XEQ :GATH:
+STO "WK"
+RCL "LW"
+XEQ :GATH:
+STO "LWK"
+RTN
+REM ---- LBL :GATH: X = a 60 x 1 vector: X = its elements IX (the port's NK constituents), NK x 1 (GT, GA; R50 R51) ----
+LBL :GATH:
+STO "GT"
+DROP
 RCL "NK"
-60
+1
 NEWMAT
-STO "S"
+STO "GA"
+DROP
 1
 STO 50
 DO
@@ -651,14 +663,25 @@ DO
   RCL 50
   1
   STOIJ
+  DROP
+  DROP
   RCLEL
   STO 51
-  INDEX "S"
-  RCL 50
+  INDEX "GT"
   RCL 51
-  STOIJ
   1
+  STOIJ
+  DROP
+  DROP
+  RCLEL
+  INDEX "GA"
+  RCL 50
+  1
+  STOIJ
+  DROP
+  DROP
   STOEL
+  DROP
   1
   STO+ 50
   RCL "NK"
@@ -666,14 +689,7 @@ DO
   X≤Y?
 WHILE
 ENDDO
-RCL "S"
-RCL "W"
-×
-STO "WK"
-RCL "S"
-RCL "LW"
-×
-STO "LWK"
+RCL "GA"
 RTN
 REM ---- LBL :UNPK: X = a port's matrix, one number a constituent it has: its number in the 60 (IX) x 1E11 + H (0.1 mm
 REM or 0.0001 kn) x 100000 + g / 100: IX, G the phases, LH the logs of H ----
@@ -746,15 +762,12 @@ RCL "UM"
 RCL "BV"
 ×
 +
-RCL "S"
-X<>Y
-×
+XEQ :GATH:
 STO "VU"
-RCL "S"
 RCL "EM"
 RCL "LF"
 ×
-×
+XEQ :GATH:
 STO "EL"
 RCL 28
 2
