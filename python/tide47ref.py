@@ -299,13 +299,6 @@ def powers(s):
     return out + [0.0]
 
 
-def weights(s):
-    """the curve's weights at s (a row of B0 B1 B2): the start's (value, slope, curvature) and the end's"""
-    sp = powers(s)
-    return ([sum(QA[r][m] * sp[m] for m in range(7)) for r in range(3)],
-            [sum(QB[r][m] * sp[m] for m in range(7)) for r in range(3)])
-
-
 def _fff(u, v, mode):
     """the event function F and its two derivatives (LBL :FFF:) from u, v (each the value and three derivatives): a
     tide or a rectilinear stream: F = u' (a stream's slacks, u = 0, are found from u itself); a rotary stream: F = g =
@@ -386,25 +379,20 @@ def engine(st, n, stream):
                     store(k, sb, kb, False)
             if A:
                 store(k, A[0], A[1], True)
-    return tz, ev, _curve(HR, nn, rot), HR
+    return tz, ev, _curve(CU, CV, rot), HR
 
 
-def _curve(HR, nn, rot):
-    """LBL :CRVU: (:CRVV:): the value every 20 minutes from the B0 B1 B2 weights"""
-    per = int(round(STEP * 3))                          # curve points an interval (every 20 minutes)
-    W = [weights(j / per) for j in range(per)]
-    curve = []
-    for k in range(73):
-        i = min(k // per, nn - 1)
-        j = k - i * per
-        if j == per:
-            val = lambda c: HR[nn][c][0]
-        else:
-            wa, wb = W[j]
-            val = lambda c: (sum(wa[r] * HR[i][c][r] for r in range(3)) + sum(wb[r] * HR[i + 1][c][r] for r in range(3)))
-        u = val(0)
-        curve.append(math.hypot(u, val(1)) if rot else u)
-    return curve
+def _curve(CU, CV, rot):
+    """LBL :CRVU: (:CRVV:): the value every 20 minutes: CU x SP6 (each interval at s = 0, 1/6 ... 5/6), then the last
+    node's value (CU's column 7)"""
+    sp = [powers(j / 6) for j in range(6)]
+    def vals(C):
+        return [sum(c * p for c, p in zip(row, q)) for row in C for q in sp] + [C[-1][6]]
+    u = vals(CU)
+    if not rot:
+        return u
+    v = vals(CV)
+    return [math.hypot(a, b) for a, b in zip(u, v)]
 
 
 def day(st, n):

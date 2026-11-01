@@ -138,15 +138,6 @@ DELITM "IX"
 DELITM "WK"
 DELITM "LWK"
 DELITM "NK"
-DELITM "B0"
-DELITM "B1"
-DELITM "B2"
-DELITM "E1"
-DELITM "E2"
-DELITM "E3"
-DELITM "E4"
-DELITM "E5"
-DELITM "E6"
 DELITM "GU"
 DELITM "GV"
 DELITM "GF"
@@ -163,6 +154,7 @@ DELITM "CV"
 DELITM "QW"
 DELITM "QU"
 DELITM "SPX"
+DELITM "SP6"
 DELITM "REVR"
 DELITM "REVH"
 DELITM "RVD"
@@ -308,132 +300,33 @@ STO "RNAM"
 STO "FOK"
 REM the quintics (v0.4): QA QB (the build, from tide47ref: STEP = 2 h in them) turn the three values at a node (F F'
 REM F'', or u u' u'') and those at the next node into the coefficients of s^0 ... s^5 of the quintic between them (s:
-REM 0 - 1) and the next node's value (column 7). B0 B1 B2 the curve's weights (73 x 13: a row every 20 minutes, the
-REM columns HR's rows; B0 the values, B1 the slopes, B2 the curvatures): at s = j / 6 they are QA x SP and QB x SP (SP =
-REM 1 s ... s^5 0, LBL :POWS:). SPW (7 x 5): CF x SPW = F at s = 0, 1/4, 1/2, 3/4 (the quintic) and at 1 (the node)
-73
-13
-NEWMAT
-STO "B0"
-73
-13
-NEWMAT
-STO "B1"
-73
-13
-NEWMAT
-STO "B2"
+REM 0 - 1) and the next node's value (column 7). SP6 (7 x 6): CU x SP6 = the curve at s = 0, 1/6 ... 5/6 (LBL :CRV6:;
+REM SP = 1 s ... s^5 0, LBL :POWS:). SPW (7 x 5): CF x SPW = F at s = 0, 1/4, 1/2, 3/4 (the quintic) and at 1 (the node)
 7
-1
+6
 NEWMAT
-STO "SP"
-0
+STO "SP6"
+1
 STO 50
 DO
-  INDEX "SP"
+  INDEX "SP6"
   1
-  1
+  RCL 50
   STOIJ
   RCL 50
+  1
+  -
   6
   ÷
   STO 52
   XEQ :POWS:
-  RCL "QA"
-  RCL "SP"
-  ×
-  STO "CR"
-  INDEX "CR"
-  1
-  1
-  STOIJ
-  RCLEL
-  STO 40
-  I+
-  RCLEL
-  STO 41
-  I+
-  RCLEL
-  STO 42
-  RCL "QB"
-  RCL "SP"
-  ×
-  STO "CR"
-  INDEX "CR"
-  1
-  1
-  STOIJ
-  RCLEL
-  STO 43
-  I+
-  RCLEL
-  STO 44
-  I+
-  RCLEL
-  STO 45
-  0
-  STO 51
-  DO
-    RCL 51
-    6
-    ×
-    RCL+ 50
-    1
-    +
-    STO 55
-    INDEX "B0"
-    RCL 55
-    RCL 51
-    1
-    +
-    STOIJ
-    RCL 40
-    STOEL
-    J+
-    RCL 43
-    STOEL
-    INDEX "B1"
-    RCL 55
-    RCL 51
-    1
-    +
-    STOIJ
-    RCL 41
-    STOEL
-    J+
-    RCL 44
-    STOEL
-    INDEX "B2"
-    RCL 55
-    RCL 51
-    1
-    +
-    STOIJ
-    RCL 42
-    STOEL
-    J+
-    RCL 45
-    STOEL
-    1
-    STO+ 51
-    11
-    RCL 51
-    X≤Y?
-  WHILE
-  ENDDO
   1
   STO+ 50
-  5
+  6
   RCL 50
   X≤Y?
 WHILE
 ENDDO
-INDEX "B0"
-73
-13
-STOIJ
-1
-STOEL
 7
 5
 NEWMAT
@@ -529,67 +422,7 @@ DO
   X≤Y?
 WHILE
 ENDDO
-REM E1-E6 pick one of HR's columns (u u' u'' v v' v''), GU GV GF three (u, v, F and their derivatives)
-9
-1
-NEWMAT
-STO "E1"
-INDEX "E1"
-1
-1
-STOIJ
-1
-STOEL
-9
-1
-NEWMAT
-STO "E2"
-INDEX "E2"
-2
-1
-STOIJ
-1
-STOEL
-9
-1
-NEWMAT
-STO "E3"
-INDEX "E3"
-3
-1
-STOIJ
-1
-STOEL
-9
-1
-NEWMAT
-STO "E4"
-INDEX "E4"
-4
-1
-STOIJ
-1
-STOEL
-9
-1
-NEWMAT
-STO "E5"
-INDEX "E5"
-5
-1
-STOIJ
-1
-STOEL
-9
-1
-NEWMAT
-STO "E6"
-INDEX "E6"
-6
-1
-STOIJ
-1
-STOEL
+REM GU GV GF pick three of HR's columns (u, v, F and their derivatives)
 9
 3
 NEWMAT
@@ -2400,45 +2233,106 @@ ENDIF
 RCL 94
 αIP 34
 RTN
-REM ---- LBL :CRVU: X = u every 20 minutes (73 x 1): B0 x (HR x E1) + B1 x (HR x E2) + B2 x (HR x E3) (B0 B1 B2 the
-REM quintics' weights of the nodes' values, slopes and curvatures; E1 E2 E3 pick HR's u u' u''); LBL :CRVV: v ----
+REM ---- LBL :CRVU: X = u every 20 minutes (73 x 1, in GT): CU x SP6 (12 x 6: the quintic of each interval at s = 0,
+REM 1/6 ... 5/6) copied row by row (R40-R45), then the last node's u (CU's column 7); LBL :CRVV: v from CV. Small
+REM matrices only (v0.4.1: the 73 x 13 weights left the C47 without memory) ----
 LBL :CRVU:
-RCL "B0"
-RCL "HR"
-RCL "E1"
-×
-×
-RCL "B1"
-RCL "HR"
-RCL "E2"
-×
-×
-+
-RCL "B2"
-RCL "HR"
-RCL "E3"
-×
-×
-+
+RCL "CU"
+XEQ :CRV6:
 RTN
 LBL :CRVV:
-RCL "B0"
-RCL "HR"
-RCL "E4"
+RCL "CV"
+XEQ :CRV6:
+RTN
+LBL :CRV6:
+STO "CR"
+RCL "SP6"
 ×
-×
-RCL "B1"
-RCL "HR"
-RCL "E5"
-×
-×
-+
-RCL "B2"
-RCL "HR"
-RCL "E6"
-×
-×
-+
+STO "PY"
+DROP
+73
+1
+NEWMAT
+STO "GT"
+DROP
+1
+STO 50
+DO
+  INDEX "PY"
+  RCL 50
+  1
+  STOIJ
+  DROP
+  DROP
+  RCLEL
+  STO 40
+  J+
+  RCLEL
+  STO 41
+  J+
+  RCLEL
+  STO 42
+  J+
+  RCLEL
+  STO 43
+  J+
+  RCLEL
+  STO 44
+  J+
+  RCLEL
+  STO 45
+  INDEX "GT"
+  RCL 50
+  1
+  -
+  6
+  ×
+  1
+  +
+  1
+  STOIJ
+  DROP
+  DROP
+  RCL 40
+  STOEL
+  I+
+  RCL 41
+  STOEL
+  I+
+  RCL 42
+  STOEL
+  I+
+  RCL 43
+  STOEL
+  I+
+  RCL 44
+  STOEL
+  I+
+  RCL 45
+  STOEL
+  1
+  STO+ 50
+  12
+  RCL 50
+  X≤Y?
+WHILE
+ENDDO
+INDEX "CR"
+12
+7
+STOIJ
+DROP
+DROP
+RCLEL
+INDEX "GT"
+73
+1
+STOIJ
+DROP
+DROP
+X<>Y
+STOEL
+RCL "GT"
 RTN
 REM ---- LBL :CURVE: HS = the height (a stream: the signed stream, or the speed) every 20 minutes (73): the quintics
 REM between the nodes as matrix products (LBL :CRVU:; a rotary stream: v likewise, LBL :CRVV:, then the speed with
@@ -2447,8 +2341,18 @@ REM (0.5, 1 over 3 of range, 2 over 6), R80 R81 to whole steps, R83 = 78 pixels 
 LBL :CURVE:
 XEQ :CRVU:
 STO "HS"
-XEQ :CRVV:
-STO "HSV"
+RCL 28
+2
+X≤Y?
+IF
+  RCL 28
+  4
+  X>Y?
+  IF
+    XEQ :CRVV:
+    STO "HSV"
+  ENDIF
+ENDIF
 1E9
 STO 80
 -1E9

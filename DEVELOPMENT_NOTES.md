@@ -23,3 +23,7 @@
   :ROW: unpacking DM UM EM; a whole-matrix MOD unpacking was tried and left: the 20-digit packed numbers need the
   C47's real34 elements, the simulator's matrices keep doubles).
 - T47TIME (programs_rem/T47TIME.txt; build_tide47.py writes build/ programs/): the firmware's times on the calculator.
+- v0.4.1 (Victor's C47: "not enough memory for such a matrix" in TIDE47, FLOW47, ARTF47): the curve's weights B0 B1
+  B2 (3 x 73 x 13) and E1-E6 gone; LBL :CRV6: makes the 73 values from CU x SP6 (12 x 6, SP6 7 x 6) with a copy loop
+  (about 600 steps). Matrix elements at a key wait: TIDE47 6 776 (v0.3: 8 831, v0.4.0 about 9 000), ARTF47 7 084
+  (v0.3: 9 294). The largest left: S (NK x 60, 2 400 for 40 constituents).

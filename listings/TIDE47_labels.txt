@@ -37,22 +37,23 @@ TIDE47 local labels: name (programs_rem/TIDE47.txt), number (build/TIDE47.txt), 
 :SET:      34  X = a direction (deg): appended to R34 as three digits and °
 :DATES:    35  R34 = "SUN 25-10-2026", the day R25
 :TWO:      36  X (0-99) appended to R34 in two digits (as Zones 47)
-:CRVU:     37  X = u every 20 minutes (73 x 1): B0 x (HR x E1) + B1 x (HR x E2) + B2 x (HR x E3) (B0 B1 B
+:CRVU:     37  X = u every 20 minutes (73 x 1, in GT): CU x SP6 (12 x 6: the quintic of each interval at 
 :CRVV:     38  
-:CURVE:    39  HS = the height (a stream: the signed stream, or the speed) every 20 minutes (73): the qui
-:FLOOR:    40  X = the largest whole number <= X
-:YPIX:     41  X = a height: X = its row on the chart (118 + (h - R80) x R83)
-:AXES:     42  the time axis (row 118, every 3 hours a tick and the hour), the heights (every R82 a dotte
-:PLOT:     43  the curve, a dot a column: a tide or a rectilinear stream from its quintics (LBL :PLOTQ:),
-:PLOTQ:    44  PY = CU x SPX x R83 (12 x 30: u every 4 minutes, the rows' heights in pixels from R80), re
-:PLOTS:    45  72 segments of 5 columns between the values of HS (straight), a dot a column
-:MARKS:    46  each high / low water: a cross on the curve and its time above (high) or below (low), besi
-:SIDE:     47  the time label beside the cross (R89 its row, R91 its column): to the right, to the left n
-:NOW:      48  the day is today: a dotted line at the hour now (the calculator's clock)
-:TABLE:    49  the high and low waters (at most 5): HIGH / LOW, the time, the height, the range from the 
-:SMARKS:   50  a stream's events: a cross on the curve at each (the table gives their times)
-:STABLE:   51  a stream's events (at most 8, the small font): FLOOD / EBB / SLACK (rectilinear) or MAX / 
-:HHMM:     52  X = hours (0-24) appended to R34 as hh:mm (the minutes rounded first)
-:NUM2:     53  X appended to R34 with two decimals (a minus sign if negative)
-:NUM1:     54  X appended to R34 with one decimal when it has one (0.5 m steps)
-:KEYS:     55  ======== the keys ========
+:CRV6:     39  
+:CURVE:    40  HS = the height (a stream: the signed stream, or the speed) every 20 minutes (73): the qui
+:FLOOR:    41  X = the largest whole number <= X
+:YPIX:     42  X = a height: X = its row on the chart (118 + (h - R80) x R83)
+:AXES:     43  the time axis (row 118, every 3 hours a tick and the hour), the heights (every R82 a dotte
+:PLOT:     44  the curve, a dot a column: a tide or a rectilinear stream from its quintics (LBL :PLOTQ:),
+:PLOTQ:    45  PY = CU x SPX x R83 (12 x 30: u every 4 minutes, the rows' heights in pixels from R80), re
+:PLOTS:    46  72 segments of 5 columns between the values of HS (straight), a dot a column
+:MARKS:    47  each high / low water: a cross on the curve and its time above (high) or below (low), besi
+:SIDE:     48  the time label beside the cross (R89 its row, R91 its column): to the right, to the left n
+:NOW:      49  the day is today: a dotted line at the hour now (the calculator's clock)
+:TABLE:    50  the high and low waters (at most 5): HIGH / LOW, the time, the height, the range from the 
+:SMARKS:   51  a stream's events: a cross on the curve at each (the table gives their times)
+:STABLE:   52  a stream's events (at most 8, the small font): FLOOD / EBB / SLACK (rectilinear) or MAX / 
+:HHMM:     53  X = hours (0-24) appended to R34 as hh:mm (the minutes rounded first)
+:NUM2:     54  X appended to R34 with two decimals (a minus sign if negative)
+:NUM1:     55  X appended to R34 with one decimal when it has one (0.5 m steps)
+:KEYS:     56  ======== the keys ========
