@@ -190,11 +190,16 @@ def test_c47():
                 for a, b in zip(ev, tw):
                     worst_t = max(worst_t, abs(a[0] - b[0]) * 3600); worst_h = max(worst_h, abs(a[1] - b[1]))
                     ok = ok and a[2] == b[2]
+                hs = getattr(c, 'hs', [])                  # the curve (v0.4.1: LBL :CRV6:'s last point)
+                ok = ok and len(hs) == 73
+                worst_c = max([globals().get('worst_c', 0)] + [abs(a - b) for a, b in zip(hs, cu)])
+                globals()['worst_c'] = worst_c
                 if not ok:
                     check(False, '%s %04d-%02d-%02d: %s / %s' % (st['name'], y, m, d, ev, tw))
                 n += 1
-    check(worst_t < 0.01 and worst_h < 1e-9, '%d port-days: the same high and low waters (%.3g s, %.2g m)'
-          % (n, worst_t, worst_h))
+    wc = globals().get('worst_c', 1)
+    check(worst_t < 0.01 and worst_h < 1e-9 and wc < 1e-6, '%d port-days: the same high and low waters (%.3g s, %.2g m) '
+          'and the same curve (%.2g m)' % (n, worst_t, worst_h, wc))
     print('      %.0f s here' % (time.time() - t0))
     boston = stations.REGIONS[1][3][0]
     for dn, want in ((R.jdn(2026, 3, 7), -5), (R.jdn(2026, 3, 8), -4), (R.jdn(2026, 10, 31), -4), (R.jdn(2026, 11, 1), -5)):

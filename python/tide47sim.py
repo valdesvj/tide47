@@ -35,6 +35,7 @@ def run(ks, clock=CLOCK, maxsteps=10 ** 9, progs=None):
     def hook(op, x):
         if op == 'KEY?' and (not c.ev or c.ev[-1][0] != len(c.frames)):
             c.ev.append((len(c.frames), events(c), int(c.reg.get('25', 0)), c.reg.get('26')))
+            c.hs = [float(r[0]) for r in c.mats.get('HS', [])]      # the curve of the last screen (tests)
     c.count = hook
     c.run('TIDE47', maxsteps=maxsteps)
     shots = [{(x, H - 1 - y) for y, x in f if 0 <= y < H and 0 <= x < W} for f in c.frames]
