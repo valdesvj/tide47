@@ -74,7 +74,7 @@ REM the day before / after, 5 now, 7 a new position or wind, 0 the end. python/t
 REM Registers (besides the engine's): R80 R81 the position (deg), R82 R83 the wind's current east / north, R84 the
 REM High Water (its index in the day's events), R87 its hour, R88 the factor on the spring speeds, R89 the mean spring
 REM range, R90 1: now is in the cycle, R92 now - High Water (h), the variable FOK 1: the atlas covers the position, R99 the hour
-REM looked for. Matrices FL (the atlas: a row a node, two packed numbers), FU FV (the 13 spring streams there).
+REM looked for. Matrices FL (the atlas: a row a node, two packed numbers), STU STV (the 13 spring streams there).
 LBL "FLOW47"
 LocR 9
 STOS R.00
@@ -168,8 +168,8 @@ DELITM "AW3"
 DELITM "AW3N"
 DELITM "HSV"
 DELITM "FL"
-DELITM "FU"
-DELITM "FV"
+DELITM "STU"
+DELITM "STV"
 DELITM "SDIR"
 DELITM "STL"
 DELITM "NST"
@@ -290,8 +290,8 @@ STO "LWK"
 STO "NK"
 STO "HSV"
 STO "FL"
-STO "FU"
-STO "FV"
+STO "STU"
+STO "STV"
 STO "SDIR"
 STO "STL"
 STO "NST"
@@ -3491,7 +3491,7 @@ IF
 ENDIF
 RCL 46
 RTN
-REM ---- LBL :ATLAS: FU FV = the 13 spring streams at R80 R81: bilinear between the four nodes around (LBL :CORN:; the
+REM ---- LBL :ATLAS: STU STV = the 13 spring streams at R80 R81: bilinear between the four nodes around (LBL :CORN:; the
 REM land ones left out); FOK = 1, or 0 outside the grid or on land ----
 LBL :ATLAS:
 0
@@ -3499,11 +3499,11 @@ STO "FOK"
 13
 1
 NEWMAT
-STO "FU"
+STO "STU"
 13
 1
 NEWMAT
-STO "FV"
+STO "STV"
 RCL 80
 {FLAT0}
 -
@@ -3638,19 +3638,19 @@ RTN
 1
 RCL÷ 56
 STO 57
-RCL "FU"
+RCL "STU"
 RCL 57
 ×
-STO "FU"
-RCL "FV"
+STO "STU"
+RCL "STV"
 RCL 57
 ×
-STO "FV"
+STO "STV"
 1
 STO "FOK"
 RTN
 REM ---- LBL :CORN: the node R58 (a row of FL) with the weight R57: unless land (0) or no weight, its 13 hours (LBL
-REM :DEC:) x R57 added to FU FV, R57 to R56 ----
+REM :DEC:) x R57 added to STU STV, R57 to R56 ----
 LBL :CORN:
 RCL 57
 0
@@ -3684,7 +3684,7 @@ STO 49
 XEQ :DEC:
 RTN
 REM ---- LBL :DEC: R49 hours of the packed number R44 (two digits u, two v an hour, the last hour on the right), from
-REM the hour R59 down: (code - 50) x Q x R57 added to FU FV ----
+REM the hour R59 down: (code - 50) x Q x R57 added to STU STV ----
 LBL :DEC:
 DO
   RCL 44
@@ -3695,7 +3695,7 @@ DO
   {FQ}
   ×
   RCL× 57
-  INDEX "FV"
+  INDEX "STV"
   RCL 59
   1
   STOIJ
@@ -3716,7 +3716,7 @@ DO
   {FQ}
   ×
   RCL× 57
-  INDEX "FU"
+  INDEX "STU"
   RCL 59
   1
   STOIJ
@@ -4077,7 +4077,7 @@ LBL :FROW:
 1
 +
 STO 59
-INDEX "FU"
+INDEX "STU"
 RCL 59
 1
 STOIJ
@@ -4087,7 +4087,7 @@ RCLEL
 RCL× 88
 RCL+ 82
 STO 30
-INDEX "FV"
+INDEX "STV"
 RCL 59
 1
 STOIJ

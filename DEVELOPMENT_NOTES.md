@@ -31,3 +31,8 @@
   50 x 60): S gone; LBL :GATH: picks the port's NK constituents out of a 60-vector with a loop (VU, EL a day; WK, LWK
   a port). Matrix elements at a key wait: TIDE47 4 416, ARTF47 4 724 (v0.3: 8 831 and 9 294). Not measured by
   c47sim (it has no memory limit): the C47's own simulator is the check.
+- FV is the C47's reserved TVM variable (future value, a real only): ARTF47 stopped at STO "FV" with "Invalid input
+  data type for this operation" (Victor's c47 simulator, step 3771). The atlas's 13 streams are STU STV now; the build
+  refuses the reserved names (FV PV PMT ACC NPPER I%/a ... STATS HISTO Mat_A ...: build_tide47.RESERVED).
+- The cost of LBL :GATH: (no S): a TIDE47 day 21 415 steps in the simulator (v0.4.0 16 288, v0.3 22 466); the element
+  cosines and sines stay at 1 040 a day (v0.3: 2 320).

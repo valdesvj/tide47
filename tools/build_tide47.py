@@ -392,6 +392,19 @@ def flow_find(regs, fl, want=None):
     raise SystemExit('the atlas\'s reference station "%s" is in no region (python/stations_private.py?)' % (want or fl['ref']))
 
 
+# the C47's reserved variables (the TVM solver's, the plots', the statistics'): a program cannot store a matrix in them
+# (Victor's C47, ARTF47: STO "FV" -> "Invalid input data type for this operation")
+RESERVED = {'FV', 'PV', 'PMT', 'ACC', 'NPPER', 'I%/a', 'CPER/a', 'PPER/a', 'STATS', 'HISTO', 'Mat_A', 'Mat_B', 'Mat_X',
+            '↑X', '↓X', '↑Y', '↓Y', '↑EST', '↓EST', '↑Lim', '↓Lim', 'δ⒟'}
+
+
+def check_names(steps):
+    bad = sorted({m.group(2) for s in steps for m in [re.match(r'(STO|RCL|INDEX|DELITM)\S* "([^"]+)"$', s)]
+                  if m and m.group(2) in RESERVED})
+    if bad:
+        raise SystemExit('reserved C47 variable names used: %s' % ', '.join(bad))
+
+
 def build(regs, dirs, listings=True, flow=None, art=None):
     """flow: (region, station, the atlas, the data program) keeps FLOW47; art (with flow): dict(ports=the region's
     stations) keeps ARTF47 too."""
@@ -403,6 +416,7 @@ def build(regs, dirs, listings=True, flow=None, art=None):
         lines = flow_strip(lines, 'FLOW')
     lines = fill(lines, regs, flow, art)
     steps = source_steps(lines)
+    check_names(steps)
     numeric, num = resolve(steps)
     numeric = structures(numeric)
     want = ['LBL "%s"' % NAME] + (['LBL "FLOW47"'] if flow else []) + (['LBL "ARTF47"'] if art else [])

@@ -63,8 +63,8 @@ def run_flow(ks, lat, lon, wdir=0, wkn=0, clock=CLOCK, progs=None, maxsteps=10 *
         if op == 'KEY?' and (not c.fl or c.fl[-1][0] != len(c.frames)):
             g = lambda k: float(c.reg.get(str(k), 0))
             c.fl.append((len(c.frames), dict(n=int(g(25)), m=int(g(84)), t=g(87), f=g(88), ok=int(float(c.reg.get('FOK', 0) or 0)),
-                                             FU=[float(r[0]) for r in c.mats.get('FU', [])] if 'FU' in c.mats else None,
-                                             FV=[float(r[0]) for r in c.mats.get('FV', [])] if 'FV' in c.mats else None,
+                                             FU=[float(r[0]) for r in c.mats.get('STU', [])] if 'STU' in c.mats else None,
+                                             FV=[float(r[0]) for r in c.mats.get('STV', [])] if 'STV' in c.mats else None,
                                              spring=g(89), nst=float(c.reg.get('NST', 0) or 0),
                                              ndst=float(c.reg.get('NDST', 0) or 0), ev=events(c))))
     c.count = hook
