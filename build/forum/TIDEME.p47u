@@ -1,6 +1,6 @@
 @ Index:   Tide 47 data: MIDDLE EAST: TICON-3 (8 ports)
 @ Author:  Victor Valdes
-@ Version: 0.3.0
+@ Version: 0.4.0
 @ Source:  https://github.com/valdesvj/tide47
 @ Tested:  with TIDE47 in the C47 simulator (tests/test_tide47.py)
 @ Input:   X = a port's number (1-8), or 0 for the region (called by TIDE47)

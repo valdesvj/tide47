@@ -238,84 +238,173 @@ def comp(st, j0, hc, ix=None):
     return P, A, AW, AW2, Wk
 
 
+STEP = 2.0              # hours between the exact evaluations (v0.4: 13 a day; v0.3: 25)
+SUB = 4                 # the event search on the quintic: every STEP / SUB hours
+
+
 def evaluate(C, z0, t):
-    """One component at the hour t (LBL :UV:): (value, first, second derivative)."""
+    """One component at the hour t (LBL :UV:): (value and its first three derivatives): one COS and one SIN of the
+    phases, four DOTs (A, AW, AW2, AW3: A x the speed to the powers 0..3)."""
     P, A, AW, AW2, Wk = C
     z = [(p + w * t) * D2R for p, w in zip(P, Wk)]
     c = [math.cos(x) for x in z]
     s_ = [math.sin(x) for x in z]
+    AW3 = [a * w * D2R for a, w in zip(AW2, Wk)]
     return (z0 + sum(a * x for a, x in zip(A, c)), -sum(a * x for a, x in zip(AW, s_)),
-            -sum(a * x for a, x in zip(AW2, c)))
+            -sum(a * x for a, x in zip(AW2, c)), sum(a * x for a, x in zip(AW3, s_)))
 
 
-def herm(f0, d0, f1, d1, s):
-    """The cubic (Hermite) on [0, 1] through f0, f1 with slopes d0, d1 (an interval of 1 hour): (value, slope)."""
-    s2, s3 = s * s, s * s * s
-    v = (2 * s3 - 3 * s2 + 1) * f0 + (s3 - 2 * s2 + s) * d0 + (-2 * s3 + 3 * s2) * f1 + (s3 - s2) * d1
-    dv = (6 * s2 - 6 * s) * f0 + (3 * s2 - 4 * s + 1) * d0 + (-6 * s2 + 6 * s) * f1 + (3 * s2 - 2 * s) * d1
-    return v, dv
+# the quintic (Hermite) on [0, 1] through two ends' values, slopes and curvatures (an interval of STEP hours): MV the
+# coefficients of s^0 ... s^5 of its six basis polynomials (the start's value, slope, curvature, the end's curvature,
+# slope, value); QA QB (the C47's constant matrices, the build writes them) turn the three values at the start (F F'
+# F'' a node's) and at the end into the coefficients c0 ... c5 (and c6 = the end's value)
+MV = ((1, 0, 0, -10, 15, -6), (0, 1, 0, -6, 8, -3), (0, 0, 0.5, -1.5, 1.5, -0.5), (0, 0, 0, 0.5, -1, 0.5),
+      (0, 0, 0, -4, 7, -3), (0, 0, 0, 10, -15, 6))
 
 
-def _ff(u, v):
-    """The event function F and F' from (u, u', u'') and (v, v', v''): tide F = h' (then v = 0 and F = u', F' = u'')
-    is the same formula as the stream's g = u u' + v v' only for a stream; see engine()."""
-    return u[0] * u[1] + v[0] * v[1], u[1] * u[1] + u[0] * u[2] + v[1] * v[1] + v[0] * v[2]
+def _qmat(rows, scale, end):
+    out = []
+    for r, (i, sc) in enumerate(zip(rows, scale)):
+        q = [MV[i][m] * sc for m in range(6)] + [1 if (end and r == 0) else 0]
+        assert all(float(x).is_integer() for x in q), q
+        out.append([int(x) for x in q])
+    return out
+
+
+QA = _qmat((0, 1, 2), (1, STEP, STEP * STEP), False)
+QB = _qmat((5, 4, 3), (1, STEP, STEP * STEP), True)
+
+
+def coef(a, b):
+    """the quintic's coefficients (LBL :COEF:): a, b = the three values at the interval's start and end -> c0 ... c6"""
+    return [sum(QA[r][m] * a[r] for r in range(3)) + sum(QB[r][m] * b[r] for r in range(3)) for m in range(7)]
+
+
+def horn(c, s):
+    """LBL :HORN: the value at s"""
+    return ((((c[5] * s + c[4]) * s + c[3]) * s + c[2]) * s + c[1]) * s + c[0]
+
+
+def hornd(c, s):
+    """LBL :HORND: the slope (d / ds) at s"""
+    return (((5 * c[5] * s + 4 * c[4]) * s + 3 * c[3]) * s + 2 * c[2]) * s + c[1]
+
+
+def powers(s):
+    """SP: 1 s ... s^5 0 (LBL :POWS:)"""
+    out, p = [], 1.0
+    for _ in range(6):
+        out.append(p)
+        p *= s
+    return out + [0.0]
+
+
+def weights(s):
+    """the curve's weights at s (a row of B0 B1 B2): the start's (value, slope, curvature) and the end's"""
+    sp = powers(s)
+    return ([sum(QA[r][m] * sp[m] for m in range(7)) for r in range(3)],
+            [sum(QB[r][m] * sp[m] for m in range(7)) for r in range(3)])
+
+
+def _fff(u, v, mode):
+    """the event function F and its two derivatives (LBL :FFF:) from u, v (each the value and three derivatives): a
+    tide or a rectilinear stream: F = u' (a stream's slacks, u = 0, are found from u itself); a rotary stream: F = g =
+    u u' + v v' = s s' (smooth where the speed s nearly vanishes, s' is not)"""
+    if mode != 'rot':
+        return u[1], u[2], u[3]
+    return (u[0] * u[1] + v[0] * v[1], u[1] ** 2 + u[0] * u[2] + v[1] ** 2 + v[0] * v[2],
+            (u[1] * u[2] + v[1] * v[2]) * 3 + u[0] * u[3] + v[0] * v[3])
+
+
+def _solve(c, f0, f1, j):
+    """LBL :SOLVE: the quintic c changes sign (f0 to f1) in the quarter j: Newton from the straight line -> s, the
+    kind (1 if its slope is < 0)"""
+    lo, hi = (j - 1) / SUB, j / SUB
+    s = f0 / (f0 - f1) * (hi - lo) + lo
+    for _ in range(4):
+        s = min(max(s - horn(c, s) / hornd(c, s), lo), hi)
+    return s, (1 if hornd(c, s) < 0 else -1)
 
 
 def engine(st, n, stream):
-    """The day n at st, as the C47 does it: (tz, events [(t, value, set, kind)], curve 73, hourly rows)."""
+    """The day n at st, as the C47 does it (v0.4): an exact evaluation every STEP hours (13 a day, LBL :HOURS:), the
+    quintics of F (and u, v) between them (LBL :COEF:), their signs every quarter of an interval, Newton on the
+    quintic (LBL :SOLVE:: no more exact evaluation), the values at the events and the curve from the quintics of u
+    and v (LBL :EVSTO:). -> (tz, events [(t, value, set, kind)], curve 73, the rows)."""
     tz = st['tz'] + dst(st, n)
     j0 = n - 0.5 - tz / 24
     ix = port_index(st)
     E = comp(st, j0, st['hc'], ix)
-    rot = stream and st.get('kind') == 'rot'
+    mode = 'tide' if not stream else ('rot' if st.get('kind') == 'rot' else 'rect')
+    rot = mode == 'rot'
     N = comp(st, j0, st['hv'], ix) if rot else None
     z0, v0 = st['z0'], st.get('v0', 0.0)
-
-    def uv(t):
-        u = evaluate(E, z0, t)
-        v = evaluate(N, v0, t) if rot else (0.0, 0.0, 0.0)
-        if not stream:
-            return u, v, u[1], u[2]                           # a tide: F = h', F' = h''
-        F, Fp = _ff(u, v)
-        return u, v, F, Fp
-    HR = [uv(float(t)) for t in range(25)]
+    nn = int(round(24 / STEP))
+    HR = []
+    for k in range(nn + 1):
+        u = evaluate(E, z0, k * STEP)
+        v = evaluate(N, v0, k * STEP) if rot else (0.0, 0.0, 0.0, 0.0)
+        HR.append((u, v, _fff(u, v, mode)))
+    CF = [coef(HR[k][2], HR[k + 1][2]) for k in range(nn)]
+    CU = [coef(HR[k][0][:3], HR[k + 1][0][:3]) for k in range(nn)]
+    CV = [coef(HR[k][1][:3], HR[k + 1][1][:3]) for k in range(nn)] if rot else None
+    sw = [powers(j / SUB) for j in range(1, SUB)]
+    def samples(c):                                     # QW = CF x SPW (QU = CU x SPW)
+        return [c[0]] + [sum(x * y for x, y in zip(c, p)) for p in sw] + [c[6]]
     ev = []
     most = 8 if stream else 6
-    for k in range(1, 25):
-        F0, D0 = HR[k - 1][2], HR[k - 1][3]
-        F1, D1 = HR[k][2], HR[k][3]
-        if F0 * F1 < 0 and len(ev) < most:
-            s = F0 / (F0 - F1)
-            for _ in range(3):
-                p, dp = herm(F0, D0, F1, D1, s)
-                s -= p / dp
-                s = min(max(s, 0.0), 1.0)
-            x0 = k - 1 + s
-            u, v, F, Fp = uv(x0)
-            x = min(max(x0 - F / Fp, k - 1.0), float(k))
-            dx = x - x0
-            uu, vv = u[0] + u[1] * dx, v[0] + v[1] * dx
-            kind = 1 if Fp < 0 else -1
-            if not stream:
-                ev.append((x, uu, 0.0, kind))
-            elif not rot:
-                ev.append((x, uu, float(st['flood'] if uu >= 0 else st['ebb']), kind))
-            else:
-                ev.append((x, math.hypot(uu, vv), math.degrees(math.atan2(uu, vv)) % 360, kind))
+    def store(k, s, kind, isf):                         # LBL :EVSTO:
+        if len(ev) >= most:
+            return
+        x = (k + s) * STEP
+        uu = horn(CU[k], s)
+        vv = horn(CV[k], s) if rot else 0.0
+        if mode == 'rect':
+            kind = -1 if not isf else (-kind if uu < 0 else kind)
+        if not stream:
+            ev.append((x, uu, 0.0, kind))
+        elif not rot:
+            ev.append((x, uu, float(st['flood'] if uu >= 0 else st['ebb']), kind))
+        else:
+            ev.append((x, math.hypot(uu, vv), math.degrees(math.atan2(uu, vv)) % 360, kind))
+    for k in range(nn):
+        qf = samples(CF[k])
+        qu = samples(CU[k]) if mode == 'rect' else None
+        for j in range(1, SUB + 1):
+            A = None
+            if qf[j - 1] * qf[j] < 0:
+                A = _solve(CF[k], qf[j - 1], qf[j], j)
+            if qu and qu[j - 1] * qu[j] < 0:
+                sb, kb = _solve(CU[k], qu[j - 1], qu[j], j)
+                if A:
+                    if sb < A[0]:
+                        store(k, sb, kb, False); store(k, A[0], A[1], True)
+                    else:
+                        store(k, A[0], A[1], True); store(k, sb, kb, False)
+                    A = None
+                else:
+                    store(k, sb, kb, False)
+            if A:
+                store(k, A[0], A[1], True)
+    return tz, ev, _curve(HR, nn, rot), HR
+
+
+def _curve(HR, nn, rot):
+    """LBL :CRVU: (:CRVV:): the value every 20 minutes from the B0 B1 B2 weights"""
+    per = int(round(STEP * 3))                          # curve points an interval (every 20 minutes)
+    W = [weights(j / per) for j in range(per)]
     curve = []
     for k in range(73):
-        t = k / 3
-        i = min(int(t), 23)
-        s = t - i
-        a, b = HR[i], HR[i + 1]
-        u = herm(a[0][0], a[0][1], b[0][0], b[0][1], s)[0]
-        if rot:
-            v = herm(a[1][0], a[1][1], b[1][0], b[1][1], s)[0]
-            curve.append(math.hypot(u, v))
+        i = min(k // per, nn - 1)
+        j = k - i * per
+        if j == per:
+            val = lambda c: HR[nn][c][0]
         else:
-            curve.append(u)
-    return tz, ev, curve, HR
+            wa, wb = W[j]
+            val = lambda c: (sum(wa[r] * HR[i][c][r] for r in range(3)) + sum(wb[r] * HR[i + 1][c][r] for r in range(3)))
+        u = val(0)
+        curve.append(math.hypot(u, val(1)) if rot else u)
+    return curve
 
 
 def day(st, n):

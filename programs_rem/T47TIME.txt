@@ -1,0 +1,275 @@
+REM T47TIME - Tide 47's timing test for the C47 / R47: how long the firmware takes for the engine's kinds of work, to
+REM choose the next speed-ups on the calculator itself (the simulator's times are only a step count). XEQ "T47TIME",
+REM wait (a minute or two), read the screen (1 tick = 0.1 s; also in R01-R07; R00 R08 R09 used), any key ends:
+REM   R01 COS of a 40-vector, 10 times          (TIDE47: one a node, 13 a day; v0.3: 25 + the events)
+REM   R02 DOT of two 40-vectors, 10 times       (four a node)
+REM   R03 a real 40 x 40 matrix x 40 x 1, 10 times (how fast whole-matrix products are)
+REM   R04 a complex 40 x 40 x 40 x 1, 10 times  (the phasor idea: turn the constituents by complex products)
+REM   R05 a complex 40-vector + another, 10 times
+REM   R06 1000 simple steps (RCL, STO, DSE)     (the drawing is mostly simple steps)
+REM   R07 360 PIXELs in a loop                  (the curve)
+REM COMPLEX on matrices and the complex matrix product are not in Tide 47 yet: this is their first try.
+LBL "T47TIME"
+CLLCD
+21
+GRFNT
+0
+GRMOD
+"T47TIME: SETTING UP ..."
+STO 34
+RCL 34
+220
+2
+ATEXT Z
+40
+1
+NEWMAT
+STO "TV"
+INDEX "TV"
+1
+STO 09
+DO
+  RCL 09
+  7.3
+  ×
+  STOEL
+  I+
+  1
+  STO+ 09
+  40
+  RCL 09
+  X≤Y?
+WHILE
+ENDDO
+40
+40
+NEWMAT
+STO "TM"
+INDEX "TM"
+1
+STO 09
+DO
+  RCL 09
+  0.37
+  ×
+  SIN
+  STOEL
+  J+
+  1
+  STO+ 09
+  1600
+  RCL 09
+  X≤Y?
+WHILE
+ENDDO
+RCL "TV"
+COS
+RCL "TV"
+SIN
+COMPLEX
+STO "TC"
+RCL "TM"
+RCL "TM"
+COMPLEX
+STO "TD"
+TICKS
+STO 00
+10
+STO 09
+DO
+  RCL "TV"
+  COS
+  DROP
+  DSE 09
+WHILE
+ENDDO
+TICKS
+RCL- 00
+STO 01
+TICKS
+STO 00
+10
+STO 09
+DO
+  RCL "TV"
+  RCL "TV"
+  DOT
+  DROP
+  DSE 09
+WHILE
+ENDDO
+TICKS
+RCL- 00
+STO 02
+TICKS
+STO 00
+10
+STO 09
+DO
+  RCL "TM"
+  RCL "TV"
+  ×
+  DROP
+  DSE 09
+WHILE
+ENDDO
+TICKS
+RCL- 00
+STO 03
+TICKS
+STO 00
+10
+STO 09
+DO
+  RCL "TD"
+  RCL "TC"
+  ×
+  DROP
+  DSE 09
+WHILE
+ENDDO
+TICKS
+RCL- 00
+STO 04
+TICKS
+STO 00
+10
+STO 09
+DO
+  RCL "TC"
+  RCL "TC"
+  +
+  DROP
+  DSE 09
+WHILE
+ENDDO
+TICKS
+RCL- 00
+STO 05
+TICKS
+STO 00
+250
+STO 09
+DO
+  RCL 08
+  STO 07
+  DSE 09
+WHILE
+ENDDO
+TICKS
+RCL- 00
+STO 06
+CLLCD
+TICKS
+STO 00
+0
+STO 09
+DO
+  100
+  RCL 09
+  26
+  +
+  PIXEL
+  1
+  STO+ 09
+  359
+  RCL 09
+  X≤Y?
+WHILE
+ENDDO
+TICKS
+RCL- 00
+STO 07
+CLLCD
+"COS 40 X10: "
+STO 34
+RCL 01
+αIP 34
+" TICKS"
+x→α 34
+RCL 34
+220
+2
+ATEXT Z
+"DOT 40 X10: "
+STO 34
+RCL 02
+αIP 34
+" TICKS"
+x→α 34
+RCL 34
+198
+2
+ATEXT Z
+"RE 40X40 X 40 X10: "
+STO 34
+RCL 03
+αIP 34
+" TICKS"
+x→α 34
+RCL 34
+176
+2
+ATEXT Z
+"CX 40X40 X 40 X10: "
+STO 34
+RCL 04
+αIP 34
+" TICKS"
+x→α 34
+RCL 34
+154
+2
+ATEXT Z
+"CX 40 + 40 X10: "
+STO 34
+RCL 05
+αIP 34
+" TICKS"
+x→α 34
+RCL 34
+132
+2
+ATEXT Z
+"1000 STEPS: "
+STO 34
+RCL 06
+αIP 34
+" TICKS"
+x→α 34
+RCL 34
+110
+2
+ATEXT Z
+"360 PIXELS: "
+STO 34
+RCL 07
+αIP 34
+" TICKS"
+x→α 34
+RCL 34
+88
+2
+ATEXT Z
+"1 TICK = 0.1 S (R01-R07). ANY KEY"
+STO 34
+RCL 34
+40
+2
+ATEXT Z
+DO
+  PAUSE 50
+  KEY? 98
+WHILE
+ENDDO
+DELITM "TV"
+DELITM "TM"
+DELITM "TC"
+DELITM "TD"
+20
+GRFNT
+0
+GRMOD
+CLLCD
+RTN
+END

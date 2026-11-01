@@ -1,6 +1,6 @@
 @ Index:   Tide 47 data: LATIN AMERICA: TICON-3 (7 ports)
 @ Author:  Victor Valdes
-@ Version: 0.3.0
+@ Version: 0.4.0
 @ Source:  https://github.com/valdesvj/tide47
 @ Tested:  with TIDE47 in the C47 simulator (tests/test_tide47.py)
 @ Input:   X = a port's number (1-7), or 0 for the region (called by TIDE47)
