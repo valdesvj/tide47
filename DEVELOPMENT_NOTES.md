@@ -36,3 +36,14 @@
   refuses the reserved names (FV PV PMT ACC NPPER I%/a ... STATS HISTO Mat_A ...: build_tide47.RESERVED).
 - The cost of LBL :GATH: (no S): a TIDE47 day 21 415 steps in the simulator (v0.4.0 16 288, v0.3 22 466); the element
   cosines and sines stay at 1 040 a day (v0.3: 2 320).
+
+## Nov 1, 2026 - speed3 (branch claude/tide47-speed3)
+
+- Victor's C47: T47PLOT's pixel loop (360 dots, about 22 steps each) took 25 ticks: about 0.3 ms a step on the
+  calculator (the simulator's model says 0.17).
+- One gather loop for two vectors (LBL :PAIR: makes [a b] 60 x 2 with C1 C2; LBL :GATH: copies the port's rows; K1 K2
+  take the columns apart): VU and EL a day, WK and LWK a port.
+- ARTF47's tide panel: the curve as dots from CU x SPX (every other column of PY), not 72 LINEs.
+- The chart's dotted grid every 12 pixels (was 6), the panel's time axis every 4 (was 2).
+- Steps (simulator): a TIDE47 day 21 415 -> 16 994; the start 53 600 -> 50 272; an ARTF47 High Water key 33 838 ->
+  25 199.

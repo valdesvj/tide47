@@ -134,6 +134,10 @@ DELITM "CZ"
 DELITM "EV"
 DELITM "HR"
 DELITM "GA"
+DELITM "C1"
+DELITM "C2"
+DELITM "K1"
+DELITM "K2"
 DELITM "IX"
 DELITM "WK"
 DELITM "LWK"
@@ -422,6 +426,47 @@ DO
   X≤Y?
 WHILE
 ENDDO
+REM C1 C2 K1 K2: LBL :PAIR: and :GATH:'s two columns put together and taken apart
+1
+2
+NEWMAT
+STO "C1"
+INDEX "C1"
+1
+1
+STOIJ
+1
+STOEL
+1
+2
+NEWMAT
+STO "C2"
+INDEX "C2"
+1
+2
+STOIJ
+1
+STOEL
+2
+1
+NEWMAT
+STO "K1"
+INDEX "K1"
+1
+1
+STOIJ
+1
+STOEL
+2
+1
+NEWMAT
+STO "K2"
+INDEX "K2"
+2
+1
+STOIJ
+1
+STOEL
 REM GU GV GF pick three of HR's columns (u, v, F and their derivatives)
 9
 3
@@ -637,22 +682,38 @@ RCL "HG"
 XEQ :UNPK:
 XEQ :SEL:
 RTN
-REM ---- LBL :SEL: WK, LWK the speeds and their logs of the port's NK constituents (LBL :GATH: of W, LW). v0.4.1: no
+REM ---- LBL :SEL: WK, LWK the speeds and their logs of the port's NK constituents: LBL :GATH: of [W LW]. v0.4.1: no
 REM selection matrix S (NK x 60): with 50 constituents it was 3000 numbers, too much for the C47's memory ----
 LBL :SEL:
 RCL "W"
-XEQ :GATH:
-STO "WK"
 RCL "LW"
+XEQ :PAIR:
 XEQ :GATH:
+STO "GT"
+RCL "K1"
+×
+STO "WK"
+RCL "GT"
+RCL "K2"
+×
 STO "LWK"
 RTN
-REM ---- LBL :GATH: X = a 60 x 1 vector: X = its elements IX (the port's NK constituents), NK x 1 (GT, GA; R50 R51) ----
+REM ---- LBL :PAIR: Y X = two 60 x 1 vectors: X = the 60 x 2 matrix [Y X] (Y x C1 + X x C2) ----
+LBL :PAIR:
+RCL "C2"
+×
+X<>Y
+RCL "C1"
+×
++
+RTN
+REM ---- LBL :GATH: X = a 60 x 2 matrix: X = its rows IX (the port's NK constituents), NK x 2 (GT, GA; R50 R51); one
+REM loop for two vectors (v0.4.2) ----
 LBL :GATH:
 STO "GT"
 DROP
 RCL "NK"
-1
+2
 NEWMAT
 STO "GA"
 DROP
@@ -674,13 +735,20 @@ DO
   DROP
   DROP
   RCLEL
+  J+
+  RCLEL
   INDEX "GA"
   RCL 50
   1
   STOIJ
   DROP
   DROP
+  X<>Y
   STOEL
+  J+
+  X<>Y
+  STOEL
+  DROP
   DROP
   1
   STO+ 50
@@ -762,12 +830,18 @@ RCL "UM"
 RCL "BV"
 ×
 +
-XEQ :GATH:
-STO "VU"
 RCL "EM"
 RCL "LF"
 ×
+XEQ :PAIR:
 XEQ :GATH:
+STO "GT"
+RCL "K1"
+×
+STO "VU"
+RCL "GT"
+RCL "K2"
+×
 STO "EL"
 RCL 28
 2
@@ -2546,7 +2620,7 @@ DO
     RCL 88
     RCL 89
     PIXEL
-    6
+    12
     STO+ 89
     386
     RCL 89
@@ -5211,7 +5285,7 @@ DO
   117
   RCL 52
   PIXEL
-  2
+  4
   STO+ 52
   388
   RCL 52
@@ -5329,45 +5403,57 @@ ATEXT Z
 13
 214
 ATEXT Z
-0
-STO 52
+REM the curve, a dot a column (208-387): PY = CU x SPX x R53 (u every 4 minutes), every other one read (J+ J+: 8
+REM minutes, 7.5 pixels an hour); R55 the offset 120.5 - R50 x R53, R56 the column, R57 the count; then 388 the last
+REM node's ----
+RCL 50
+RCL× 53
+CHS
+120.5
++
+STO 55
+RCL "CU"
+RCL "SPX"
+×
+RCL 53
+×
+STO "PY"
+DROP
+INDEX "PY"
+1
+1
+STOIJ
+DROP
+DROP
+208
+STO 56
+180
+STO 57
 DO
-  INDEX "HS"
-  RCL 52
-  1
-  +
-  1
-  STOIJ
-  DROP
-  DROP
   RCLEL
-  RCL- 50
-  RCL× 53
-  120
-  +
-  STO 47
-  RCL 52
-  2.5
-  ×
-  208
-  +
-  STO 46
-  RCL 52
-  X≠0?
-  IF
-    XEQ :LINE:
-  ENDIF
-  RCL 46
-  STO 44
-  RCL 47
-  STO 45
+  RCL+ 55
+  IP
+  RCL 56
+  PIXEL
+  J+
+  J+
   1
-  STO+ 52
-  72
-  RCL 52
-  X≤Y?
+  STO+ 56
+  DSE 57
 WHILE
 ENDDO
+INDEX "CU"
+12
+7
+STOIJ
+DROP
+DROP
+RCLEL
+RCL× 53
+RCL+ 55
+IP
+388
+PIXEL
 RCL 78
 X=0?
 RTN

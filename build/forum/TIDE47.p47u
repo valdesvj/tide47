@@ -93,8 +93,8 @@ IF 01
     RCL 92
     X≠0?
     XEQ 08                      ; -> :LOAD:
-    XEQ 13                      ; -> :DAY:
-    XEQ 57                      ; -> :KEYS:
+    XEQ 14                      ; -> :DAY:
+    XEQ 58                      ; -> :KEYS:
     82
     RCL 98
     X≠Y?
@@ -149,6 +149,10 @@ DELITM "CZ"
 DELITM "EV"
 DELITM "HR"
 DELITM "GA"
+DELITM "C1"
+DELITM "C2"
+DELITM "K1"
+DELITM "K2"
 DELITM "IX"
 DELITM "WK"
 DELITM "LWK"
@@ -854,6 +858,47 @@ DO 05
   X≤Y?
 WHILE 05
 ENDDO 05
+@ C1 C2 K1 K2: LBL :PAIR: and :GATH:'s two columns put together and taken apart
+1
+2
+NEWMAT
+STO "C1"
+INDEX "C1"
+1
+1
+STOIJ
+1
+STOEL
+1
+2
+NEWMAT
+STO "C2"
+INDEX "C2"
+1
+2
+STOIJ
+1
+STOEL
+2
+1
+NEWMAT
+STO "K1"
+INDEX "K1"
+1
+1
+STOIJ
+1
+STOEL
+2
+1
+NEWMAT
+STO "K2"
+INDEX "K2"
+2
+1
+STOIJ
+1
+STOEL
 @ GU GV GF pick three of HR's columns (u, v, F and their derivatives)
 9
 3
@@ -1136,9 +1181,9 @@ RTN
 LBL 08                          ; :LOAD:
 0
 STO 92
-XEQ 12                          ; -> :REG:
+XEQ 13                          ; -> :REG:
 RCL 21
-XEQ 12                          ; -> :REG:
+XEQ 13                          ; -> :REG:
 RCL 28
 2
 X≤Y?
@@ -1148,7 +1193,7 @@ IF 12
   X>Y?
   IF 13
     RCL "HV"
-    XEQ 11                      ; -> :UNPK:
+    XEQ 12                      ; -> :UNPK:
     RCL "G"
     STO "GN"
     RCL "LH"
@@ -1156,27 +1201,44 @@ IF 12
   ENDIF 13
 ENDIF 12
 RCL "HG"
-XEQ 11                          ; -> :UNPK:
+XEQ 12                          ; -> :UNPK:
 XEQ 09                          ; -> :SEL:
 RTN
 @
-@ ---- LBL :SEL: WK, LWK the speeds and their logs of the port's NK constituents (LBL :GATH: of W, LW). v0.4.1: no
+@ ---- LBL :SEL: WK, LWK the speeds and their logs of the port's NK constituents: LBL :GATH: of [W LW]. v0.4.1: no
 @ selection matrix S (NK x 60): with 50 constituents it was 3000 numbers, too much for the C47's memory ----
 LBL 09                          ; :SEL:
 RCL "W"
-XEQ 10                          ; -> :GATH:
-STO "WK"
 RCL "LW"
-XEQ 10                          ; -> :GATH:
+XEQ 10                          ; -> :PAIR:
+XEQ 11                          ; -> :GATH:
+STO "GT"
+RCL "K1"
+×
+STO "WK"
+RCL "GT"
+RCL "K2"
+×
 STO "LWK"
 RTN
 @
-@ ---- LBL :GATH: X = a 60 x 1 vector: X = its elements IX (the port's NK constituents), NK x 1 (GT, GA; R50 R51) ----
-LBL 10                          ; :GATH:
+@ ---- LBL :PAIR: Y X = two 60 x 1 vectors: X = the 60 x 2 matrix [Y X] (Y x C1 + X x C2) ----
+LBL 10                          ; :PAIR:
+RCL "C2"
+×
+X<>Y
+RCL "C1"
+×
++
+RTN
+@
+@ ---- LBL :GATH: X = a 60 x 2 matrix: X = its rows IX (the port's NK constituents), NK x 2 (GT, GA; R50 R51); one
+@ loop for two vectors (v0.4.2) ----
+LBL 11                          ; :GATH:
 STO "GT"
 DROP
 RCL "NK"
-1
+2
 NEWMAT
 STO "GA"
 DROP
@@ -1198,13 +1260,20 @@ DO 09
   DROP
   DROP
   RCLEL
+  J+
+  RCLEL
   INDEX "GA"
   RCL 50
   1
   STOIJ
   DROP
   DROP
+  X<>Y
   STOEL
+  J+
+  X<>Y
+  STOEL
+  DROP
   DROP
   1
   STO+ 50
@@ -1218,7 +1287,7 @@ RTN
 @
 @ ---- LBL :UNPK: X = a port's matrix, one number a constituent it has: its number in the 60 (IX) x 1E11 + H (0.1 mm
 @ or 0.0001 kn) x 100000 + g / 100: IX, G the phases, LH the logs of H ----
-LBL 11                          ; :UNPK:
+LBL 12                          ; :UNPK:
 STO "HQ"
 1E-11
 ×
@@ -1258,7 +1327,7 @@ RTN
 @
 @ ---- LBL :REG: X = the port's number (0: the region's count and title) to the data program of the region R20 (the
 @ build writes one IF a region: TIDEME TIDEUS TIDELA, and TIDEAR in the private build) ----
-LBL 12                          ; :REG:
+LBL 13                          ; :REG:
 STO 90
 @ the regions TIDEME TIDEUS TIDELA TIDECU (written by the build)
 1
@@ -1293,14 +1362,14 @@ RTN
 @ ======== the day ========
 @ ---- LBL :DAY: the day R25 at the port: the time zone, the start JD0 = R25 - 0.5 - tz / 24 (UT), the angles, the
 @ vectors P A AW AW2, the high and low waters, the screen ----
-LBL 13                          ; :DAY:
-XEQ 14                          ; -> :DAYC:
-XEQ 33                          ; -> :SCREEN:
+LBL 14                          ; :DAY:
+XEQ 15                          ; -> :DAYC:
+XEQ 34                          ; -> :SCREEN:
 RTN
 @
 @ ---- LBL :DAYC: the day's computation (no screen; FLOW47 uses it for its reference station) ----
-LBL 14                          ; :DAYC:
-XEQ 16                          ; -> :TZ:
+LBL 15                          ; :DAYC:
+XEQ 17                          ; -> :TZ:
 RCL 25
 0.5
 -
@@ -1309,7 +1378,7 @@ RCL 23
 ÷
 -
 STO 22
-XEQ 21                          ; -> :ASTRO:
+XEQ 22                          ; -> :ASTRO:
 RCL "DM"
 RCL "AV"
 ×
@@ -1317,12 +1386,18 @@ RCL "UM"
 RCL "BV"
 ×
 +
-XEQ 10                          ; -> :GATH:
-STO "VU"
 RCL "EM"
 RCL "LF"
 ×
-XEQ 10                          ; -> :GATH:
+XEQ 10                          ; -> :PAIR:
+XEQ 11                          ; -> :GATH:
+STO "GT"
+RCL "K1"
+×
+STO "VU"
+RCL "GT"
+RCL "K2"
+×
 STO "EL"
 RCL 28
 2
@@ -1334,7 +1409,7 @@ IF 18
   IF 19
     RCL "GN"
     RCL "LHN"
-    XEQ 15                      ; -> :VEC:
+    XEQ 16                      ; -> :VEC:
     RCL "P"
     STO "PN"
     RCL "A"
@@ -1349,15 +1424,15 @@ IF 18
 ENDIF 18
 RCL "G"
 RCL "LH"
-XEQ 15                          ; -> :VEC:
-XEQ 22                          ; -> :HOURS:
-XEQ 24                          ; -> :FIND:
+XEQ 16                          ; -> :VEC:
+XEQ 23                          ; -> :HOURS:
+XEQ 25                          ; -> :FIND:
 RTN
 @
 @ ---- LBL :VEC: Y = the phases G, X = the logs LH of a component: P = VU - G (MOD 360) with VU = S x (DM x AV + UM x
 @ BV), A = e^(EL + LH) with EL = S x EM x LF (f x H), AW = A x the speeds (rad / h), AW2 = AW x the speeds, AW3 = AW2
 @ x the speeds: vectors of the port's NK constituents ----
-LBL 15                          ; :VEC:
+LBL 16                          ; :VEC:
 X<>Y
 RCL "VU"
 X<>Y
@@ -1391,7 +1466,7 @@ STO "AW3"
 RTN
 @
 @ ---- LBL :TZ: R23 = the port's time zone, + 1 in US daylight time (LBL :DST:; R28 odd) ----
-LBL 16                          ; :TZ:
+LBL 17                          ; :TZ:
 RCL 27
 STO 23
 RCL 28
@@ -1399,25 +1474,25 @@ RCL 28
 MOD
 X≠0?
 IF 20
-  XEQ 17                        ; -> :DST:
+  XEQ 18                        ; -> :DST:
   STO+ 23
 ENDIF 20
 RTN
 @
 @ ---- LBL :DST: X = 1 when the day R25 is in US daylight time: from the second Sunday of March to the first Sunday
 @ of November (the whole day: the change at 2:00 is not shown) ----
-LBL 17                          ; :DST:
+LBL 18                          ; :DST:
 RCL 25
-XEQ 20                          ; -> :CAL:
+XEQ 21                          ; -> :CAL:
 3
-XEQ 18                          ; -> :JD1:
-XEQ 19                          ; -> :SUN:
+XEQ 19                          ; -> :JD1:
+XEQ 20                          ; -> :SUN:
 7
 +
 STO 46
 11
-XEQ 18                          ; -> :JD1:
-XEQ 19                          ; -> :SUN:
+XEQ 19                          ; -> :JD1:
+XEQ 20                          ; -> :SUN:
 STO 47
 0
 STO 48
@@ -1437,7 +1512,7 @@ RCL 48
 RTN
 @
 @ ---- LBL :JD1: X = a month (3-12) of the year R42: X = the JDN of its first day ----
-LBL 18                          ; :JD1:
+LBL 19                          ; :JD1:
 3
 -
 153
@@ -1478,7 +1553,7 @@ RCL 43
 RTN
 @
 @ ---- LBL :SUN: X = a JDN: X = the first Sunday on or after it (n + (7 - (n + 1) MOD 7) MOD 7) ----
-LBL 19                          ; :SUN:
+LBL 20                          ; :SUN:
 STO 45
 1
 +
@@ -1494,7 +1569,7 @@ RTN
 @
 @ ---- LBL :CAL: X = a JDN: R40 the day, R41 the month, R42 the year (a = n + 32044, b = (4a + 3) div 146097,
 @ c = a - 146097b div 4, d = (4c + 3) div 1461, e = c - 1461d div 4, m = (5e + 2) div 153) ----
-LBL 20                          ; :CAL:
+LBL 21                          ; :CAL:
 32044
 +
 STO 43
@@ -1575,7 +1650,7 @@ RTN
 @ p1 R37; Schureman's I R38, nu R52, xi R53, nu' R54, 2nu'' R55, P = p - xi R56, Q R57, R R58 (the arctangents
 @ with ->POL); AV = tau s h p -N p1 90, BV = xi nu nu' 2nu'' Q R p, LF = the logs of f Mm Mf O1 K1 J1 OO1 M2 K2
 @ L2 M1 (eqs. 73-78, 207, 215, 227, 235) ----
-LBL 21                          ; :ASTRO:
+LBL 22                          ; :ASTRO:
 RCL 22
 2451545
 -
@@ -1995,7 +2070,7 @@ RTN
 @ ======== tidal streams ========
 @ ---- LBL :HOURS: the nodes 0 2 4 ... 24 h: LBL :UV: and :FFF: into HR (13 x 9: u u' u'' v v' v'' F F' F''), row =
 @ the hour / 2 + 1 (R59) ----
-LBL 22                          ; :HOURS:
+LBL 23                          ; :HOURS:
 13
 9
 NEWMAT
@@ -2007,8 +2082,8 @@ DO 10
   2
   ×
   STO 55
-  XEQ 31                        ; -> :UV:
-  XEQ 23                        ; -> :FFF:
+  XEQ 32                        ; -> :UV:
+  XEQ 24                        ; -> :FFF:
   INDEX "HR"
   RCL 59
   1
@@ -2054,7 +2129,7 @@ RTN
 @ rectilinear stream: F = u' (its maxima; the slacks, u = 0, from u itself: LBL :FIND:); a rotary stream: F = g = u u'
 @ + v v' = s s' (smooth where the speed s nearly vanishes), F' = u'^2 + u u'' + v'^2 + v v'', F'' = 3 (u' u'' + v'
 @ v'') + u u''' + v v''' ----
-LBL 23                          ; :FFF:
+LBL 24                          ; :FFF:
 RCL 32
 STO 56
 RCL 35
@@ -2109,7 +2184,7 @@ RTN
 @ CV (v, a rotary stream); QW = CF x SPW: F at s = 0, 1/4, 1/2, 3/4, 1 of each interval (a rectilinear stream: QU
 @ likewise u, for the slacks). A sign change between two (R51 R52; the interval R50, the quarter R54): LBL :SOLVE:
 @ and :EVSTO:; F's root waits (R56 its s, R57 its kind) if u has one too in the quarter: the earlier first ----
-LBL 24                          ; :FIND:
+LBL 25                          ; :FIND:
 0
 STO 78
 8
@@ -2125,10 +2200,10 @@ RCL "HR"
 ×
 STO "H1"
 RCL "GF"
-XEQ 25                          ; -> :COEF:
+XEQ 26                          ; -> :COEF:
 STO "CF"
 RCL "GU"
-XEQ 25                          ; -> :COEF:
+XEQ 26                          ; -> :COEF:
 STO "CU"
 RCL 28
 2
@@ -2139,7 +2214,7 @@ IF 25
   X>Y?
   IF 26
     RCL "GV"
-    XEQ 25                      ; -> :COEF:
+    XEQ 26                      ; -> :COEF:
     STO "CV"
   ENDIF 26
 ENDIF 25
@@ -2175,8 +2250,8 @@ DO 11
     X<0?
     IF 27
       RCL "CF"
-      XEQ 26                    ; -> :CROW:
-      XEQ 29                    ; -> :SOLVE:
+      XEQ 27                    ; -> :CROW:
+      XEQ 30                    ; -> :SOLVE:
       RCL 48
       STO 56
       RCL 91
@@ -2202,8 +2277,8 @@ DO 11
       X<0?
       IF 29
         RCL "CU"
-        XEQ 26                  ; -> :CROW:
-        XEQ 29                  ; -> :SOLVE:
+        XEQ 27                  ; -> :CROW:
+        XEQ 30                  ; -> :SOLVE:
         0
         STO 49
         RCL 57
@@ -2213,14 +2288,14 @@ DO 11
           RCL 48
           X<Y?
           IF 31
-            XEQ 30              ; -> :EVSTO:
+            XEQ 31              ; -> :EVSTO:
             RCL 56
             STO 48
             RCL 57
             STO 91
             1
             STO 49
-            XEQ 30              ; -> :EVSTO:
+            XEQ 31              ; -> :EVSTO:
           ELSE 31
             RCL 48
             STO 58
@@ -2230,17 +2305,17 @@ DO 11
             STO 91
             1
             STO 49
-            XEQ 30              ; -> :EVSTO:
+            XEQ 31              ; -> :EVSTO:
             RCL 58
             STO 48
             0
             STO 49
-            XEQ 30              ; -> :EVSTO:
+            XEQ 31              ; -> :EVSTO:
           ENDIF 31
           0
           STO 57
         ELSE 30
-          XEQ 30                ; -> :EVSTO:
+          XEQ 31                ; -> :EVSTO:
         ENDIF 30
       ENDIF 29
     ENDIF 28
@@ -2253,7 +2328,7 @@ DO 11
       STO 91
       1
       STO 49
-      XEQ 30                    ; -> :EVSTO:
+      XEQ 31                    ; -> :EVSTO:
     ENDIF 32
     1
     STO+ 54
@@ -2273,7 +2348,7 @@ RTN
 @
 @ ---- LBL :COEF: X = a selector of HR's columns (GU GV GF): X = (H0 x X) x QA + (H1 x X) x QB, the 12 intervals'
 @ coefficients (12 x 7: s^0 ... s^5, the end's value) ----
-LBL 25                          ; :COEF:
+LBL 26                          ; :COEF:
 STO "GT"
 RCL "H0"
 X<>Y
@@ -2289,7 +2364,7 @@ RCL "QB"
 RTN
 @
 @ ---- LBL :CROW: X = a coefficient matrix: its row R50 into R40-R45 (c0 ... c5) ----
-LBL 26                          ; :CROW:
+LBL 27                          ; :CROW:
 STO "CR"
 DROP
 INDEX "CR"
@@ -2319,7 +2394,7 @@ DROP
 RTN
 @
 @ ---- LBL :HORN: X = c0 + c1 s + ... + c5 s^5 (R40-R45, s = R48) ----
-LBL 27                          ; :HORN:
+LBL 28                          ; :HORN:
 RCL 45
 RCL× 48
 RCL+ 44
@@ -2334,7 +2409,7 @@ RCL+ 40
 RTN
 @
 @ ---- LBL :HORND: Y = the slope (d / ds), X = the value of the quintic R40-R45 at s = R48 ----
-LBL 28                          ; :HORND:
+LBL 29                          ; :HORND:
 RCL 45
 5
 ×
@@ -2355,13 +2430,13 @@ RCL 42
 +
 RCL× 48
 RCL+ 41
-XEQ 27                          ; -> :HORN:
+XEQ 28                          ; -> :HORN:
 RTN
 @
 @ ---- LBL :SOLVE: the quintic R40-R45 changes sign (R51 to R52) in the quarter R54 (s from R46 = (R54 - 1) / 4 to
 @ R47 = R54 / 4): from the straight line, four Newton steps on it (kept in the quarter): R48 s; R91 1 if its slope
 @ is < 0 there, else -1 ----
-LBL 29                          ; :SOLVE:
+LBL 30                          ; :SOLVE:
 RCL 54
 1
 -
@@ -2384,7 +2459,7 @@ STO 48
 4
 STO 53
 DO 13
-  XEQ 28                        ; -> :HORND:
+  XEQ 29                        ; -> :HORND:
   X<>Y
   ÷
   STO- 48
@@ -2405,7 +2480,7 @@ DO 13
   DSE 53
 WHILE 13
 ENDDO 13
-XEQ 28                          ; -> :HORND:
+XEQ 29                          ; -> :HORND:
 X<>Y
 X<0?
 IF 35
@@ -2420,7 +2495,7 @@ RTN
 @ 2 (R50 - 1 + s), the values u (and v) from their quintics; a rectilinear stream: a slack's kind -1, F's (u' = 0)
 @ turned when u < 0 (a maximum of the speed where u u'' < 0); a tide: time R60 +, height R66 +, kind R72 + (at most
 @ 6); a stream: a row of EV (time, value, set, kind; at most 8) ----
-LBL 30                          ; :EVSTO:
+LBL 31                          ; :EVSTO:
 RCL 28
 2
 X≤Y?
@@ -2440,8 +2515,8 @@ RCL+ 48
 ×
 STO 55
 RCL "CU"
-XEQ 26                          ; -> :CROW:
-XEQ 27                          ; -> :HORN:
+XEQ 27                          ; -> :CROW:
+XEQ 28                          ; -> :HORN:
 STO 30
 0
 STO 31
@@ -2454,8 +2529,8 @@ IF 37
   X>Y?
   IF 38
     RCL "CV"
-    XEQ 26                      ; -> :CROW:
-    XEQ 27                      ; -> :HORN:
+    XEQ 27                      ; -> :CROW:
+    XEQ 28                      ; -> :HORN:
     STO 31
   ENDIF 38
 ENDIF 37
@@ -2482,7 +2557,7 @@ RCL 28
 2
 X≤Y?
 IF 42
-  XEQ 32                        ; -> :SD:
+  XEQ 33                        ; -> :SD:
   STO 39
   X<>Y
   STO 38
@@ -2525,7 +2600,7 @@ RTN
 @ ---- LBL :UV: one exact evaluation at the hour R55 (one COS and one SIN of the port's phases): R30 u, R32 u', R35 u'',
 @ R38 u''' (the height, or the stream east / along the flood axis), R31 v, R33 v', R36 v'', R39 v''' (north; 0 unless
 @ a rotary stream); X = g = u u' + v v' ----
-LBL 31                          ; :UV:
+LBL 32                          ; :UV:
 RCL "WK"
 RCL 55
 ×
@@ -2606,7 +2681,7 @@ RTN
 @
 @ ---- LBL :SD: from R30 R31: X = the value (rectilinear: the signed speed u; rotary: the speed), Y = the set
 @ (rectilinear: the flood direction, the ebb's when u < 0; rotary: atan2(u, v) with ->POL) ----
-LBL 32                          ; :SD:
+LBL 33                          ; :SD:
 RCL 28
 4
 X≤Y?
@@ -2636,7 +2711,7 @@ ELSE 45
 ENDIF 45
 RTN
 @ ======== the screen (Almanac 47's split view: the header, the chart above, the table below) ========
-LBL 33                          ; :SCREEN:
+LBL 34                          ; :SCREEN:
 CLLCD
 0
 GRMOD
@@ -2646,7 +2721,7 @@ RCL 26
 220
 2
 ATEXT Z
-XEQ 36                          ; -> :DATES:
+XEQ 37                          ; -> :DATES:
 RCL 34
 220
 256
@@ -2699,24 +2774,24 @@ RCL 34
 209
 2
 ATEXT Z
-XEQ 34                          ; -> :TITLE:
+XEQ 35                          ; -> :TITLE:
 209
 256
 ATEXT Z
-XEQ 41                          ; -> :CURVE:
-XEQ 44                          ; -> :AXES:
-XEQ 45                          ; -> :PLOT:
+XEQ 42                          ; -> :CURVE:
+XEQ 45                          ; -> :AXES:
+XEQ 46                          ; -> :PLOT:
 RCL 28
 2
 X≤Y?
 IF 51
-  XEQ 52                        ; -> :SMARKS:
-  XEQ 50                        ; -> :NOW:
-  XEQ 53                        ; -> :STABLE:
+  XEQ 53                        ; -> :SMARKS:
+  XEQ 51                        ; -> :NOW:
+  XEQ 54                        ; -> :STABLE:
 ELSE 51
-  XEQ 48                        ; -> :MARKS:
-  XEQ 50                        ; -> :NOW:
-  XEQ 51                        ; -> :TABLE:
+  XEQ 49                        ; -> :MARKS:
+  XEQ 51                        ; -> :NOW:
+  XEQ 52                        ; -> :TABLE:
 ENDIF 51
 21
 GRFNT
@@ -2724,7 +2799,7 @@ RTN
 @
 @ ---- LBL :TITLE: X = the header's right side: the region R97; a stream today: the stream now (the calculator's
 @ clock), "NOW 1.25 KN 135°" ----
-LBL 34                          ; :TITLE:
+LBL 35                          ; :TITLE:
 RCL 28
 2
 X≤Y?
@@ -2736,8 +2811,8 @@ IF 52
   IF 53
     RCL 86
     STO 55
-    XEQ 31                      ; -> :UV:
-    XEQ 32                      ; -> :SD:
+    XEQ 32                      ; -> :UV:
+    XEQ 33                      ; -> :SD:
     STO 39
     X<>Y
     STO 38
@@ -2745,11 +2820,11 @@ IF 52
     STO 34
     RCL 39
     ABS
-    XEQ 55                      ; -> :NUM2:
+    XEQ 56                      ; -> :NUM2:
     " KN "
     x→α 34
     RCL 38
-    XEQ 35                      ; -> :SET:
+    XEQ 36                      ; -> :SET:
     RCL 34
   ELSE 53
     RCL 97
@@ -2760,7 +2835,7 @@ ENDIF 52
 RTN
 @
 @ ---- LBL :SET: X = a direction (deg): appended to R34 as three digits and ° ----
-LBL 35                          ; :SET:
+LBL 36                          ; :SET:
 0.5
 +
 IP
@@ -2774,13 +2849,13 @@ IF 54
   x→α 34
 ENDIF 54
 RCL 91
-XEQ 37                          ; -> :TWO:
+XEQ 38                          ; -> :TWO:
 "°"
 x→α 34
 RTN
 @
 @ ---- LBL :DATES: R34 = "SUN 25-10-2026", the day R25 ----
-LBL 36                          ; :DATES:
+LBL 37                          ; :DATES:
 "SUNMONTUEWEDTHUFRISAT"
 STO 47
 RCL 25
@@ -2797,13 +2872,13 @@ STO 34
 " "
 x→α 34
 RCL 25
-XEQ 20                          ; -> :CAL:
+XEQ 21                          ; -> :CAL:
 RCL 40
-XEQ 37                          ; -> :TWO:
+XEQ 38                          ; -> :TWO:
 "-"
 x→α 34
 RCL 41
-XEQ 37                          ; -> :TWO:
+XEQ 38                          ; -> :TWO:
 "-"
 x→α 34
 RCL 42
@@ -2811,7 +2886,7 @@ RCL 42
 RTN
 @
 @ ---- LBL :TWO: X (0-99) appended to R34 in two digits (as Zones 47) ----
-LBL 37                          ; :TWO:
+LBL 38                          ; :TWO:
 STO 94
 10
 X>Y?
@@ -2826,15 +2901,15 @@ RTN
 @ ---- LBL :CRVU: X = u every 20 minutes (73 x 1, in GT): CU x SP6 (12 x 6: the quintic of each interval at s = 0,
 @ 1/6 ... 5/6) copied row by row (R40-R45), then the last node's u (CU's column 7); LBL :CRVV: v from CV. Small
 @ matrices only (v0.4.1: the 73 x 13 weights left the C47 without memory) ----
-LBL 38                          ; :CRVU:
+LBL 39                          ; :CRVU:
 RCL "CU"
-XEQ 40                          ; -> :CRV6:
+XEQ 41                          ; -> :CRV6:
 RTN
-LBL 39                          ; :CRVV:
+LBL 40                          ; :CRVV:
 RCL "CV"
-XEQ 40                          ; -> :CRV6:
+XEQ 41                          ; -> :CRV6:
 RTN
-LBL 40                          ; :CRV6:
+LBL 41                          ; :CRV6:
 STO "CR"
 RCL "SP6"
 ×
@@ -2928,8 +3003,8 @@ RTN
 @ between the nodes as matrix products (LBL :CRVU:; a rotary stream: v likewise, LBL :CRVV:, then the speed with
 @ ->POL); R80 the lowest, R81 the highest (a stream: 0 always in); then the chart's range: the step R82
 @ (0.5, 1 over 3 of range, 2 over 6), R80 R81 to whole steps, R83 = 78 pixels / the range ----
-LBL 41                          ; :CURVE:
-XEQ 38                          ; -> :CRVU:
+LBL 42                          ; :CURVE:
+XEQ 39                          ; -> :CRVU:
 STO "HS"
 RCL 28
 2
@@ -2939,7 +3014,7 @@ IF 56
   4
   X>Y?
   IF 57
-    XEQ 39                      ; -> :CRVV:
+    XEQ 40                      ; -> :CRVV:
     STO "HSV"
   ENDIF 57
 ENDIF 56
@@ -3029,13 +3104,13 @@ IF 64
 ENDIF 64
 RCL 80
 RCL÷ 82
-XEQ 42                          ; -> :FLOOR:
+XEQ 43                          ; -> :FLOOR:
 RCL× 82
 STO 80
 RCL 81
 RCL÷ 82
 CHS
-XEQ 42                          ; -> :FLOOR:
+XEQ 43                          ; -> :FLOOR:
 CHS
 RCL× 82
 STO 81
@@ -3047,7 +3122,7 @@ STO 83
 RTN
 @
 @ ---- LBL :FLOOR: X = the largest whole number <= X ----
-LBL 42                          ; :FLOOR:
+LBL 43                          ; :FLOOR:
 STO 90
 IP
 STO 91
@@ -3062,7 +3137,7 @@ RCL 91
 RTN
 @
 @ ---- LBL :YPIX: X = a height: X = its row on the chart (118 + (h - R80) x R83) ----
-LBL 43                          ; :YPIX:
+LBL 44                          ; :YPIX:
 RCL- 80
 RCL× 83
 118
@@ -3071,7 +3146,7 @@ RTN
 @
 @ ---- LBL :AXES: the time axis (row 118, every 3 hours a tick and the hour), the heights (every R82 a dotted line
 @ and its value) ----
-LBL 44                          ; :AXES:
+LBL 45                          ; :AXES:
 -115
 0
 PIXEL
@@ -3098,7 +3173,7 @@ DO 16
   RCL 84
   3
   ×
-  XEQ 37                        ; -> :TWO:
+  XEQ 38                        ; -> :TWO:
   RCL 34
   103
   RCL 87
@@ -3116,7 +3191,7 @@ RCL 80
 STO 84
 DO 17
   RCL 84
-  XEQ 43                        ; -> :YPIX:
+  XEQ 44                        ; -> :YPIX:
   0.5
   +
   IP
@@ -3127,7 +3202,7 @@ DO 17
     RCL 88
     RCL 89
     PIXEL
-    6
+    12
     STO+ 89
     386
     RCL 89
@@ -3137,7 +3212,7 @@ DO 17
   ""
   STO 34
   RCL 84
-  XEQ 56                        ; -> :NUM1:
+  XEQ 57                        ; -> :NUM1:
   RCL 34
   RCL 88
   3
@@ -3155,7 +3230,7 @@ RTN
 @
 @ ---- LBL :PLOT: the curve, a dot a column: a tide or a rectilinear stream from its quintics (LBL :PLOTQ:), a
 @ rotary stream's speed from HS (LBL :PLOTS:) ----
-LBL 45                          ; :PLOT:
+LBL 46                          ; :PLOT:
 0
 STO 89
 RCL 28
@@ -3173,15 +3248,15 @@ ENDIF 66
 RCL 89
 X≠0?
 IF 68
-  XEQ 47                        ; -> :PLOTS:
+  XEQ 48                        ; -> :PLOTS:
 ELSE 68
-  XEQ 46                        ; -> :PLOTQ:
+  XEQ 47                        ; -> :PLOTQ:
 ENDIF 68
 RTN
 @
 @ ---- LBL :PLOTQ: PY = CU x SPX x R83 (12 x 30: u every 4 minutes, the rows' heights in pixels from R80), read in
 @ order (J+): the 360 columns 26-385, then 386 the last node's (R87 the offset 118.5 - R80 x R83) ----
-LBL 46                          ; :PLOTQ:
+LBL 47                          ; :PLOTQ:
 RCL 80
 RCL× 83
 CHS
@@ -3232,17 +3307,17 @@ PIXEL
 RTN
 @
 @ ---- LBL :PLOTS: 72 segments of 5 columns between the values of HS (straight), a dot a column ----
-LBL 47                          ; :PLOTS:
+LBL 48                          ; :PLOTS:
 INDEX "HS"
 RCLEL
-XEQ 43                          ; -> :YPIX:
+XEQ 44                          ; -> :YPIX:
 STO 87
 0
 STO 84
 DO 20
   J+
   RCLEL
-  XEQ 43                        ; -> :YPIX:
+  XEQ 44                        ; -> :YPIX:
   STO 88
   0
   STO 89
@@ -3289,7 +3364,7 @@ RTN
 @
 @ ---- LBL :MARKS: each high / low water: a cross on the curve and its time above (high) or below (low), beside it
 @ when that leaves the chart (LBL :SIDE:) ----
-LBL 48                          ; :MARKS:
+LBL 49                          ; :MARKS:
 RCL 78
 X=0?
 RTN
@@ -3311,7 +3386,7 @@ DO 22
   6
   STO+ 90
   RCL IND 90
-  XEQ 43                        ; -> :YPIX:
+  XEQ 44                        ; -> :YPIX:
   0.5
   +
   IP
@@ -3340,7 +3415,7 @@ DO 22
   RCL+ 84
   STO 90
   RCL IND 90
-  XEQ 54                        ; -> :HHMM:
+  XEQ 55                        ; -> :HHMM:
   6
   STO+ 90
   6
@@ -3365,13 +3440,13 @@ DO 22
   RCL 89
   X<Y?
   IF 70
-    XEQ 49                      ; -> :SIDE:
+    XEQ 50                      ; -> :SIDE:
   ENDIF 70
   RCL 89
   199
   X<Y?
   IF 71
-    XEQ 49                      ; -> :SIDE:
+    XEQ 50                      ; -> :SIDE:
   ENDIF 71
   RCL 34
   RCL 89
@@ -3388,7 +3463,7 @@ RTN
 @
 @ ---- LBL :SIDE: the time label beside the cross (R89 its row, R91 its column): to the right, to the left near the
 @ right edge ----
-LBL 49                          ; :SIDE:
+LBL 50                          ; :SIDE:
 RCL 88
 3
 -
@@ -3408,7 +3483,7 @@ ENDIF 72
 RTN
 @
 @ ---- LBL :NOW: the day is today: a dotted line at the hour now (the calculator's clock) ----
-LBL 50                          ; :NOW:
+LBL 51                          ; :NOW:
 XEQ 07                          ; -> :CLOCK:
 RCL 85
 RCL 25
@@ -3440,7 +3515,7 @@ RTN
 @
 @ ---- LBL :TABLE: the high and low waters (at most 5): HIGH / LOW, the time, the height, the range from the one
 @ before ----
-LBL 51                          ; :TABLE:
+LBL 52                          ; :TABLE:
 10
 GRFNT
 "TIDE"
@@ -3493,7 +3568,7 @@ DO 25
   RCL+ 84
   STO 90
   RCL IND 90
-  XEQ 54                        ; -> :HHMM:
+  XEQ 55                        ; -> :HHMM:
   RCL 34
   RCL 93
   80
@@ -3504,7 +3579,7 @@ DO 25
   RCL+ 84
   STO 90
   RCL IND 90
-  XEQ 55                        ; -> :NUM2:
+  XEQ 56                        ; -> :NUM2:
   " m"
   x→α 34
   RCL 34
@@ -3523,7 +3598,7 @@ DO 25
     RCL IND 91
     -
     ABS
-    XEQ 55                      ; -> :NUM2:
+    XEQ 56                      ; -> :NUM2:
     " m"
     x→α 34
     RCL 34
@@ -3548,7 +3623,7 @@ ENDDO 25
 RTN
 @
 @ ---- LBL :SMARKS: a stream's events: a cross on the curve at each (the table gives their times) ----
-LBL 52                          ; :SMARKS:
+LBL 53                          ; :SMARKS:
 RCL 78
 X=0?
 RTN
@@ -3570,7 +3645,7 @@ DO 26
   J+
   J+
   J+
-  XEQ 43                        ; -> :YPIX:
+  XEQ 44                        ; -> :YPIX:
   0.5
   +
   IP
@@ -3604,7 +3679,7 @@ RTN
 @
 @ ---- LBL :STABLE: a stream's events (at most 8, the small font): FLOOD / EBB / SLACK (rectilinear) or MAX / MIN
 @ (rotary), the time, the speed (knots), the set ----
-LBL 53                          ; :STABLE:
+LBL 54                          ; :STABLE:
 10
 GRFNT
 "STREAM"
@@ -3684,7 +3759,7 @@ DO 28
   ""
   STO 34
   RCL 87
-  XEQ 54                        ; -> :HHMM:
+  XEQ 55                        ; -> :HHMM:
   RCL 34
   RCL 93
   80
@@ -3693,7 +3768,7 @@ DO 28
   STO 34
   RCL 88
   ABS
-  XEQ 55                        ; -> :NUM2:
+  XEQ 56                        ; -> :NUM2:
   RCL 34
   RCL 93
   170
@@ -3701,7 +3776,7 @@ DO 28
   ""
   STO 34
   RCL 89
-  XEQ 35                        ; -> :SET:
+  XEQ 36                        ; -> :SET:
   RCL 28
   4
   X≤Y?
@@ -3727,7 +3802,7 @@ ENDDO 28
 RTN
 @
 @ ---- LBL :HHMM: X = hours (0-24) appended to R34 as hh:mm (the minutes rounded first) ----
-LBL 54                          ; :HHMM:
+LBL 55                          ; :HHMM:
 60
 ×
 0.5
@@ -3737,17 +3812,17 @@ STO 91
 60
 ÷
 IP
-XEQ 37                          ; -> :TWO:
+XEQ 38                          ; -> :TWO:
 ":"
 x→α 34
 RCL 91
 60
 MOD
-XEQ 37                          ; -> :TWO:
+XEQ 38                          ; -> :TWO:
 RTN
 @
 @ ---- LBL :NUM2: X appended to R34 with two decimals (a minus sign if negative) ----
-LBL 55                          ; :NUM2:
+LBL 56                          ; :NUM2:
 X<0?
 IF 82
   "-"
@@ -3770,11 +3845,11 @@ x→α 34
 RCL 91
 100
 MOD
-XEQ 37                          ; -> :TWO:
+XEQ 38                          ; -> :TWO:
 RTN
 @
 @ ---- LBL :NUM1: X appended to R34 with one decimal when it has one (0.5 m steps) ----
-LBL 56                          ; :NUM1:
+LBL 57                          ; :NUM1:
 X<0?
 IF 83
   "-"
@@ -3807,7 +3882,7 @@ ENDIF 84
 RTN
 @ ======== the keys ========
 @ ---- LBL :KEYS: wait for a key (DO / PAUSE 50 / KEY? 98 / WHILE / ENDDO, as Elements 47) and do it ----
-LBL 57                          ; :KEYS:
+LBL 58                          ; :KEYS:
 DO 29
   PAUSE 50
   KEY? 98
