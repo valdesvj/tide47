@@ -5111,9 +5111,11 @@ RCL 34
 ATEXT Z
 10
 GRFNT
-RCL "RNAM"
+"STREAM REF: HW "
 STO 34
-"  HW "
+RCL "RNAM"
+x→α 34
+" "
 x→α 34
 RCL 87
 XEQ :HHMM:
@@ -5221,8 +5223,10 @@ REM curve (HS from HR as LBL :CURVE:, 7.5 pixels an hour from column 208, rows 1
 REM hours 00 06 12 18 24); under it the 13 hours of the stream table (tHW - 6 ... tHW + 6, rows 113-114); the high
 REM and low waters marked; now (a dotted line); the high and low waters listed (HW / LW, the time, the height) ----
 LBL :APANEL:
-RCL 26
+"TIDE "
 STO 34
+RCL 26
+x→α 34
 " "
 x→α 34
 RCL "NDST"
@@ -5372,6 +5376,41 @@ XEQ :LINE:
 STO 45
 STO 47
 XEQ :LINE:
+RCL 87
+7.5
+×
+208
++
+0.5
++
+IP
+STO 57
+108
+STO 56
+DO
+  RCL 56
+  RCL 57
+  PIXEL
+  RCL 56
+  RCL 57
+  1
+  +
+  PIXEL
+  1
+  STO+ 56
+  122
+  RCL 56
+  X≤Y?
+WHILE
+ENDDO
+"LOCAL TIDE, FOR DEPTH ONLY"
+23
+214
+ATEXT Z
+"| = HW AT THE STREAM REF"
+13
+214
+ATEXT Z
 0
 STO 52
 DO

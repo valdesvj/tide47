@@ -189,9 +189,9 @@ def arrow(cr, x, y, u, v, length, color=INK, width=1.6, head=5):
     cr.stroke()
 
 
-def draw_tide(cr, x, y, w, h, st, n, now=None, bar=None, title=True):
+def draw_tide(cr, x, y, w, h, st, n, now=None, bar=None, title=True, ref=None):
     """a station's day: the curve (exact, every 10 minutes), the high and low waters marked and listed below, now,
-    the 13 hours of a cycle as a bar (bar: (start, end) hours)"""
+    the 13 hours of a cycle as a bar (bar: (start, end) hours), the stream reference's High Water (ref: (hour, name))"""
     tz, ev, _ = R.day(st, n)
     f = height_fn(st, n)
     H = [f(k / 6) for k in range(145)]
@@ -215,6 +215,11 @@ def draw_tide(cr, x, y, w, h, st, n, now=None, bar=None, title=True):
     if bar:
         cr.set_source_rgb(*ACCENT); cr.set_line_width(4)
         cr.move_to(X(max(0, bar[0])), top + ch + 22); cr.line_to(X(min(24, bar[1])), top + ch + 22); cr.stroke()
+    if ref and 0 <= ref[0] <= 24:                      # the stream's reference High Water: the bar's centre
+        cr.set_source_rgb(*ACCENT); cr.set_line_width(2)
+        cr.move_to(X(ref[0]), top); cr.line_to(X(ref[0]), top + ch + 28); cr.stroke()
+        text(cr, X(ref[0]) + (-4 if ref[0] > 16 else 4), top + 12, 'HW %s %s (stream ref)' % (ref[1], hhmm(ref[0])), 10, True, ACCENT,
+             'r' if ref[0] > 16 else 'l')
     cr.set_source_rgb(*INK); cr.set_line_width(2)
     for k, v in enumerate(H):
         (cr.move_to if k == 0 else cr.line_to)(X(k / 6), Y(v))
@@ -321,8 +326,9 @@ def view_artf(cr, w, h, st):
     x0 = w * 0.46
     cr.set_source_rgb(*GRID); cr.set_line_width(1); cr.move_to(x0 - 10, 84); cr.line_to(x0 - 10, h - 10); cr.stroke()
     text(cr, x0, 98, 'Tide: %s  (%.1f nm)' % (s['name'], dnm), 14, True)
+    text(cr, w - 16, 98, 'local tide, for depth only', 11, color=SOFT, align='r')
     draw_tide(cr, x0, 104, w - x0 - 16, h - 120, s, st.n, h0 if n0 == st.n else None, bar=(t - 6, t + 6),
-              title=False)
+              title=False, ref=(t, st.d.ref['name']))
 
 
 def view_map(cr, w, h, st):
