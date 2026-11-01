@@ -51,7 +51,7 @@
   14      X≠0?
   15      XEQ :LOAD:    (08)
   16      XEQ :DAY:    (14)
-  17      XEQ :KEYS:    (58)
+  17      XEQ :KEYS:    (60)
   18      82
   19      RCL 98
   20      X≠Y?
@@ -2705,20 +2705,20 @@
 2573  209
 2574  256
 2575  ATEXT Z
-2576  XEQ :CURVE:    (42)
-2577  XEQ :AXES:    (45)
-2578  XEQ :PLOT:    (46)
+2576  XEQ :CURVE:    (44)
+2577  XEQ :AXES:    (47)
+2578  XEQ :PLOT:    (48)
 2579  RCL 28
 2580  2
 2581  X≤Y?
 2582  IF    (51)
-2583    XEQ :SMARKS:    (53)
-2584    XEQ :NOW:    (51)
-2585    XEQ :STABLE:    (54)
+2583    XEQ :SMARKS:    (55)
+2584    XEQ :NOW:    (53)
+2585    XEQ :STABLE:    (56)
 2586  ELSE    (51)
-2587    XEQ :MARKS:    (49)
-2588    XEQ :NOW:    (51)
-2589    XEQ :TABLE:    (52)
+2587    XEQ :MARKS:    (51)
+2588    XEQ :NOW:    (53)
+2589    XEQ :TABLE:    (54)
 2590  ENDIF    (51)
 2591  21
 2592  GRFNT
@@ -2746,7 +2746,7 @@
 2612      STO 34
 2613      RCL 39
 2614      ABS
-2615      XEQ :NUM2:    (56)
+2615      XEQ :NUM2:    (58)
 2616      " KN "
 2617      x→α 34
 2618      RCL 38
@@ -2920,969 +2920,985 @@
 2780  STOEL
 2781  RCL "GT"
 2782  RTN
+      ; ---- LBL :HSMM: R46 the lowest, R47 the highest of HS (73 x 1), read in order (J+; R45 R59) ----
+2783  LBL :HSMM:    (42)
+2784  1E9
+2785  STO 46
+2786  -1E9
+2787  STO 47
+2788  INDEX "HS"
+2789  73
+2790  STO 59
+2791  DO    (15)
+2792    RCLEL
+2793    STO 45
+2794    RCL 46
+2795    X>Y?
+2796    IF    (56)
+2797      RCL 45
+2798      STO 46
+2799    ENDIF    (56)
+2800    RCL 45
+2801    RCL 47
+2802    X<Y?
+2803    IF    (57)
+2804      RCL 45
+2805      STO 47
+2806    ENDIF    (57)
+2807    J+
+2808    DSE 59
+2809  WHILE    (15)
+2810  ENDDO    (15)
+2811  RTN
+      ; ---- LBL :HSROT: a rotary stream: HS = the speed sqrt(HS^2 + HSV^2) element by element (->POL) ----
+2812  LBL :HSROT:    (43)
+2813  1
+2814  STO 59
+2815  DO    (16)
+2816    INDEX "HSV"
+2817    RCL 59
+2818    1
+2819    STOIJ
+2820    RCLEL
+2821    INDEX "HS"
+2822    RCL 59
+2823    1
+2824    STOIJ
+2825    DROP
+2826    DROP
+2827    RCLEL
+2828    →POL
+2829    STOEL
+2830    1
+2831    STO+ 59
+2832    73
+2833    RCL 59
+2834    X≤Y?
+2835  WHILE    (16)
+2836  ENDDO    (16)
+2837  RTN
       ; ---- LBL :CURVE: HS = the height (a stream: the signed stream, or the speed) every 20 minutes (73): the quintics
       ; between the nodes as matrix products (LBL :CRVU:; a rotary stream: v likewise, LBL :CRVV:, then the speed with
       ; ->POL); R80 the lowest, R81 the highest (a stream: 0 always in); then the chart's range: the step R82
       ; (0.5, 1 over 3 of range, 2 over 6), R80 R81 to whole steps, R83 = 78 pixels / the range ----
-2783  LBL :CURVE:    (42)
-2784  XEQ :CRVU:    (39)
-2785  STO "HS"
-2786  RCL 28
-2787  2
-2788  X≤Y?
-2789  IF    (56)
-2790    RCL 28
-2791    4
-2792    X>Y?
-2793    IF    (57)
-2794      XEQ :CRVV:    (40)
-2795      STO "HSV"
-2796    ENDIF    (57)
-2797  ENDIF    (56)
-2798  1E9
-2799  STO 80
-2800  -1E9
-2801  STO 81
-2802  RCL 28
-2803  2
-2804  X≤Y?
-2805  IF    (58)
-2806    0
-2807    STO 80
-2808    STO 81
-2809  ENDIF    (58)
-2810  1
-2811  STO 59
-2812  DO    (15)
-2813    INDEX "HS"
-2814    RCL 59
-2815    1
-2816    STOIJ
-2817    RCLEL
-2818    STO 90
-2819    RCL 28
-2820    2
-2821    X≤Y?
-2822    IF    (59)
-2823      RCL 28
-2824      4
-2825      X>Y?
-2826      IF    (60)
-2827        INDEX "HSV"
-2828        RCL 59
-2829        1
-2830        STOIJ
-2831        RCLEL
-2832        RCL 90
-2833        →POL
-2834        STO 90
-2835        INDEX "HS"
-2836        RCL 59
-2837        1
-2838        STOIJ
-2839        RCL 90
-2840        STOEL
-2841      ENDIF    (60)
-2842    ENDIF    (59)
-2843    RCL 80
-2844    RCL 90
-2845    X<Y?
-2846    IF    (61)
-2847      RCL 90
-2848      STO 80
-2849    ENDIF    (61)
-2850    RCL 90
-2851    RCL 81
-2852    X<Y?
-2853    IF    (62)
-2854      RCL 90
-2855      STO 81
-2856    ENDIF    (62)
-2857    1
-2858    STO+ 59
-2859    73
-2860    RCL 59
-2861    X≤Y?
-2862  WHILE    (15)
-2863  ENDDO    (15)
-2864  0.5
-2865  STO 82
-2866  RCL 81
-2867  RCL- 80
-2868  3
-2869  X<Y?
-2870  IF    (63)
-2871    1
-2872    STO 82
-2873  ENDIF    (63)
-2874  RCL 81
-2875  RCL- 80
-2876  6
-2877  X<Y?
-2878  IF    (64)
-2879    2
-2880    STO 82
-2881  ENDIF    (64)
-2882  RCL 80
-2883  RCL÷ 82
-2884  XEQ :FLOOR:    (43)
-2885  RCL× 82
-2886  STO 80
-2887  RCL 81
-2888  RCL÷ 82
-2889  CHS
-2890  XEQ :FLOOR:    (43)
-2891  CHS
-2892  RCL× 82
-2893  STO 81
-2894  78
-2895  RCL 81
-2896  RCL- 80
-2897  ÷
-2898  STO 83
-2899  RTN
+2838  LBL :CURVE:    (44)
+2839  XEQ :CRVU:    (39)
+2840  STO "HS"
+2841  RCL 28
+2842  2
+2843  X≤Y?
+2844  IF    (58)
+2845    RCL 28
+2846    4
+2847    X>Y?
+2848    IF    (59)
+2849      XEQ :CRVV:    (40)
+2850      STO "HSV"
+2851      XEQ :HSROT:    (43)
+2852    ENDIF    (59)
+2853  ENDIF    (58)
+2854  XEQ :HSMM:    (42)
+2855  RCL 46
+2856  STO 80
+2857  RCL 47
+2858  STO 81
+2859  RCL 28
+2860  2
+2861  X≤Y?
+2862  IF    (60)
+2863    0
+2864    RCL 80
+2865    X>Y?
+2866    IF    (61)
+2867      0
+2868      STO 80
+2869    ENDIF    (61)
+2870    0
+2871    RCL 81
+2872    X<Y?
+2873    IF    (62)
+2874      0
+2875      STO 81
+2876    ENDIF    (62)
+2877  ENDIF    (60)
+2878  0.5
+2879  STO 82
+2880  RCL 81
+2881  RCL- 80
+2882  3
+2883  X<Y?
+2884  IF    (63)
+2885    1
+2886    STO 82
+2887  ENDIF    (63)
+2888  RCL 81
+2889  RCL- 80
+2890  6
+2891  X<Y?
+2892  IF    (64)
+2893    2
+2894    STO 82
+2895  ENDIF    (64)
+2896  RCL 80
+2897  RCL÷ 82
+2898  XEQ :FLOOR:    (45)
+2899  RCL× 82
+2900  STO 80
+2901  RCL 81
+2902  RCL÷ 82
+2903  CHS
+2904  XEQ :FLOOR:    (45)
+2905  CHS
+2906  RCL× 82
+2907  STO 81
+2908  78
+2909  RCL 81
+2910  RCL- 80
+2911  ÷
+2912  STO 83
+2913  RTN
       ; ---- LBL :FLOOR: X = the largest whole number <= X ----
-2900  LBL :FLOOR:    (43)
-2901  STO 90
-2902  IP
-2903  STO 91
-2904  RCL 90
-2905  RCL 91
-2906  X>Y?
-2907  IF    (65)
-2908    1
-2909    STO- 91
-2910  ENDIF    (65)
-2911  RCL 91
-2912  RTN
+2914  LBL :FLOOR:    (45)
+2915  STO 90
+2916  IP
+2917  STO 91
+2918  RCL 90
+2919  RCL 91
+2920  X>Y?
+2921  IF    (65)
+2922    1
+2923    STO- 91
+2924  ENDIF    (65)
+2925  RCL 91
+2926  RTN
       ; ---- LBL :YPIX: X = a height: X = its row on the chart (118 + (h - R80) x R83) ----
-2913  LBL :YPIX:    (44)
-2914  RCL- 80
-2915  RCL× 83
-2916  118
-2917  +
-2918  RTN
+2927  LBL :YPIX:    (46)
+2928  RCL- 80
+2929  RCL× 83
+2930  118
+2931  +
+2932  RTN
       ; ---- LBL :AXES: the time axis (row 118, every 3 hours a tick and the hour), the heights (every R82 a dotted line
       ; and its value) ----
-2919  LBL :AXES:    (45)
-2920  -115
-2921  0
-2922  PIXEL
-2923  0
-2924  STO 84
-2925  DO    (16)
-2926    RCL 84
-2927    45
-2928    ×
-2929    26
-2930    +
-2931    STO 87
-2932    114
-2933    X<>Y
-2934    PIXEL
-2935    113
-2936    RCL 87
-2937    PIXEL
-2938    112
-2939    RCL 87
-2940    PIXEL
-2941    ""
-2942    STO 34
-2943    RCL 84
-2944    3
-2945    ×
-2946    XEQ :TWO:    (38)
-2947    RCL 34
-2948    103
-2949    RCL 87
-2950    4
-2951    -
-2952    ATEXT Z
-2953    1
-2954    STO+ 84
-2955    8
-2956    RCL 84
-2957    X≤Y?
-2958  WHILE    (16)
-2959  ENDDO    (16)
-2960  RCL 80
-2961  STO 84
-2962  DO    (17)
-2963    RCL 84
-2964    XEQ :YPIX:    (44)
-2965    0.5
-2966    +
-2967    IP
-2968    STO 88
-2969    26
-2970    STO 89
-2971    DO    (18)
-2972      RCL 88
-2973      RCL 89
-2974      PIXEL
-2975      12
-2976      STO+ 89
-2977      386
-2978      RCL 89
-2979      X≤Y?
-2980    WHILE    (18)
-2981    ENDDO    (18)
-2982    ""
-2983    STO 34
-2984    RCL 84
-2985    XEQ :NUM1:    (57)
-2986    RCL 34
-2987    RCL 88
-2988    3
-2989    -
-2990    2
-2991    ATEXT Z
-2992    RCL 82
-2993    STO+ 84
-2994    RCL 81
-2995    RCL 84
-2996    X≤Y?
-2997  WHILE    (17)
-2998  ENDDO    (17)
-2999  RTN
+2933  LBL :AXES:    (47)
+2934  -115
+2935  0
+2936  PIXEL
+2937  0
+2938  STO 84
+2939  DO    (17)
+2940    RCL 84
+2941    45
+2942    ×
+2943    26
+2944    +
+2945    STO 87
+2946    114
+2947    X<>Y
+2948    PIXEL
+2949    113
+2950    RCL 87
+2951    PIXEL
+2952    112
+2953    RCL 87
+2954    PIXEL
+2955    ""
+2956    STO 34
+2957    RCL 84
+2958    3
+2959    ×
+2960    XEQ :TWO:    (38)
+2961    RCL 34
+2962    103
+2963    RCL 87
+2964    4
+2965    -
+2966    ATEXT Z
+2967    1
+2968    STO+ 84
+2969    8
+2970    RCL 84
+2971    X≤Y?
+2972  WHILE    (17)
+2973  ENDDO    (17)
+2974  RCL 80
+2975  STO 84
+2976  DO    (18)
+2977    RCL 84
+2978    XEQ :YPIX:    (46)
+2979    0.5
+2980    +
+2981    IP
+2982    STO 88
+2983    26
+2984    STO 89
+2985    DO    (19)
+2986      RCL 88
+2987      RCL 89
+2988      PIXEL
+2989      12
+2990      STO+ 89
+2991      386
+2992      RCL 89
+2993      X≤Y?
+2994    WHILE    (19)
+2995    ENDDO    (19)
+2996    ""
+2997    STO 34
+2998    RCL 84
+2999    XEQ :NUM1:    (59)
+3000    RCL 34
+3001    RCL 88
+3002    3
+3003    -
+3004    2
+3005    ATEXT Z
+3006    RCL 82
+3007    STO+ 84
+3008    RCL 81
+3009    RCL 84
+3010    X≤Y?
+3011  WHILE    (18)
+3012  ENDDO    (18)
+3013  RTN
       ; ---- LBL :PLOT: the curve, a dot a column: a tide or a rectilinear stream from its quintics (LBL :PLOTQ:), a
       ; rotary stream's speed from HS (LBL :PLOTS:) ----
-3000  LBL :PLOT:    (46)
-3001  0
-3002  STO 89
-3003  RCL 28
-3004  2
-3005  X≤Y?
-3006  IF    (66)
-3007    RCL 28
-3008    4
-3009    X>Y?
-3010    IF    (67)
-3011      1
-3012      STO 89
-3013    ENDIF    (67)
-3014  ENDIF    (66)
-3015  RCL 89
-3016  X≠0?
-3017  IF    (68)
-3018    XEQ :PLOTS:    (48)
-3019  ELSE    (68)
-3020    XEQ :PLOTQ:    (47)
-3021  ENDIF    (68)
-3022  RTN
+3014  LBL :PLOT:    (48)
+3015  0
+3016  STO 89
+3017  RCL 28
+3018  2
+3019  X≤Y?
+3020  IF    (66)
+3021    RCL 28
+3022    4
+3023    X>Y?
+3024    IF    (67)
+3025      1
+3026      STO 89
+3027    ENDIF    (67)
+3028  ENDIF    (66)
+3029  RCL 89
+3030  X≠0?
+3031  IF    (68)
+3032    XEQ :PLOTS:    (50)
+3033  ELSE    (68)
+3034    XEQ :PLOTQ:    (49)
+3035  ENDIF    (68)
+3036  RTN
       ; ---- LBL :PLOTQ: PY = CU x SPX x R83 (12 x 30: u every 4 minutes, the rows' heights in pixels from R80), read in
       ; order (J+): the 360 columns 26-385, then 386 the last node's (R87 the offset 118.5 - R80 x R83) ----
-3023  LBL :PLOTQ:    (47)
-3024  RCL 80
-3025  RCL× 83
-3026  CHS
-3027  118.5
-3028  +
-3029  STO 87
-3030  RCL "CU"
-3031  RCL "SPX"
-3032  ×
-3033  RCL 83
-3034  ×
-3035  STO "PY"
-3036  DROP
-3037  INDEX "PY"
-3038  1
-3039  1
-3040  STOIJ
-3041  DROP
-3042  DROP
-3043  26
-3044  STO 88
-3045  360
-3046  STO 89
-3047  DO    (19)
-3048    RCLEL
-3049    RCL+ 87
-3050    IP
-3051    RCL 88
-3052    PIXEL
-3053    J+
-3054    1
-3055    STO+ 88
-3056    DSE 89
-3057  WHILE    (19)
-3058  ENDDO    (19)
-3059  INDEX "CU"
-3060  12
-3061  7
-3062  STOIJ
-3063  DROP
-3064  DROP
-3065  RCLEL
-3066  RCL× 83
-3067  RCL+ 87
-3068  IP
-3069  386
-3070  PIXEL
-3071  RTN
+3037  LBL :PLOTQ:    (49)
+3038  RCL 80
+3039  RCL× 83
+3040  CHS
+3041  118.5
+3042  +
+3043  STO 87
+3044  RCL "CU"
+3045  RCL "SPX"
+3046  ×
+3047  RCL 83
+3048  ×
+3049  STO "PY"
+3050  DROP
+3051  INDEX "PY"
+3052  1
+3053  1
+3054  STOIJ
+3055  DROP
+3056  DROP
+3057  26
+3058  STO 88
+3059  360
+3060  STO 89
+3061  DO    (20)
+3062    RCLEL
+3063    RCL+ 87
+3064    IP
+3065    RCL 88
+3066    PIXEL
+3067    J+
+3068    1
+3069    STO+ 88
+3070    DSE 89
+3071  WHILE    (20)
+3072  ENDDO    (20)
+3073  INDEX "CU"
+3074  12
+3075  7
+3076  STOIJ
+3077  DROP
+3078  DROP
+3079  RCLEL
+3080  RCL× 83
+3081  RCL+ 87
+3082  IP
+3083  386
+3084  PIXEL
+3085  RTN
       ; ---- LBL :PLOTS: 72 segments of 5 columns between the values of HS (straight), a dot a column ----
-3072  LBL :PLOTS:    (48)
-3073  INDEX "HS"
-3074  RCLEL
-3075  XEQ :YPIX:    (44)
-3076  STO 87
-3077  0
-3078  STO 84
-3079  DO    (20)
-3080    J+
-3081    RCLEL
-3082    XEQ :YPIX:    (44)
-3083    STO 88
-3084    0
-3085    STO 89
-3086    DO    (21)
-3087      RCL 88
-3088      RCL- 87
-3089      RCL× 89
-3090      5
-3091      ÷
-3092      RCL+ 87
-3093      0.5
-3094      +
-3095      IP
-3096      RCL 84
-3097      5
-3098      ×
-3099      RCL+ 89
-3100      26
-3101      +
-3102      PIXEL
-3103      1
-3104      STO+ 89
-3105      5
-3106      RCL 89
-3107      X<Y?
-3108    WHILE    (21)
-3109    ENDDO    (21)
-3110    RCL 88
-3111    STO 87
-3112    1
-3113    STO+ 84
-3114    72
-3115    RCL 84
-3116    X<Y?
-3117  WHILE    (20)
-3118  ENDDO    (20)
-3119  RCL 87
-3120  0.5
-3121  +
-3122  IP
-3123  386
-3124  PIXEL
-3125  RTN
+3086  LBL :PLOTS:    (50)
+3087  INDEX "HS"
+3088  RCLEL
+3089  XEQ :YPIX:    (46)
+3090  STO 87
+3091  0
+3092  STO 84
+3093  DO    (21)
+3094    J+
+3095    RCLEL
+3096    XEQ :YPIX:    (46)
+3097    STO 88
+3098    0
+3099    STO 89
+3100    DO    (22)
+3101      RCL 88
+3102      RCL- 87
+3103      RCL× 89
+3104      5
+3105      ÷
+3106      RCL+ 87
+3107      0.5
+3108      +
+3109      IP
+3110      RCL 84
+3111      5
+3112      ×
+3113      RCL+ 89
+3114      26
+3115      +
+3116      PIXEL
+3117      1
+3118      STO+ 89
+3119      5
+3120      RCL 89
+3121      X<Y?
+3122    WHILE    (22)
+3123    ENDDO    (22)
+3124    RCL 88
+3125    STO 87
+3126    1
+3127    STO+ 84
+3128    72
+3129    RCL 84
+3130    X<Y?
+3131  WHILE    (21)
+3132  ENDDO    (21)
+3133  RCL 87
+3134  0.5
+3135  +
+3136  IP
+3137  386
+3138  PIXEL
+3139  RTN
       ; ---- LBL :MARKS: each high / low water: a cross on the curve and its time above (high) or below (low), beside it
       ; when that leaves the chart (LBL :SIDE:) ----
-3126  LBL :MARKS:    (49)
-3127  RCL 78
-3128  X=0?
-3129  RTN
-3130  0
-3131  STO 84
-3132  DO    (22)
-3133    60
-3134    RCL+ 84
-3135    STO 90
-3136    RCL IND 90
-3137    15
-3138    ×
-3139    26
-3140    +
-3141    0.5
-3142    +
-3143    IP
-3144    STO 87
-3145    6
-3146    STO+ 90
-3147    RCL IND 90
-3148    XEQ :YPIX:    (44)
-3149    0.5
-3150    +
-3151    IP
-3152    STO 88
-3153    -2
-3154    STO 89
-3155    DO    (23)
-3156      RCL 88
-3157      RCL 87
-3158      RCL+ 89
-3159      PIXEL
-3160      RCL 88
-3161      RCL+ 89
-3162      RCL 87
-3163      PIXEL
-3164      1
-3165      STO+ 89
-3166      2
-3167      RCL 89
-3168      X≤Y?
-3169    WHILE    (23)
-3170    ENDDO    (23)
-3171    ""
-3172    STO 34
-3173    60
-3174    RCL+ 84
-3175    STO 90
-3176    RCL IND 90
-3177    XEQ :HHMM:    (55)
-3178    6
-3179    STO+ 90
-3180    6
-3181    STO+ 90
-3182    RCL IND 90
-3183    X>0?
-3184    IF    (69)
-3185      RCL 88
-3186      4
-3187      +
-3188    ELSE    (69)
-3189      RCL 88
-3190      11
-3191      -
-3192    ENDIF    (69)
-3193    STO 89
-3194    RCL 87
-3195    9
-3196    -
-3197    STO 91
-3198    117
-3199    RCL 89
-3200    X<Y?
-3201    IF    (70)
-3202      XEQ :SIDE:    (50)
-3203    ENDIF    (70)
-3204    RCL 89
-3205    199
-3206    X<Y?
-3207    IF    (71)
-3208      XEQ :SIDE:    (50)
-3209    ENDIF    (71)
-3210    RCL 34
-3211    RCL 89
-3212    RCL 91
-3213    ATEXT Z
-3214    1
-3215    STO+ 84
-3216    RCL 78
-3217    RCL 84
-3218    X<Y?
-3219  WHILE    (22)
-3220  ENDDO    (22)
-3221  RTN
+3140  LBL :MARKS:    (51)
+3141  RCL 78
+3142  X=0?
+3143  RTN
+3144  0
+3145  STO 84
+3146  DO    (23)
+3147    60
+3148    RCL+ 84
+3149    STO 90
+3150    RCL IND 90
+3151    15
+3152    ×
+3153    26
+3154    +
+3155    0.5
+3156    +
+3157    IP
+3158    STO 87
+3159    6
+3160    STO+ 90
+3161    RCL IND 90
+3162    XEQ :YPIX:    (46)
+3163    0.5
+3164    +
+3165    IP
+3166    STO 88
+3167    -2
+3168    STO 89
+3169    DO    (24)
+3170      RCL 88
+3171      RCL 87
+3172      RCL+ 89
+3173      PIXEL
+3174      RCL 88
+3175      RCL+ 89
+3176      RCL 87
+3177      PIXEL
+3178      1
+3179      STO+ 89
+3180      2
+3181      RCL 89
+3182      X≤Y?
+3183    WHILE    (24)
+3184    ENDDO    (24)
+3185    ""
+3186    STO 34
+3187    60
+3188    RCL+ 84
+3189    STO 90
+3190    RCL IND 90
+3191    XEQ :HHMM:    (57)
+3192    6
+3193    STO+ 90
+3194    6
+3195    STO+ 90
+3196    RCL IND 90
+3197    X>0?
+3198    IF    (69)
+3199      RCL 88
+3200      4
+3201      +
+3202    ELSE    (69)
+3203      RCL 88
+3204      11
+3205      -
+3206    ENDIF    (69)
+3207    STO 89
+3208    RCL 87
+3209    9
+3210    -
+3211    STO 91
+3212    117
+3213    RCL 89
+3214    X<Y?
+3215    IF    (70)
+3216      XEQ :SIDE:    (52)
+3217    ENDIF    (70)
+3218    RCL 89
+3219    199
+3220    X<Y?
+3221    IF    (71)
+3222      XEQ :SIDE:    (52)
+3223    ENDIF    (71)
+3224    RCL 34
+3225    RCL 89
+3226    RCL 91
+3227    ATEXT Z
+3228    1
+3229    STO+ 84
+3230    RCL 78
+3231    RCL 84
+3232    X<Y?
+3233  WHILE    (23)
+3234  ENDDO    (23)
+3235  RTN
       ; ---- LBL :SIDE: the time label beside the cross (R89 its row, R91 its column): to the right, to the left near the
       ; right edge ----
-3222  LBL :SIDE:    (50)
-3223  RCL 88
-3224  3
-3225  -
-3226  STO 89
-3227  RCL 87
-3228  5
-3229  +
-3230  STO 91
-3231  340
-3232  X<Y?
-3233  IF    (72)
-3234    RCL 87
-3235    42
-3236    -
-3237    STO 91
-3238  ENDIF    (72)
-3239  RTN
+3236  LBL :SIDE:    (52)
+3237  RCL 88
+3238  3
+3239  -
+3240  STO 89
+3241  RCL 87
+3242  5
+3243  +
+3244  STO 91
+3245  340
+3246  X<Y?
+3247  IF    (72)
+3248    RCL 87
+3249    42
+3250    -
+3251    STO 91
+3252  ENDIF    (72)
+3253  RTN
       ; ---- LBL :NOW: the day is today: a dotted line at the hour now (the calculator's clock) ----
-3240  LBL :NOW:    (51)
-3241  XEQ :CLOCK:    (07)
-3242  RCL 85
-3243  RCL 25
-3244  X≠Y?
-3245  RTN
-3246  RCL 86
-3247  15
-3248  ×
-3249  26
-3250  +
-3251  0.5
-3252  +
-3253  IP
-3254  STO 87
-3255  119
-3256  STO 89
-3257  DO    (24)
-3258    RCL 89
-3259    RCL 87
-3260    PIXEL
-3261    3
-3262    STO+ 89
-3263    196
-3264    RCL 89
-3265    X≤Y?
-3266  WHILE    (24)
-3267  ENDDO    (24)
-3268  RTN
+3254  LBL :NOW:    (53)
+3255  XEQ :CLOCK:    (07)
+3256  RCL 85
+3257  RCL 25
+3258  X≠Y?
+3259  RTN
+3260  RCL 86
+3261  15
+3262  ×
+3263  26
+3264  +
+3265  0.5
+3266  +
+3267  IP
+3268  STO 87
+3269  119
+3270  STO 89
+3271  DO    (25)
+3272    RCL 89
+3273    RCL 87
+3274    PIXEL
+3275    3
+3276    STO+ 89
+3277    196
+3278    RCL 89
+3279    X≤Y?
+3280  WHILE    (25)
+3281  ENDDO    (25)
+3282  RTN
       ; ---- LBL :TABLE: the high and low waters (at most 5): HIGH / LOW, the time, the height, the range from the one
       ; before ----
-3269  LBL :TABLE:    (52)
-3270  10
-3271  GRFNT
-3272  "TIDE"
-3273  93
-3274  10
-3275  ATEXT Z
-3276  "TIME"
-3277  93
-3278  80
-3279  ATEXT Z
-3280  "HEIGHT"
-3281  93
-3282  170
-3283  ATEXT Z
-3284  "RANGE"
-3285  93
-3286  290
-3287  ATEXT Z
-3288  21
-3289  GRFNT
-3290  RCL 78
-3291  X=0?
-3292  RTN
-3293  0
-3294  STO 84
-3295  DO    (25)
-3296    74
-3297    RCL 84
-3298    18.5
-3299    ×
-3300    -
-3301    IP
-3302    STO 93
-3303    72
-3304    RCL+ 84
-3305    STO 90
-3306    RCL IND 90
-3307    X>0?
-3308    IF    (73)
-3309      "HIGH"
-3310    ELSE    (73)
-3311      "LOW"
-3312    ENDIF    (73)
-3313    RCL 93
-3314    10
-3315    ATEXT Z
-3316    ""
-3317    STO 34
-3318    60
-3319    RCL+ 84
-3320    STO 90
-3321    RCL IND 90
-3322    XEQ :HHMM:    (55)
-3323    RCL 34
-3324    RCL 93
-3325    80
-3326    ATEXT Z
-3327    ""
-3328    STO 34
-3329    66
-3330    RCL+ 84
-3331    STO 90
-3332    RCL IND 90
-3333    XEQ :NUM2:    (56)
-3334    " m"
-3335    x→α 34
-3336    RCL 34
-3337    RCL 93
-3338    170
-3339    ATEXT Z
-3340    RCL 84
-3341    X≠0?
-3342    IF    (74)
-3343      ""
-3344      STO 34
-3345      65
-3346      RCL+ 84
-3347      STO 91
-3348      RCL IND 90
-3349      RCL IND 91
-3350      -
-3351      ABS
-3352      XEQ :NUM2:    (56)
-3353      " m"
-3354      x→α 34
-3355      RCL 34
-3356      RCL 93
-3357      290
-3358      ATEXT Z
-3359    ENDIF    (74)
-3360    1
-3361    STO+ 84
-3362    RCL 78
-3363    5
-3364    X>Y?
-3365    IF    (75)
-3366      RCL 78
-3367    ELSE    (75)
-3368      5
-3369    ENDIF    (75)
-3370    RCL 84
-3371    X<Y?
-3372  WHILE    (25)
-3373  ENDDO    (25)
-3374  RTN
+3283  LBL :TABLE:    (54)
+3284  10
+3285  GRFNT
+3286  "TIDE"
+3287  93
+3288  10
+3289  ATEXT Z
+3290  "TIME"
+3291  93
+3292  80
+3293  ATEXT Z
+3294  "HEIGHT"
+3295  93
+3296  170
+3297  ATEXT Z
+3298  "RANGE"
+3299  93
+3300  290
+3301  ATEXT Z
+3302  21
+3303  GRFNT
+3304  RCL 78
+3305  X=0?
+3306  RTN
+3307  0
+3308  STO 84
+3309  DO    (26)
+3310    74
+3311    RCL 84
+3312    18.5
+3313    ×
+3314    -
+3315    IP
+3316    STO 93
+3317    72
+3318    RCL+ 84
+3319    STO 90
+3320    RCL IND 90
+3321    X>0?
+3322    IF    (73)
+3323      "HIGH"
+3324    ELSE    (73)
+3325      "LOW"
+3326    ENDIF    (73)
+3327    RCL 93
+3328    10
+3329    ATEXT Z
+3330    ""
+3331    STO 34
+3332    60
+3333    RCL+ 84
+3334    STO 90
+3335    RCL IND 90
+3336    XEQ :HHMM:    (57)
+3337    RCL 34
+3338    RCL 93
+3339    80
+3340    ATEXT Z
+3341    ""
+3342    STO 34
+3343    66
+3344    RCL+ 84
+3345    STO 90
+3346    RCL IND 90
+3347    XEQ :NUM2:    (58)
+3348    " m"
+3349    x→α 34
+3350    RCL 34
+3351    RCL 93
+3352    170
+3353    ATEXT Z
+3354    RCL 84
+3355    X≠0?
+3356    IF    (74)
+3357      ""
+3358      STO 34
+3359      65
+3360      RCL+ 84
+3361      STO 91
+3362      RCL IND 90
+3363      RCL IND 91
+3364      -
+3365      ABS
+3366      XEQ :NUM2:    (58)
+3367      " m"
+3368      x→α 34
+3369      RCL 34
+3370      RCL 93
+3371      290
+3372      ATEXT Z
+3373    ENDIF    (74)
+3374    1
+3375    STO+ 84
+3376    RCL 78
+3377    5
+3378    X>Y?
+3379    IF    (75)
+3380      RCL 78
+3381    ELSE    (75)
+3382      5
+3383    ENDIF    (75)
+3384    RCL 84
+3385    X<Y?
+3386  WHILE    (26)
+3387  ENDDO    (26)
+3388  RTN
       ; ---- LBL :SMARKS: a stream's events: a cross on the curve at each (the table gives their times) ----
-3375  LBL :SMARKS:    (53)
-3376  RCL 78
-3377  X=0?
-3378  RTN
-3379  INDEX "EV"
-3380  0
-3381  STO 84
-3382  DO    (26)
-3383    RCLEL
-3384    J+
-3385    15
-3386    ×
-3387    26
-3388    +
-3389    0.5
-3390    +
-3391    IP
-3392    STO 87
-3393    RCLEL
-3394    J+
-3395    J+
-3396    J+
-3397    XEQ :YPIX:    (44)
-3398    0.5
-3399    +
-3400    IP
-3401    STO 88
-3402    -2
-3403    STO 89
-3404    DO    (27)
-3405      RCL 88
-3406      RCL 87
-3407      RCL+ 89
-3408      PIXEL
-3409      RCL 88
-3410      RCL+ 89
-3411      RCL 87
-3412      PIXEL
-3413      1
-3414      STO+ 89
-3415      2
-3416      RCL 89
-3417      X≤Y?
-3418    WHILE    (27)
-3419    ENDDO    (27)
-3420    1
-3421    STO+ 84
-3422    RCL 78
-3423    RCL 84
-3424    X<Y?
-3425  WHILE    (26)
-3426  ENDDO    (26)
-3427  RTN
+3389  LBL :SMARKS:    (55)
+3390  RCL 78
+3391  X=0?
+3392  RTN
+3393  INDEX "EV"
+3394  0
+3395  STO 84
+3396  DO    (27)
+3397    RCLEL
+3398    J+
+3399    15
+3400    ×
+3401    26
+3402    +
+3403    0.5
+3404    +
+3405    IP
+3406    STO 87
+3407    RCLEL
+3408    J+
+3409    J+
+3410    J+
+3411    XEQ :YPIX:    (46)
+3412    0.5
+3413    +
+3414    IP
+3415    STO 88
+3416    -2
+3417    STO 89
+3418    DO    (28)
+3419      RCL 88
+3420      RCL 87
+3421      RCL+ 89
+3422      PIXEL
+3423      RCL 88
+3424      RCL+ 89
+3425      RCL 87
+3426      PIXEL
+3427      1
+3428      STO+ 89
+3429      2
+3430      RCL 89
+3431      X≤Y?
+3432    WHILE    (28)
+3433    ENDDO    (28)
+3434    1
+3435    STO+ 84
+3436    RCL 78
+3437    RCL 84
+3438    X<Y?
+3439  WHILE    (27)
+3440  ENDDO    (27)
+3441  RTN
       ; ---- LBL :STABLE: a stream's events (at most 8, the small font): FLOOD / EBB / SLACK (rectilinear) or MAX / MIN
       ; (rotary), the time, the speed (knots), the set ----
-3428  LBL :STABLE:    (54)
-3429  10
-3430  GRFNT
-3431  "STREAM"
-3432  93
-3433  10
-3434  ATEXT Z
-3435  "TIME"
-3436  93
-3437  80
-3438  ATEXT Z
-3439  "KNOTS"
-3440  93
-3441  170
-3442  ATEXT Z
-3443  "SET"
-3444  93
-3445  290
-3446  ATEXT Z
-3447  RCL 78
-3448  X=0?
-3449  RTN
-3450  INDEX "EV"
-3451  0
-3452  STO 84
-3453  DO    (28)
-3454    82
-3455    RCL 84
-3456    10.5
-3457    ×
-3458    -
-3459    IP
-3460    STO 93
-3461    RCLEL
-3462    STO 87
-3463    J+
-3464    RCLEL
-3465    STO 88
-3466    J+
-3467    RCLEL
-3468    STO 89
-3469    J+
-3470    RCLEL
-3471    STO 90
-3472    J+
-3473    RCL 28
-3474    4
-3475    X≤Y?
-3476    IF    (76)
-3477      "FLOOD"
-3478      STO 34
-3479      RCL 88
-3480      X<0?
-3481      IF    (77)
-3482        "EBB"
-3483        STO 34
-3484      ENDIF    (77)
-3485      RCL 90
-3486      X<0?
-3487      IF    (78)
-3488        "SLACK"
-3489        STO 34
-3490      ENDIF    (78)
-3491    ELSE    (76)
-3492      "MAX"
-3493      STO 34
-3494      RCL 90
-3495      X<0?
-3496      IF    (79)
-3497        "MIN"
-3498        STO 34
-3499      ENDIF    (79)
-3500    ENDIF    (76)
-3501    RCL 34
-3502    RCL 93
-3503    10
-3504    ATEXT Z
-3505    ""
-3506    STO 34
-3507    RCL 87
-3508    XEQ :HHMM:    (55)
-3509    RCL 34
-3510    RCL 93
-3511    80
-3512    ATEXT Z
-3513    ""
-3514    STO 34
-3515    RCL 88
-3516    ABS
-3517    XEQ :NUM2:    (56)
-3518    RCL 34
-3519    RCL 93
-3520    170
-3521    ATEXT Z
-3522    ""
-3523    STO 34
-3524    RCL 89
-3525    XEQ :SET:    (36)
-3526    RCL 28
-3527    4
-3528    X≤Y?
-3529    IF    (80)
-3530      RCL 90
-3531      X<0?
-3532      IF    (81)
-3533        ""
-3534        STO 34
-3535      ENDIF    (81)
-3536    ENDIF    (80)
-3537    RCL 34
-3538    RCL 93
-3539    290
-3540    ATEXT Z
-3541    1
-3542    STO+ 84
-3543    RCL 78
-3544    RCL 84
-3545    X<Y?
-3546  WHILE    (28)
-3547  ENDDO    (28)
-3548  RTN
+3442  LBL :STABLE:    (56)
+3443  10
+3444  GRFNT
+3445  "STREAM"
+3446  93
+3447  10
+3448  ATEXT Z
+3449  "TIME"
+3450  93
+3451  80
+3452  ATEXT Z
+3453  "KNOTS"
+3454  93
+3455  170
+3456  ATEXT Z
+3457  "SET"
+3458  93
+3459  290
+3460  ATEXT Z
+3461  RCL 78
+3462  X=0?
+3463  RTN
+3464  INDEX "EV"
+3465  0
+3466  STO 84
+3467  DO    (29)
+3468    82
+3469    RCL 84
+3470    10.5
+3471    ×
+3472    -
+3473    IP
+3474    STO 93
+3475    RCLEL
+3476    STO 87
+3477    J+
+3478    RCLEL
+3479    STO 88
+3480    J+
+3481    RCLEL
+3482    STO 89
+3483    J+
+3484    RCLEL
+3485    STO 90
+3486    J+
+3487    RCL 28
+3488    4
+3489    X≤Y?
+3490    IF    (76)
+3491      "FLOOD"
+3492      STO 34
+3493      RCL 88
+3494      X<0?
+3495      IF    (77)
+3496        "EBB"
+3497        STO 34
+3498      ENDIF    (77)
+3499      RCL 90
+3500      X<0?
+3501      IF    (78)
+3502        "SLACK"
+3503        STO 34
+3504      ENDIF    (78)
+3505    ELSE    (76)
+3506      "MAX"
+3507      STO 34
+3508      RCL 90
+3509      X<0?
+3510      IF    (79)
+3511        "MIN"
+3512        STO 34
+3513      ENDIF    (79)
+3514    ENDIF    (76)
+3515    RCL 34
+3516    RCL 93
+3517    10
+3518    ATEXT Z
+3519    ""
+3520    STO 34
+3521    RCL 87
+3522    XEQ :HHMM:    (57)
+3523    RCL 34
+3524    RCL 93
+3525    80
+3526    ATEXT Z
+3527    ""
+3528    STO 34
+3529    RCL 88
+3530    ABS
+3531    XEQ :NUM2:    (58)
+3532    RCL 34
+3533    RCL 93
+3534    170
+3535    ATEXT Z
+3536    ""
+3537    STO 34
+3538    RCL 89
+3539    XEQ :SET:    (36)
+3540    RCL 28
+3541    4
+3542    X≤Y?
+3543    IF    (80)
+3544      RCL 90
+3545      X<0?
+3546      IF    (81)
+3547        ""
+3548        STO 34
+3549      ENDIF    (81)
+3550    ENDIF    (80)
+3551    RCL 34
+3552    RCL 93
+3553    290
+3554    ATEXT Z
+3555    1
+3556    STO+ 84
+3557    RCL 78
+3558    RCL 84
+3559    X<Y?
+3560  WHILE    (29)
+3561  ENDDO    (29)
+3562  RTN
       ; ---- LBL :HHMM: X = hours (0-24) appended to R34 as hh:mm (the minutes rounded first) ----
-3549  LBL :HHMM:    (55)
-3550  60
-3551  ×
-3552  0.5
-3553  +
-3554  IP
-3555  STO 91
-3556  60
-3557  ÷
-3558  IP
-3559  XEQ :TWO:    (38)
-3560  ":"
-3561  x→α 34
-3562  RCL 91
-3563  60
-3564  MOD
-3565  XEQ :TWO:    (38)
-3566  RTN
+3563  LBL :HHMM:    (57)
+3564  60
+3565  ×
+3566  0.5
+3567  +
+3568  IP
+3569  STO 91
+3570  60
+3571  ÷
+3572  IP
+3573  XEQ :TWO:    (38)
+3574  ":"
+3575  x→α 34
+3576  RCL 91
+3577  60
+3578  MOD
+3579  XEQ :TWO:    (38)
+3580  RTN
       ; ---- LBL :NUM2: X appended to R34 with two decimals (a minus sign if negative) ----
-3567  LBL :NUM2:    (56)
-3568  X<0?
-3569  IF    (82)
-3570    "-"
-3571    x→α 34
-3572    DROP
-3573    ABS
-3574  ENDIF    (82)
-3575  100
-3576  ×
-3577  0.5
-3578  +
-3579  IP
-3580  STO 91
-3581  100
-3582  ÷
-3583  IP
-3584  αIP 34
-3585  "."
-3586  x→α 34
-3587  RCL 91
-3588  100
-3589  MOD
-3590  XEQ :TWO:    (38)
-3591  RTN
+3581  LBL :NUM2:    (58)
+3582  X<0?
+3583  IF    (82)
+3584    "-"
+3585    x→α 34
+3586    DROP
+3587    ABS
+3588  ENDIF    (82)
+3589  100
+3590  ×
+3591  0.5
+3592  +
+3593  IP
+3594  STO 91
+3595  100
+3596  ÷
+3597  IP
+3598  αIP 34
+3599  "."
+3600  x→α 34
+3601  RCL 91
+3602  100
+3603  MOD
+3604  XEQ :TWO:    (38)
+3605  RTN
       ; ---- LBL :NUM1: X appended to R34 with one decimal when it has one (0.5 m steps) ----
-3592  LBL :NUM1:    (57)
-3593  X<0?
-3594  IF    (83)
-3595    "-"
-3596    x→α 34
-3597    DROP
-3598    ABS
-3599  ENDIF    (83)
-3600  10
-3601  ×
-3602  0.5
-3603  +
-3604  IP
-3605  STO 91
-3606  10
-3607  ÷
-3608  IP
-3609  αIP 34
-3610  RCL 91
-3611  10
-3612  MOD
-3613  X≠0?
-3614  IF    (84)
-3615    "."
-3616    x→α 34
-3617    RCL 91
-3618    10
-3619    MOD
-3620    αIP 34
-3621  ENDIF    (84)
-3622  RTN
+3606  LBL :NUM1:    (59)
+3607  X<0?
+3608  IF    (83)
+3609    "-"
+3610    x→α 34
+3611    DROP
+3612    ABS
+3613  ENDIF    (83)
+3614  10
+3615  ×
+3616  0.5
+3617  +
+3618  IP
+3619  STO 91
+3620  10
+3621  ÷
+3622  IP
+3623  αIP 34
+3624  RCL 91
+3625  10
+3626  MOD
+3627  X≠0?
+3628  IF    (84)
+3629    "."
+3630    x→α 34
+3631    RCL 91
+3632    10
+3633    MOD
+3634    αIP 34
+3635  ENDIF    (84)
+3636  RTN
       ; ======== the keys ========
       ; ---- LBL :KEYS: wait for a key (DO / PAUSE 50 / KEY? 98 / WHILE / ENDDO, as Elements 47) and do it ----
-3623  LBL :KEYS:    (58)
-3624  DO    (29)
-3625    PAUSE 50
-3626    KEY? 98
-3627  WHILE    (29)
-3628  ENDDO    (29)
-3629  RCL 98
-3630  64
-3631  X=Y?
-3632  IF    (85)
-3633    1
-3634    STO+ 25
-3635  ENDIF    (85)
-3636  RCL 98
-3637  62
-3638  X=Y?
-3639  IF    (86)
-3640    1
-3641    STO- 25
-3642  ENDIF    (86)
+3637  LBL :KEYS:    (60)
+3638  DO    (30)
+3639    PAUSE 50
+3640    KEY? 98
+3641  WHILE    (30)
+3642  ENDDO    (30)
 3643  RCL 98
-3644  74
+3644  64
 3645  X=Y?
-3646  IF    (87)
-3647    7
+3646  IF    (85)
+3647    1
 3648    STO+ 25
-3649  ENDIF    (87)
+3649  ENDIF    (85)
 3650  RCL 98
-3651  72
+3651  62
 3652  X=Y?
-3653  IF    (88)
-3654    7
+3653  IF    (86)
+3654    1
 3655    STO- 25
-3656  ENDIF    (88)
+3656  ENDIF    (86)
 3657  RCL 98
-3658  63
+3658  74
 3659  X=Y?
-3660  IF    (89)
-3661    XEQ :CLOCK:    (07)
-3662    RCL 85
-3663    STO 25
-3664  ENDIF    (89)
-3665  RCL 98
-3666  73
-3667  X=Y?
-3668  IF    (90)
-3669    1
-3670    STO+ 21
-3671    RCL 96
-3672    RCL 21
-3673    X>Y?
-3674    IF    (91)
-3675      1
-3676      STO 21
-3677    ENDIF    (91)
-3678    1
-3679    STO 92
-3680  ENDIF    (90)
-3681  RCL 98
-3682  53
-3683  X=Y?
-3684  IF    (92)
-3685    1
-3686    STO- 21
-3687    RCL 21
-3688    X=0?
-3689    IF    (93)
-3690      RCL 96
-3691      STO 21
-3692    ENDIF    (93)
-3693    1
-3694    STO 92
-3695  ENDIF    (92)
-3696  RCL 98
-3697  85
-3698  X=Y?
-3699  IF    (94)
-3700    DO    (30)
-3701      1
-3702      STO+ 20
-3703      4
-3704      RCL 20
-3705      X>Y?
-3706      IF    (95)
-3707        1
-3708        STO 20
-3709      ENDIF    (95)
-3710      RCL 20
-3711      XEQ :HAS:    (04)
-3712      X=0?
-3713    WHILE    (30)
-3714    ENDDO    (30)
-3715    1
-3716    STO 21
-3717    STO 92
-3718  ENDIF    (94)
-3719  RTN
-3720  END
+3660  IF    (87)
+3661    7
+3662    STO+ 25
+3663  ENDIF    (87)
+3664  RCL 98
+3665  72
+3666  X=Y?
+3667  IF    (88)
+3668    7
+3669    STO- 25
+3670  ENDIF    (88)
+3671  RCL 98
+3672  63
+3673  X=Y?
+3674  IF    (89)
+3675    XEQ :CLOCK:    (07)
+3676    RCL 85
+3677    STO 25
+3678  ENDIF    (89)
+3679  RCL 98
+3680  73
+3681  X=Y?
+3682  IF    (90)
+3683    1
+3684    STO+ 21
+3685    RCL 96
+3686    RCL 21
+3687    X>Y?
+3688    IF    (91)
+3689      1
+3690      STO 21
+3691    ENDIF    (91)
+3692    1
+3693    STO 92
+3694  ENDIF    (90)
+3695  RCL 98
+3696  53
+3697  X=Y?
+3698  IF    (92)
+3699    1
+3700    STO- 21
+3701    RCL 21
+3702    X=0?
+3703    IF    (93)
+3704      RCL 96
+3705      STO 21
+3706    ENDIF    (93)
+3707    1
+3708    STO 92
+3709  ENDIF    (92)
+3710  RCL 98
+3711  85
+3712  X=Y?
+3713  IF    (94)
+3714    DO    (31)
+3715      1
+3716      STO+ 20
+3717      4
+3718      RCL 20
+3719      X>Y?
+3720      IF    (95)
+3721        1
+3722        STO 20
+3723      ENDIF    (95)
+3724      RCL 20
+3725      XEQ :HAS:    (04)
+3726      X=0?
+3727    WHILE    (31)
+3728    ENDDO    (31)
+3729    1
+3730    STO 21
+3731    STO 92
+3732  ENDIF    (94)
+3733  RTN
+3734  END

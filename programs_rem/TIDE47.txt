@@ -2420,6 +2420,63 @@ DROP
 STOEL
 RCL "GT"
 RTN
+REM ---- LBL :HSMM: R46 the lowest, R47 the highest of HS (73 x 1), read in order (J+; R45 R59) ----
+LBL :HSMM:
+1E9
+STO 46
+-1E9
+STO 47
+INDEX "HS"
+73
+STO 59
+DO
+  RCLEL
+  STO 45
+  RCL 46
+  X>Y?
+  IF
+    RCL 45
+    STO 46
+  ENDIF
+  RCL 45
+  RCL 47
+  X<Y?
+  IF
+    RCL 45
+    STO 47
+  ENDIF
+  J+
+  DSE 59
+WHILE
+ENDDO
+RTN
+REM ---- LBL :HSROT: a rotary stream: HS = the speed sqrt(HS^2 + HSV^2) element by element (->POL) ----
+LBL :HSROT:
+1
+STO 59
+DO
+  INDEX "HSV"
+  RCL 59
+  1
+  STOIJ
+  RCLEL
+  INDEX "HS"
+  RCL 59
+  1
+  STOIJ
+  DROP
+  DROP
+  RCLEL
+  →POL
+  STOEL
+  1
+  STO+ 59
+  73
+  RCL 59
+  X≤Y?
+WHILE
+ENDDO
+RTN
 REM ---- LBL :CURVE: HS = the height (a stream: the signed stream, or the speed) every 20 minutes (73): the quintics
 REM between the nodes as matrix products (LBL :CRVU:; a rotary stream: v likewise, LBL :CRVV:, then the speed with
 REM ->POL); R80 the lowest, R81 the highest (a stream: 0 always in); then the chart's range: the step R82
@@ -2437,74 +2494,33 @@ IF
   IF
     XEQ :CRVV:
     STO "HSV"
+    XEQ :HSROT:
   ENDIF
 ENDIF
-1E9
+XEQ :HSMM:
+RCL 46
 STO 80
--1E9
+RCL 47
 STO 81
 RCL 28
 2
 X≤Y?
 IF
   0
-  STO 80
-  STO 81
-ENDIF
-1
-STO 59
-DO
-  INDEX "HS"
-  RCL 59
-  1
-  STOIJ
-  RCLEL
-  STO 90
-  RCL 28
-  2
-  X≤Y?
-  IF
-    RCL 28
-    4
-    X>Y?
-    IF
-      INDEX "HSV"
-      RCL 59
-      1
-      STOIJ
-      RCLEL
-      RCL 90
-      →POL
-      STO 90
-      INDEX "HS"
-      RCL 59
-      1
-      STOIJ
-      RCL 90
-      STOEL
-    ENDIF
-  ENDIF
   RCL 80
-  RCL 90
-  X<Y?
+  X>Y?
   IF
-    RCL 90
+    0
     STO 80
   ENDIF
-  RCL 90
+  0
   RCL 81
   X<Y?
   IF
-    RCL 90
+    0
     STO 81
   ENDIF
-  1
-  STO+ 59
-  73
-  RCL 59
-  X≤Y?
-WHILE
-ENDDO
+ENDIF
 0.5
 STO 82
 RCL 81
@@ -5231,41 +5247,11 @@ RCL 34
 ATEXT Z
 XEQ :CRVU:
 STO "HS"
-1E9
+XEQ :HSMM:
+RCL 46
 STO 50
--1E9
+RCL 47
 STO 51
-1
-STO 52
-DO
-  INDEX "HS"
-  RCL 52
-  1
-  STOIJ
-  DROP
-  DROP
-  RCLEL
-  STO 53
-  RCL 50
-  X>Y?
-  IF
-    RCL 53
-    STO 50
-  ENDIF
-  RCL 53
-  RCL 51
-  X<Y?
-  IF
-    RCL 53
-    STO 51
-  ENDIF
-  1
-  STO+ 52
-  73
-  RCL 52
-  X≤Y?
-WHILE
-ENDDO
 RCL 51
 RCL- 50
 0.1

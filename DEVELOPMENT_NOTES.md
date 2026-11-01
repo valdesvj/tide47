@@ -47,3 +47,5 @@
 - The chart's dotted grid every 12 pixels (was 6), the panel's time axis every 4 (was 2).
 - Steps (simulator): a TIDE47 day 21 415 -> 16 994; the start 53 600 -> 50 272; an ARTF47 High Water key 33 838 ->
   25 199.
+- Refactoring: LBL :HSMM: (the curve's lowest and highest, read in order with J+) shared by the chart and ARTF's panel;
+  LBL :HSROT: (a rotary stream's speed from HS HSV) apart. A day 16 994 -> 16 125 steps, an ARTF key 25 199 -> 24 549.
