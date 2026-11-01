@@ -3432,9 +3432,11 @@ DO
 WHILE
 ENDDO
 RTN
-REM ---- LBL :FIN: INPUT the position and the wind; R80 R81 in degrees; R82 R83 the wind's current (WFAC x WKN towards
+REM ---- LBL :FIN: INPUT the position and the wind (the stack cleared first: the screens' texts left on it; the
+REM user's stack is kept in R.00 and comes back at the end); R80 R81 in degrees; R82 R83 the wind's current (WFAC x WKN towards
 REM WDIR + 180 + WDEF: downwind, turned to the right); the atlas there (LBL :ATLAS:) ----
 LBL :FIN:
+CLSTK
 INPUT "LAT"
 INPUT "LON"
 INPUT "WDIR"
