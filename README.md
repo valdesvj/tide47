@@ -16,15 +16,15 @@ the Admiralty's tables. The work is done with whole matrices, so the firmware do
 | the phases | `P = DM × AV + UM × BV − G` (MOD 360): DM the Doodson numbers (60 × 7), AV the astronomical angles τ s h p N′ p′ of the day, UM and BV the nodal phases u |
 | the amplitudes | `A = eˣ(EM × LF + LH)`: EM the node-factor powers (60 × 10), LF the logs of the 10 basic factors, LH the logs of the port's amplitudes: f × H without a loop |
 | a height | `Z0 + A · COS(W t + P)`: one COS of a 60-vector and one DOT |
-| high and low waters | h, h′, h″ every hour from one `COS` and one `SIN` of the phases; where h′ changes sign, the cubic (Hermite) of h′ between the hours, then one exact Newton step |
-| the curve | every 20 minutes from the hourly values and slopes: two matrix products of constant Hermite weights (no more cosine sums) |
+| high and low waters | v0.4: h and its first three derivatives every 2 hours (13 exact evaluations a day: one `COS`, one `SIN`, four `DOT`s each); between them the quintic (Hermite) of h′ through its values, slopes and curvatures, its sign every half hour, Newton on the quintic. A stream: the slacks from the quintic of u, the maxima from u′ (rectilinear), or g = u u′ + v v′ (rotary) |
+| the curve | every 20 minutes (every 4 minutes on the chart) from the quintics: matrix products of constant weights |
 
 | | |
 |---|---|
 | Files | `build/TIDE47.txt` (the program) and the data programs `build/TIDEME.txt`, `TIDEUS.txt`, `TIDELA.txt`, `TIDECU.txt` (convert each with rejig; load TIDE47 and the data programs you want: TIDE47 finds those loaded, with `LBL?`, and + goes through them only; an older data program is left out with OLD DATA, REBUILD); commented source `programs_rem/TIDE47.txt`; FLOW47 is built apart (`private/build_flow/`, docs/FLOW.md) |
 | Needs | C47 / R47 firmware with STRUCT, ATEXT, GRFNT (00.109.05.00a0.ALPHA, 5 Oct 2026, or later) |
 | Size | TIDE47 2 694 steps (about 10 KB); TIDEME 1 605, TIDEUS 2 003, TIDELA 1 406, TIDECU 1 420 steps (about 5-7 KB each) |
-| Speed | v0.3: a day takes about 2 300 element cosines and sines (Bahrain; v0.2: 8 000): only the port's constituents, one exact evaluation an hour, the curve and the events from cubics between the hours. The simulator's step count: the start about 9 s, a day about 4 s, plus the trig time of the real calculator (to be measured) |
+| Speed | v0.4: a day takes about 1 000 element cosines and sines (Bahrain; v0.3: 2 300, v0.2: 8 000) and about 16 300 simulator steps (v0.3: 22 500); FLOW47 and ARTF47 keep the reference station's day and draw their lines in half the steps. `T47TIME` times the firmware's pieces on the real calculator (*Measuring the speed*) |
 | At the end (0) | your stack and LASTx as before; R00-R19 untouched, R20-R99 cleared; the matrices deleted; GRMOD 0, GRFNT 20; the angle mode DEG |
 
 ## Using it
@@ -157,3 +157,11 @@ David Flater (XTide). Written with the help of AI. See `AI_ASSISTANCE.md` for th
 
 Published under the [GNU General Public License v3.0](LICENSE); the data's terms are in `NOTICE` (NOAA public
 domain, TICON-3 CC-BY 4.0).
+
+## Measuring the speed (T47TIME)
+
+The simulator counts steps, not the firmware's time for a cosine of a 40-vector or a matrix product. `build/T47TIME.txt`
+(convert it with rejig, `XEQ "T47TIME"`, a minute or two) times them on your calculator and shows the ticks (0.1 s;
+also in R01-R07; it uses R00-R09): `COS` and `DOT` of 40-vectors, a real and a complex 40 x 40 x 40-vector product, a
+complex vector sum, 1000 simple steps, 360 `PIXEL`s. Send the screen: it says where the next speed-up is. *Not yet run
+on a C47: `COMPLEX` on matrices and the complex matrix product are new to Tide 47 (only in T47TIME).*
