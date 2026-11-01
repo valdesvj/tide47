@@ -49,7 +49,7 @@ TIDE47 local labels: name (programs_rem/TIDE47.txt), number (build/TIDE47.txt), 
 :YPIX:     46  X = a height: X = its row on the chart (118 + (h - R80) x R83)
 :AXES:     47  the time axis (row 118, every 3 hours a tick and the hour), the heights (every R82 a dotte
 :PLOT:     48  the curve, a dot a column: a tide or a rectilinear stream from its quintics (LBL :PLOTQ:),
-:PLOTQ:    49  PY = CU x SPX x R83 (12 x 30: u every 4 minutes, the rows' heights in pixels from R80), re
+:PLOTQ:    49  PY = CU x SPX x R83 (12 x 30: u every 4 minutes, the rows' heights in pixels from R80), ev
 :PLOTS:    50  72 segments of 5 columns between the values of HS (straight), a dot a column
 :MARKS:    51  each high / low water: a cross on the curve and its time above (high) or below (low), besi
 :SIDE:     52  the time label beside the cross (R89 its row, R91 its column): to the right, to the left n

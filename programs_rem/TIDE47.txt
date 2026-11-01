@@ -2686,8 +2686,8 @@ ELSE
   XEQ :PLOTQ:
 ENDIF
 RTN
-REM ---- LBL :PLOTQ: PY = CU x SPX x R83 (12 x 30: u every 4 minutes, the rows' heights in pixels from R80), read in
-REM order (J+): the 360 columns 26-385, then 386 the last node's (R87 the offset 118.5 - R80 x R83) ----
+REM ---- LBL :PLOTQ: PY = CU x SPX x R83 (12 x 30: u every 4 minutes, the rows' heights in pixels from R80), every
+REM other one read (J+ J+): a dot every other column, 26 28 ... 384 (180), then 386 the last node's (R87 the offset 118.5 - R80 x R83) ----
 LBL :PLOTQ:
 RCL 80
 RCL× 83
@@ -2710,7 +2710,7 @@ DROP
 DROP
 26
 STO 88
-360
+180
 STO 89
 DO
   RCLEL
@@ -2719,7 +2719,8 @@ DO
   RCL 88
   PIXEL
   J+
-  1
+  J+
+  2
   STO+ 88
   DSE 89
 WHILE
@@ -4632,8 +4633,8 @@ DO
 WHILE
 ENDDO
 RTN
-REM ---- LBL :GLYPH: an arrow of 12 pixels centred at R50 (column) R51 (row), the stream R30 R31 (R32 knots): a dot when
-REM under 0.03 kn (LBL :ARROW:, head 4) ----
+REM ---- LBL :GLYPH: an arrow of 10 pixels centred at R50 (column) R51 (row), the stream R30 R31 (R32 knots): a dot when
+REM under 0.03 kn (LBL :ARROW:, head 3) ----
 LBL :GLYPH:
 RCL 32
 0.03
@@ -4650,26 +4651,26 @@ ELSE
   RCL÷ 32
   STO 53
   RCL 52
-  -6
+  -5
   ×
   RCL+ 50
   STO 44
   RCL 53
-  -6
+  -5
   ×
   RCL+ 51
   STO 45
   RCL 52
-  6
+  5
   ×
   RCL+ 50
   STO 54
   RCL 53
-  6
+  5
   ×
   RCL+ 51
   STO 55
-  4
+  3
   STO 56
   XEQ :ARROW:
 ENDIF
@@ -4783,7 +4784,7 @@ DO
 WHILE
 ENDDO
 RTN
-REM ---- LBL :BIGAR: the predicted stream as one big arrow (centre 302 104, 100 pixels, the shaft two pixels wide):
+REM ---- LBL :BIGAR: the predicted stream as one big arrow (centre 302 104, 100 pixels, a one-pixel shaft):
 REM now (when now is in the cycle), else at the High Water; above it which hour, below it the set and the knots; a
 REM north mark top right ----
 LBL :BIGAR:
@@ -4861,25 +4862,6 @@ IF
   18
   STO 56
   XEQ :ARROW:
-  RCL 52
-  -50
-  ×
-  303
-  +
-  STO 44
-  RCL 53
-  -50
-  ×
-  104
-  +
-  STO 45
-  RCL 54
-  1
-  +
-  STO 46
-  RCL 55
-  STO 47
-  XEQ :LINE:
 ELSE
   "SLACK"
   100
@@ -5228,7 +5210,7 @@ GRFNT
 RTN
 REM ---- LBL :APANEL: the tide of the nearest station (its day R25: HR, the events R60-R78): the name and distance; the
 REM curve (HS from HR as LBL :CURVE:, 7.5 pixels an hour from column 208, rows 120-184); the time axis (row 117, the
-REM hours 00 06 12 18 24); under it the 13 hours of the stream table (tHW - 6 ... tHW + 6, rows 113-114); the high
+REM hours 00 06 12 18 24); under it the 13 hours of the stream table (tHW - 6 ... tHW + 6, row 113); the high
 REM and low waters marked; now (a dotted line); the high and low waters listed (HW / LW, the time, the height) ----
 LBL :APANEL:
 "TIDE "
@@ -5348,10 +5330,6 @@ ENDIF
 +
 STO 46
 113
-STO 47
-XEQ :LINE:
-114
-STO 45
 STO 47
 XEQ :LINE:
 RCL 87

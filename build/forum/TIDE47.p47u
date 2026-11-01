@@ -3272,8 +3272,8 @@ ELSE 68
 ENDIF 68
 RTN
 @
-@ ---- LBL :PLOTQ: PY = CU x SPX x R83 (12 x 30: u every 4 minutes, the rows' heights in pixels from R80), read in
-@ order (J+): the 360 columns 26-385, then 386 the last node's (R87 the offset 118.5 - R80 x R83) ----
+@ ---- LBL :PLOTQ: PY = CU x SPX x R83 (12 x 30: u every 4 minutes, the rows' heights in pixels from R80), every
+@ other one read (J+ J+): a dot every other column, 26 28 ... 384 (180), then 386 the last node's (R87 the offset 118.5 - R80 x R83) ----
 LBL 49                          ; :PLOTQ:
 RCL 80
 RCL× 83
@@ -3296,7 +3296,7 @@ DROP
 DROP
 26
 STO 88
-360
+180
 STO 89
 DO 20
   RCLEL
@@ -3305,7 +3305,8 @@ DO 20
   RCL 88
   PIXEL
   J+
-  1
+  J+
+  2
   STO+ 88
   DSE 89
 WHILE 20
