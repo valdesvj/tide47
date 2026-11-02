@@ -4,7 +4,8 @@
 - Commit author: "Victor Valdes" <valdesvj@users.noreply.github.com>.
 - Never commit binaries (.p47 files made by rejig).
 - Edit the program in programs_rem/TIDE47.txt (commented source), then run python3 tools/build_tide47.py:
-  it writes programs/, build/ and listings/ (TIDE47 and the data programs TIDEME TIDEUS TIDELA TIDECU). Never edit those by hand.
+  it writes programs/, build/ and listings/ (TIDE47, the data programs TIDEME TIDEUS TIDELA TIDECU, and
+  T47TIME the timing test from programs_rem/T47TIME.txt). Never edit those by hand.
 - The build fills REM ==== CONS / NCONS and the {NAME} constants from python/tide47ref.py; the data programs come from
   python/stations.py, written by tools/make_stations.py (XTide's text and TICON_3.txt), and python/streams.py, written by
   tools/make_streams.py (XTide's text); never edit stations.py or streams.py by hand.

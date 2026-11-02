@@ -13,7 +13,7 @@ is in the TIDE47 of `private/build_flow/` only (`build_tide47.py --flow`).
 | the inputs | `LAT` `LON` in DD.MMm (− south / west; the same variables as Almanac 47, so they are remembered), `WDIR` the wind's direction (from, degrees) and `WKN` its speed (knots; 0: no wind) |
 | the header | the position and the day; the reference station and its High Water; **NOW** the stream at the calculator's clock (when now is within the cycle) |
 | the table | HW−6 … HW+6: the clock time, an arrow, the set (where the stream goes, degrees true) and the knots; `>` marks the hour nearest now; below, the day's range as a fraction of the mean spring range |
-| the rose | the 13 streams as a curve from the centre (−6, HW and +6 marked), the stream now as a bold arrow, the rings every 0.25 / 0.5 / 1 knot |
+| the arrow | one big arrow: the stream now (or at High Water when now is outside the cycle), its set and knots below it |
 | the keys | **4 6** the High Water before / after, **1 3** the day before / after, **5** now, **7** a new position or wind, **0** the end |
 
 ## How it computes
@@ -55,6 +55,23 @@ FLOW47 says so when TIDEAR is not loaded. The reference station is found by name
 upside-down pages are turned, each arrow's direction is read from its shape (the head is the wider end) and checked
 against its neighbours (a head read at the wrong end is turned), its speed from the background colour band (the
 bands' middles: 0.13 0.38 0.63 0.88 1.25 kn). About 500 arrows a chart.
+
+## Which reference port? (tools/flow_refcheck.py)
+
+The charts say "High Water" but not where. Two things say Ras Tanura rather than Dammam:
+
+- **The charts themselves**: in the Dammam - Bahrain channel the stream runs south, into the Gulf of Bahrain, from
+  HW−3 to HW+3 of the reference (strongest at HW) and turns north at about **HW+2.9**. A basin floods until its own
+  High Water, so the reference's High Water must come about 3 hours before the Gulf of Bahrain's (Mina Salman's).
+  Dammam's tide is close to Bahrain's in time, so Dammam as the reference would put the strongest flood at the
+  basin's High Water: the wrong way round.
+- `python3 tools/flow_refcheck.py` (on your computer, with the Aramco constants) prints each Gulf station's High Water
+  against Ras Tanura's and its lead on Mina Salman: the reference should lead by about 2.9 h.
+
+It matters: an hour's error in the reference changes the predicted streams at the fields by about 0.17 kn rms
+(2 h: 0.25, 3 h: 0.32), as much as the streams themselves (0.1-0.35 kn). The real test is your own observations: put
+the DP log's currents in `private/obs/currents.txt` (date, time, lat, lon, set, knots) and the tool scores each
+candidate reference and the best extra time offset.
 
 ## How far to trust it
 

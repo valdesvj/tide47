@@ -13,6 +13,19 @@
 | right: the tide | the Aramco station **nearest the position** (its name and distance in nm): the day's curve, the 13 hours of the table marked as a bar under the time axis, now as a dotted line, and the high and low waters (time, height) |
 | the keys | **4 6** the High Water before / after, **1 3** the day before / after, **5** now, **7** a new position or wind, **0** the end |
 
+## Two different High Waters on one screen
+
+The stream table and the tide curve do not peak together, and that is right: the tidal wave reaches each station at
+its own time.
+
+- **The stream** (left, and the header: `STREAM REF: HW Ras Tanura 17:00`) always counts its 13 hours from **Ras
+  Tanura's** High Water, as the atlas's charts do. That High Water is the thick tick `|` on the tide panel's time axis,
+  in the middle of the bar of the 13 hours.
+- **The tide** (right, `TIDE Berri 12.3 NM`) is the nearest station's own curve, **for the depth only** (`LOCAL TIDE,
+  FOR DEPTH ONLY`). Its High Water comes earlier or later than Ras Tanura's: never take the stream's hours from it.
+
+The PC app's ARTF tab says the same: `local tide, for depth only` and a line at the reference's High Water.
+
 Outside the atlas (or on land) the left side says so and the tide is still shown: the nearest station works for any
 position (the Red Sea stations too).
 

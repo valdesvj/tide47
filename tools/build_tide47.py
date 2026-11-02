@@ -3,7 +3,8 @@
 named labels LBL :NAME: get free local numbers, the STRUCT commands are checked as the firmware's VALID does and
 numbered, the REM lines and the indentation go. Written by the build into the source:
   {NAME}            a constant of the nodal formulas (python/tide47ref.py K: one value for both twins)
-  REM ==== CONS     the matrices DM (Doodson numbers), UM (the nodal u), EM (the node-factor powers x 2), one
+  REM ==== CONS     the matrices DM (Doodson numbers), UM (the nodal u), EM (the node-factor powers x 2), QA QB (the
+                    quintics' coefficients, v0.4), one
                     number a row (two digits a column, + 50: LBL :ROW: unpacks it), from tide47ref.CONS
   REM ==== NCONS    the number of constituents
 The data programs TIDEME, TIDEUS, TIDELA, TIDECU (one a region) are written from python/stations.py and streams.py: X = the port's number
@@ -253,8 +254,10 @@ def fill(lines, regs, flow=None, art=None):
     import tide47ref as R
     consts = dict(R.K)
     consts.update(flow_consts(flow[2] if flow else None))
+    if flow:
+        consts.update(AREFR=flow[0], AREFP=flow[1])
     if art:
-        consts.update(AREFR=flow[0], AREFP=flow[1], ANST=len(art['ports']))
+        consts.update(ANST=len(art['ports']))
     out = []
     for ln in lines:
         ind = ln[:len(ln) - len(ln.lstrip())]
@@ -300,8 +303,9 @@ def cons_steps(R):
     for mat, n, scale, rows in (
             ('DM', 7, 1, [list(dd) + [k90] for _, dd, k90, _, _ in R.CONS]),
             ('UM', 7, 1, [[uc.get(b, 0) for b in R.UB] for _, _, _, uc, _ in R.CONS]),
-            ('EM', 10, 2, [[fc.get(b, 0) for b in R.FB] for _, _, _, _, fc in R.CONS])):
-        out += [str(k), str(n), 'NEWMAT', 'STO "%s"' % mat, 'INDEX "%s"' % mat, str(n), 'STO 48', str(scale), 'STO 46']
+            ('EM', 10, 2, [[fc.get(b, 0) for b in R.FB] for _, _, _, _, fc in R.CONS]),
+            ('QA', 7, 1, R.QA), ('QB', 7, 1, R.QB)):
+        out += [str(len(rows)), str(n), 'NEWMAT', 'STO "%s"' % mat, 'INDEX "%s"' % mat, str(n), 'STO 48', str(scale), 'STO 46']
         for r in rows:
             out += [str(pack(r, scale)), 'XEQ :ROW:']
     return out
@@ -388,6 +392,19 @@ def flow_find(regs, fl, want=None):
     raise SystemExit('the atlas\'s reference station "%s" is in no region (python/stations_private.py?)' % (want or fl['ref']))
 
 
+# the C47's reserved variables (the TVM solver's, the plots', the statistics'): a program cannot store a matrix in them
+# (Victor's C47, ARTF47: STO "FV" -> "Invalid input data type for this operation")
+RESERVED = {'FV', 'PV', 'PMT', 'ACC', 'NPPER', 'I%/a', 'CPER/a', 'PPER/a', 'STATS', 'HISTO', 'Mat_A', 'Mat_B', 'Mat_X',
+            '↑X', '↓X', '↑Y', '↓Y', '↑EST', '↓EST', '↑Lim', '↓Lim', 'δ⒟'}
+
+
+def check_names(steps):
+    bad = sorted({m.group(2) for s in steps for m in [re.match(r'(STO|RCL|INDEX|DELITM)\S* "([^"]+)"$', s)]
+                  if m and m.group(2) in RESERVED})
+    if bad:
+        raise SystemExit('reserved C47 variable names used: %s' % ', '.join(bad))
+
+
 def build(regs, dirs, listings=True, flow=None, art=None):
     """flow: (region, station, the atlas, the data program) keeps FLOW47; art (with flow): dict(ports=the region's
     stations) keeps ARTF47 too."""
@@ -399,6 +416,7 @@ def build(regs, dirs, listings=True, flow=None, art=None):
         lines = flow_strip(lines, 'FLOW')
     lines = fill(lines, regs, flow, art)
     steps = source_steps(lines)
+    check_names(steps)
     numeric, num = resolve(steps)
     numeric = structures(numeric)
     want = ['LBL "%s"' % NAME] + (['LBL "FLOW47"'] if flow else []) + (['LBL "ARTF47"'] if art else [])
@@ -427,6 +445,20 @@ def build(regs, dirs, listings=True, flow=None, art=None):
     with open(os.path.join(ROOT, 'listings', NAME + '_labels.txt'), 'w', encoding='utf-8') as fh:
         fh.write(labels_text(lines, num))
     return numeric
+
+
+def build_extra(name, dirs):
+    """A small program of programs_rem/ beside TIDE47 (T47TIME, the timing test): the STRUCT numbered, the REM lines
+    and the indentation gone."""
+    lines = [ln.rstrip() for ln in open(os.path.join(ROOT, 'programs_rem', name + '.txt'), encoding='utf-8')]
+    steps = source_steps(lines)
+    numeric, _ = resolve(steps)
+    numeric = structures(numeric)
+    for d in dirs:
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, name + '.txt'), 'w', encoding='utf-8') as fh:
+            fh.write('\n'.join(numeric) + '\n')
+    print('%-7s %4d steps' % (name, len(numeric)))
 
 
 if __name__ == '__main__':
@@ -478,6 +510,7 @@ if __name__ == '__main__':
         dirs = [os.path.join(ROOT, 'programs'), os.path.join(ROOT, 'build')]
         st = build(regs, dirs)
         data = build_data(regs, dirs)
+        build_extra('T47TIME', dirs)
     print('%s %5d steps, %2d local labels, about %d bytes (.p47, estimated); IF %d, DO %d' % (
         NAME, len(st), sum(1 for s in st if re.match(r'LBL \d\d', s)), estimate(st),
         sum(1 for s in st if s.startswith('IF ')), sum(1 for s in st if s.startswith('DO '))))

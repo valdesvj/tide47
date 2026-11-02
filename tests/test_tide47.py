@@ -97,30 +97,77 @@ def run_day(port_keys):
     return shots, c
 
 
+def truth(st, n, stream=False):
+    """the day's events found finely: h' (a stream: g = u u' + v v' = s s') exactly every 5 minutes, each sign change bisected
+    -> [(t, value, kind)] (the value: the height, the signed stream or the speed, exact at t)"""
+    tz = st['tz'] + R.dst(st, n)
+    j0 = n - 0.5 - tz / 24
+    ix = R.port_index(st)
+    E = R.comp(st, j0, st['hc'], ix)
+    rot = stream and st.get('kind') == 'rot'
+    N = R.comp(st, j0, st['hv'], ix) if rot else None
+    def uv(t):
+        return R.evaluate(E, st['z0'], t), (R.evaluate(N, st.get('v0', 0.0), t) if rot else (0.0, 0.0, 0.0, 0.0))
+    def F(t):
+        u, v = uv(t)
+        return u[0] * u[1] + v[0] * v[1] if stream else u[1]
+    ev, t, f0 = [], 0.0, F(0.0)
+    for k in range(1, 289):
+        t1 = k / 12
+        f1 = F(t1)
+        if f0 * f1 < 0:
+            a, b, fa = t1 - 1 / 12, t1, f0
+            for _ in range(40):
+                m = (a + b) / 2
+                fm = F(m)
+                if fa * fm <= 0:
+                    b = m
+                else:
+                    a, fa = m, fm
+            x = (a + b) / 2
+            u, v = uv(x)
+            ev.append((x, math.hypot(u[0], v[0]) if rot else u[0], 1 if f0 > 0 else -1))
+        f0 = f1
+    return ev
+
+
 def test_fast():
-    print('3a. the v0.3 engine (one evaluation an hour, cubics) against the exact v0.2 method (tide47ref.day_exact)')
-    wt = wh = wc = 0
+    print('3a. the v0.4 engine (an exact evaluation every 2 hours, quintics) against the events found finely (every 5 '
+          'minutes, exact)')
+    days = 30
+    for label, regs, fn, stream in (('tides', stations.REGIONS, R.day, False), ('streams', streams.REGIONS, R.sday, True)):
+        dt, dv, bad, flat, nd = [], 0.0, [], 0, 0
+        for _, _, _, ports in regs:
+            for st in ports:
+                for n in range(R.jdn(2026, 1, 1), R.jdn(2026, 1, 1) + days):
+                    tr, ev = truth(st, n, stream), fn(st, n)[1]
+                    nd += 1
+                    if any(b[0] - a[0] < 1.0 for a, b in zip(tr, tr[1:])):
+                        flat += 1               # two events under an hour apart (a flat stand): either may be found
+                        continue
+                    if len(tr) != len(ev) or any(a[2] != b[-1] for a, b in zip(tr, ev)):
+                        bad.append('%s day %d: %s / %s' % (st['name'], n, tr, ev))
+                        continue
+                    for a, b in zip(tr, ev):
+                        dt.append(abs(a[0] - b[0]) * 3600)
+                        dv = max(dv, abs(a[1] - (abs(b[1]) if stream and st.get('kind') == 'rot' else b[1])))
+        for x in bad[:3]:
+            check(False, x)
+        dt.sort()
+        p99 = dt[int(0.99 * (len(dt) - 1))]
+        lim = (20, 120, 0.001) if not stream else (60, 180, 0.01)
+        check(not bad and p99 < lim[0] and dt[-1] < lim[1] and dv < lim[2],
+              '%s: %d days (%d with a flat stand left out): %d events, the times within %.1f s (99 %%: %.1f s, worst %.0f '
+              's), the values within %.2g' % (label, nd, flat, len(dt), dt[len(dt) // 2], p99, dt[-1], dv))
+    wc = 0
     for _, _, _, ports in stations.REGIONS:
         for st in ports:
-            for n in range(R.jdn(2026, 1, 1), R.jdn(2026, 1, 1) + 30):
-                a, b = R.day(st, n), R.day_exact(st, n)
-                ok = len(a[1]) == len(b[1]) and all(x[2] == y[2] for x, y in zip(a[1], b[1]))
-                if not ok:
-                    check(False, '%s day %d: %s / %s' % (st['name'], n, a[1], b[1]))
-                for x, y in zip(a[1], b[1]):
-                    wt = max(wt, abs(x[0] - y[0]) * 3600); wh = max(wh, abs(x[1] - y[1]))
-                wc = max(wc, max(abs(p - q) for p, q in zip(a[2], b[2])))
-    check(wt < 1 and wh < 1e-4 and wc < 0.002, 'tides: high and low waters within %.2f s, %.1g m; the curve within %.2f '
-          'mm' % (wt, wh, wc * 1000))
-    wt = wv = 0
-    for st in streams.REGIONS[0][3]:
-        for n in range(R.jdn(2026, 1, 1), R.jdn(2026, 1, 1) + 30):
-            a, b = R.sday(st, n), R.sday_exact(st, n)
-            if len(a[1]) != len(b[1]):
-                check(False, '%s day %d: %d / %d events' % (st['name'], n, len(a[1]), len(b[1])))
-            for x, y in zip(a[1], b[1]):
-                wt = max(wt, abs(x[0] - y[0]) * 3600); wv = max(wv, abs(x[1] - y[1]))
-    check(wt < 60 and wv < 0.002, 'streams: slacks and maxima within %.0f s, %.4f kn' % (wt, wv))
+            for n in range(R.jdn(2026, 1, 1), R.jdn(2026, 1, 1) + 10):
+                tz = st['tz'] + R.dst(st, n)
+                E = R.comp(st, n - 0.5 - tz / 24, st['hc'])
+                cu = R.day(st, n)[2]
+                wc = max(wc, max(abs(cu[k] - R.evaluate(E, st['z0'], k / 3)[0]) for k in range(73)))
+    check(wc < 0.002, 'the tide curve within %.2f mm of the exact heights' % (wc * 1000))
 
 
 def test_c47():
@@ -143,11 +190,16 @@ def test_c47():
                 for a, b in zip(ev, tw):
                     worst_t = max(worst_t, abs(a[0] - b[0]) * 3600); worst_h = max(worst_h, abs(a[1] - b[1]))
                     ok = ok and a[2] == b[2]
+                hs = getattr(c, 'hs', [])                  # the curve (v0.4.1: LBL :CRV6:'s last point)
+                ok = ok and len(hs) == 73
+                worst_c = max([globals().get('worst_c', 0)] + [abs(a - b) for a, b in zip(hs, cu)])
+                globals()['worst_c'] = worst_c
                 if not ok:
                     check(False, '%s %04d-%02d-%02d: %s / %s' % (st['name'], y, m, d, ev, tw))
                 n += 1
-    check(worst_t < 0.01 and worst_h < 1e-9, '%d port-days: the same high and low waters (%.3g s, %.2g m)'
-          % (n, worst_t, worst_h))
+    wc = globals().get('worst_c', 1)
+    check(worst_t < 0.01 and worst_h < 1e-9 and wc < 1e-6, '%d port-days: the same high and low waters (%.3g s, %.2g m) '
+          'and the same curve (%.2g m)' % (n, worst_t, worst_h, wc))
     print('      %.0f s here' % (time.time() - t0))
     boston = stations.REGIONS[1][3][0]
     for dn, want in ((R.jdn(2026, 3, 7), -5), (R.jdn(2026, 3, 8), -4), (R.jdn(2026, 10, 31), -4), (R.jdn(2026, 11, 1), -5)):
@@ -373,13 +425,29 @@ def test_artf():
         progs = [os.path.join(tmp, n + '.txt') for n in ('TIDE47', 'TIDEME', 'TIDEFL')]
         K = S.FLOWKEYS
         ok, worst = True, 0
-        for lat, lon in ((28.24, 49.36), (23.36, 58.34), (12.47, 44.58)):
-            shots, c = S.run_flow([K['NEXT'], K['DAYF'], K['NOW']], lat, lon, progs=progs, label='ARTF47')
+        ref, today = ME[3][0], R.jdn(2026, 10, 25)
+        keys = [K['NEXT'], K['NEXT'], K['NEXT'], K['PREV'], K['PREV'], K['PREV'], K['PREV'], K['DAYF'], K['DAYB'],
+                K['NOW']]                       # the reference's day cached (LBL :RDAYC:): the same through the keys
+        for lat, lon in ((28.24, 49.36), (23.36, 58.34), (12.47, 44.58), (26.2, 50.6)):
+            shots, c = S.run_flow(keys, lat, lon, progs=progs, label='ARTF47')
             k, d = R.art_nearest(ME[3], R.dm(lat), R.dm(lon))
             cell = R.flow_cell(fl, R.dm(lat), R.dm(lon))
-            for _, f in c.fl:
+            n, m = R.flow_pick(ref, today, 13.0)
+            want = [(n, m)]
+            for key in keys:
+                if key in (K['NEXT'], K['PREV']):
+                    n, m = R.flow_step(ref, n, m, 1 if key == K['NEXT'] else -1)
+                elif key in (K['DAYF'], K['DAYB']):
+                    n, m = R.flow_pick(ref, n + (1 if key == K['DAYF'] else -1), R.flow_cycle(ref, n, m)[0])
+                else:
+                    n, m = R.flow_pick(ref, today, 13.0)
+                want.append((n, m))
+            ok = ok and len(c.fl) == len(want)
+            for (_, f), (n, m) in zip(c.fl, want):
                 ev = R.day(ME[3][k - 1], f['n'])[1]
-                ok = ok and int(f['nst']) == k and len(f['ev']) == len(ev) and f['ok'] == (cell is not None)
+                worst = max(worst, abs(f['t'] - R.flow_cycle(ref, n, m)[0]) * 3600)
+                ok = ok and (f['n'], f['m']) == (n, m) and int(f['nst']) == k and len(f['ev']) == len(ev) and \
+                    f['ok'] == (cell is not None)
                 worst = max([worst, abs(f['ndst'] - d)] + [abs(a[0] - b[0]) * 3600 for a, b in zip(f['ev'], ev)])
             check(ok, '%.2f %.2f: the nearest station %s (%.1f nm), its day, the atlas %s' % (
                 lat, lon, ME[3][k - 1]['name'], d, 'there' if cell else 'not there'))
