@@ -170,3 +170,10 @@ on a C47: `COMPLEX` on matrices and the complex matrix product are new to Tide 4
 
 The same engine in JavaScript, with a one-page app for Chrome (tides and streams, your Aramco stations from a
 git-ignored `web/data/private.js`): `python3 tools/make_web_data.py`, then open `web/index.html`. See `web/README.md`.
+
+## The firmware's plot (T47PLOT)
+
+A try: can the C47's own statistics plot (`CLΣ`, `Σ+`, `PLSTAT`) draw the tide curve faster than TIDE47's loop of
+`PIXEL`s? `XEQ "T47PLOT"` draws a test curve both ways and shows the two times; tell whether `PLSTAT` returns to the
+program and whether it keeps or clears the rest of the screen. *Not yet run on a C47: `CLΣ`, `Σ+` and `PLSTAT` are new
+to Tide 47.*

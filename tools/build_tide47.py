@@ -511,6 +511,7 @@ if __name__ == '__main__':
         st = build(regs, dirs)
         data = build_data(regs, dirs)
         build_extra('T47TIME', dirs)
+        build_extra('T47PLOT', dirs)
     print('%s %5d steps, %2d local labels, about %d bytes (.p47, estimated); IF %d, DO %d' % (
         NAME, len(st), sum(1 for s in st if re.match(r'LBL \d\d', s)), estimate(st),
         sum(1 for s in st if s.startswith('IF ')), sum(1 for s in st if s.startswith('DO '))))
