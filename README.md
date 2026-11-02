@@ -165,3 +165,8 @@ The simulator counts steps, not the firmware's time for a cosine of a 40-vector 
 also in R01-R07; it uses R00-R09): `COS` and `DOT` of 40-vectors, a real and a complex 40 x 40 x 40-vector product, a
 complex vector sum, 1000 simple steps, 360 `PIXEL`s. Send the screen: it says where the next speed-up is. *Not yet run
 on a C47: `COMPLEX` on matrices and the complex matrix product are new to Tide 47 (only in T47TIME).*
+
+## Tide 47 on the web (web/)
+
+The same engine in JavaScript, with a one-page app for Chrome (tides and streams, your Aramco stations from a
+git-ignored `web/data/private.js`): `python3 tools/make_web_data.py`, then open `web/index.html`. See `web/README.md`.
