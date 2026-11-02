@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tide 47</title>
+<style>
+  :root {
+    --paper: #f6f4ee; --card: #ffffff; --ink: #1d232a; --soft: #6b7280; --line: #e3e0d8; --grid: #ece9e1;
+    --accent: #1f6fb2; --high: #1f6fb2; --low: #8a6d3b; --now: #c0392b; --chip: #eef3f8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #12161b; --card: #1a2027; --ink: #e8ecf1; --soft: #9aa4b1; --line: #2a323c; --grid: #232b34;
+            --accent: #6cb4f0; --high: #6cb4f0; --low: #d8b46a; --now: #ff7b6b; --chip: #22303d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+         font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 14px 16px 8px; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+  header h1 { font-size: 20px; margin: 0 8px 0 0; letter-spacing: .02em; }
+  header h1 span { color: var(--soft); font-weight: 400; font-size: 14px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  select, input, button { font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line);
+         border-radius: 8px; padding: 6px 10px; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input[type=text] { width: 9.5em; }
+  main { padding: 0 16px 24px; max-width: 1100px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-top: 10px; }
+  .title { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; align-items: baseline; }
+  .title h2 { margin: 0; font-size: 22px; }
+  .title .date { font-size: 18px; font-weight: 600; }
+  .meta { color: var(--soft); font-size: 13px; margin-top: 2px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 13px; }
+  .chip.now { color: var(--now); font-weight: 600; }
+  svg { width: 100%; height: auto; display: block; margin-top: 8px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--soft); font-weight: 500; font-size: 13px; }
+  td.num { text-align: right; } th.num { text-align: right; }
+  .hw { color: var(--high); font-weight: 600; } .lw { color: var(--low); font-weight: 600; }
+  .next td { background: var(--chip); }
+  footer { color: var(--soft); font-size: 12px; padding: 4px 16px 24px; max-width: 1100px; }
+  .warn { color: var(--now); }
+  a { color: var(--accent); } a.home { color: inherit; text-decoration: none; }
+  .credit { margin-bottom: 4px; color: var(--ink); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  label { color: var(--soft); font-size: 13px; }
+  .tabs { display: flex; gap: 4px; }
+  .tab { border-radius: 999px; padding: 4px 14px; }
+  .tab.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .flowctl { margin-bottom: 10px; }
+  .flowgrid { display: grid; grid-template-columns: minmax(300px, 1fr) 1.3fr; gap: 16px; align-items: start; }
+  .maphead { justify-content: center; margin-top: 8px; }
+  .maphead input { flex: 1; min-width: 120px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--soft); margin-top: 6px; }
+  .legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  td.arrow { width: 34px; text-align: center; }
+  tr.sel td { outline: 2px solid var(--accent); outline-offset: -2px; }
+  tr.click { cursor: pointer; }
+  input[type=number] { width: 4.6em; }
+  @media (max-width: 800px) { .flowgrid { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) { header h1 { width: 100%; } input[type=text] { width: 7.5em; } }
+</style>
+</head>
+<body>
+<header>
+  <h1><a class="home" href="https://github.com/valdesvj/tide47" target="_blank" rel="noopener" title="Tide 47 on GitHub, by Victor Valdes">Tide 47</a> <span>tides and tidal streams</span></h1>
+  <div class="tabs" role="tablist">
+    <button id="tabTide" class="tab on" role="tab">Tide</button>
+    <button id="tabFlow" class="tab" role="tab" title="The tidal stream atlas (FLOW47)">Flow</button>
+  </div>
+  <div class="controls">
+    <select id="region" title="Region"></select>
+    <select id="station" title="Station (↑ ↓)"></select>
+    <button id="prev" title="The day before (←)">◀</button>
+    <input id="date" type="date" title="Date">
+    <button id="next" title="The day after (→)">▶</button>
+    <button id="today" title="Today (T)">Today</button>
+  </div>
+  <div class="controls">
+    <label for="pos">Position</label>
+    <input id="pos" type="text" placeholder="27 12.0N 49 42.0E" title="Latitude and longitude: decimal degrees (27.2 49.7) or degrees and minutes (27 12.0N 49 42.0E)">
+    <button id="nearest" title="The station nearest the position">Nearest</button>
+    <button id="loadpriv" title="Load your private stations (private.js from tools/make_web_data.py)">Private data…</button>
+    <input id="privfile" type="file" accept=".js,.json" hidden>
+  </div>
+</header>
+<main>
+  <section class="card" id="flowcard" hidden>
+    <div class="row flowctl">
+      <button id="hwPrev" title="The High Water before">◀ HW</button>
+      <button id="hwNow" title="The High Water nearest now">Now</button>
+      <button id="hwNext" title="The High Water after">HW ▶</button>
+      <label for="wdir">Wind from</label><input id="wdir" type="number" min="0" max="360" step="10" value="0" title="degrees">°
+      <input id="wkn" type="number" min="0" max="60" step="1" value="0" title="knots"> kn
+    </div>
+    <div class="title"><h2 id="fname">—</h2><div class="date" id="fdate"></div></div>
+    <div class="meta" id="fmeta"></div>
+    <div class="chips" id="fchips"></div>
+    <div class="flowgrid">
+      <div><table id="ftable"></table><div class="meta" id="fnote"></div></div>
+      <div>
+        <div class="row maphead"><button id="hPrev">◀</button><b id="hlabel"></b><button id="hNext">▶</button>
+          <input id="hslider" type="range" min="0" max="12" step="1" value="6"></div>
+        <svg id="map" viewBox="0 0 600 600" role="img" aria-label="The atlas at the hour"></svg>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+  </section>
+  <section class="card" id="tidecard">
+    <div class="title"><h2 id="name">—</h2><div class="date" id="dayname"></div></div>
+    <div class="meta" id="meta"></div>
+    <div class="chips" id="chips"></div>
+    <svg id="chart" viewBox="0 0 1000 360" role="img" aria-label="The day's curve"></svg>
+    <table id="events"></table>
+  </section>
+</main>
+<footer>
+  <div id="datanote"></div>
+  <div class="credit">Tide 47 by <b>Victor Valdes</b>, Master Mariner ·
+    <a href="https://github.com/valdesvj/tide47" target="_blank" rel="noopener">github.com/valdesvj/tide47</a> (the
+    C47 / R47 programs, this app, the engine and its tests) ·
+    <a href="https://github.com/valdesvj" target="_blank" rel="noopener">github.com/valdesvj</a> (the other 47 projects)</div>
+  <div>Harmonic predictions (Schureman), the same engine as Tide 47 on the C47. Data: NOAA (public domain), TICON-3
+    (CC-BY 4.0); private stations stay on your computer. <b>Not for navigation.</b></div>
+</footer>
+<script src="data/cons.js"></script>
+<script src="data/public.js"></script>
+<script src="data/private.js" onerror="this.remove()"></script>
+<script src="tide47.js"></script>
+<script src="app.js"></script>
+<script src="flow.js"></script>
+</body>
+</html>

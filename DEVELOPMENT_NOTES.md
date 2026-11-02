@@ -49,3 +49,15 @@
   25 199.
 - Refactoring: LBL :HSMM: (the curve's lowest and highest, read in order with J+) shared by the chart and ARTF's panel;
   LBL :HSROT: (a rotary stream's speed from HS HSV) apart. A day 16 994 -> 16 125 steps, an ARTF key 25 199 -> 24 549.
+
+## Nov 2, 2026 - the web app (branch claude/tide47-web)
+
+- web/tide47.js: the twin's astronomy line for line, exact evaluation (the event function every 5 minutes, bisected);
+  data from tools/make_web_data.py (cons.js from tide47ref.CONS and K: one source; public.js; private.js git-ignored).
+- web/index.html + app.js: regions, stations, the day's curve (SVG sized to the screen), events, now, the nearest
+  station to a position, a file picker for private.js; light and dark.
+- tests/test_web.py: 640 station-days against the twin: the same events within 0.01 s, curve 1E-14 m.
+- The Flow tab (web/flow.js): the twin's flow_* in tide47.js (flowCell, flowPick, flowStep, flowCycle, flowRows,
+  flowNow); the atlas from python/flow_private.py goes into the git-ignored private.js (T47FLOW). Table + map
+  (speed bands as the charts, arrows, the position, the stations). test_web.py 3: the same High Waters and atlas.
+- Credit: the app's title and footer link to github.com/valdesvj/tide47 and name the author.

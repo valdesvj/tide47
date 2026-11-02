@@ -5,3 +5,4 @@ private/
 python/stations_private.py
 python/streams_private.py
 python/flow_private.py
+web/data/private.js
