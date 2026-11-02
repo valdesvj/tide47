@@ -32,6 +32,15 @@ for (const [ri, si, n] of q.days) {
   const d = T47.day(st, n);
   out.days.push({ev: d.events, curve: d.curve.filter((_, k) => k % 4 === 0).map(p => p[1])});
 }
+globalThis.T47FLOW = q.atlas;
+const ref = T47PUBLIC[0].stations[0];
+out.flow = q.flow.map(([n, h, lat, lon, wdir, wkn]) => {
+  const [nn, m] = T47.flowPick(ref, n, h);
+  const c = T47.flowCycle(ref, nn, m);
+  const cell = T47.flowCell(q.atlas, lat, lon);
+  const nx = T47.flowStep(ref, nn, m, 1), pv = T47.flowStep(ref, nn, m, -1);
+  return {n: nn, m, t: c.t, f: c.f, cell, rows: cell ? T47.flowRows(cell, c.f, wdir, wkn) : null, next: nx, prev: pv};
+});
 process.stdout.write(JSON.stringify(out));
 """
 
@@ -42,10 +51,15 @@ def main():
     n0 = R.jdn(2026, 1, 1)
     days = [(ri, si, n0 + 17 * d) for ri, (_, _, _, ps) in enumerate(regs) for si in range(len(ps)) for d in range(20)]
     vec = [R.jd(2026, 1, 1), R.jd(2030, 6, 15, 7.5), R.jd(2019, 3, 3)]
+    import synth_flow
+    atlas = synth_flow.atlas()
+    ref = stations.REGIONS[0][3][0]
+    flow = [(n0 + 11 * d, (d * 5.3) % 24, 26.0 + (d % 7) * 0.45, 48.7 + (d % 9) * 0.27, (d * 40) % 360, d % 4 * 5)
+            for d in range(40)]
     js = os.path.join(ROOT, 'web', '_t.js')
     open(js, 'w').write(JS)
     try:
-        r = subprocess.run(['node', js, os.path.join(ROOT, 'web')], input=json.dumps(dict(vec=vec, days=days)),
+        r = subprocess.run(['node', js, os.path.join(ROOT, 'web')], input=json.dumps(dict(vec=vec, days=days, atlas=atlas, flow=flow)),
                            capture_output=True, text=True, check=True)
     finally:
         os.remove(js)
@@ -78,6 +92,21 @@ def main():
         check(False, b)
     check(not bad and wt < 2 and wh < 1e-6 and wc < 1e-9,
           'the same events: times within %.2f s, values within %.1g; the curve within %.1g m' % (wt, wh, wc))
+    print('3. FLOW: the High Water picked, the cycle\'s factor, the atlas at a position (synthetic atlas, Mina Salman)')
+    ok, wt, wf, wr = True, 0, 0, 0
+    for (n, h, lat, lon, wdir, wkn), got in zip(flow, out['flow']):
+        nn, m = R.flow_pick(ref, n, h)
+        t, _, _, f = R.flow_cycle(ref, nn, m)
+        cell = R.flow_cell(atlas, lat, lon)
+        ok = ok and (got['n'], got['m']) == (nn, m) and (cell is None) == (got['cell'] is None)
+        ok = ok and tuple(got['next']) == R.flow_step(ref, nn, m, 1) and tuple(got['prev']) == R.flow_step(ref, nn, m, -1)
+        wt, wf = max(wt, abs(t - got['t']) * 3600), max(wf, abs(f - got['f']))
+        if cell:
+            for (a, b), (c, d) in zip(R.flow_rows(cell, f, wdir, wkn), got['rows']):
+                wr = max(wr, abs(a - c), abs(b - d))
+    check(ok and wt < 60 and wf < 2e-3 and wr < 2e-3, '%d positions and times: the same High Waters, steps and atlas '
+          'cells; times within %.1f s, factors within %.1g, streams within %.1g kn (the twin uses the C47\'s quintic '
+          'engine)' % (len(flow), wt, wf, wr))
     print('ALL OK' if not FAIL else '%d FAILED' % len(FAIL))
     sys.exit(1 if FAIL else 0)
 

@@ -176,5 +176,94 @@
     return 60 * Math.hypot(lat2 - lat1, (lon2 - lon1) * Math.cos(lat1 * D2R));
   }
 
-  root.T47 = { jdn, cal, dst, astro, basics, vector, comp, evalc, day, now, nm, SPEEDS };
+  // ---- FLOW: the tidal stream atlas (13 charts, HW-6 ... HW+6 of a reference station), as python/tide47ref.py flow_* ----
+  const WFAC = 0.025, WDEF = 15.0;      // the wind's surface current: 2.5 % of the wind, 15 deg right of downwind
+
+  // the atlas at a position (degrees): [FU, FV] 13 spring values each (kn), bilinear between the sea nodes, or null
+  function flowCell(fl, lat, lon) {
+    const k = 60 / fl.step_min;
+    const fi = (lat - fl.lat0) * k, fj = (lon - fl.lon0) * k;
+    if (!(fi >= 0 && fi <= fl.nlat - 1 && fj >= 0 && fj <= fl.nlon - 1)) return null;
+    const i = Math.min(Math.floor(fi), fl.nlat - 2), j = Math.min(Math.floor(fj), fl.nlon - 2);
+    const a = fi - i, b = fj - j;
+    const FU = new Array(13).fill(0), FV = new Array(13).fill(0);
+    let sw = 0;
+    for (const [di, dj, w] of [[0, 0, (1 - a) * (1 - b)], [1, 0, a * (1 - b)], [0, 1, (1 - a) * b], [1, 1, a * b]]) {
+      const c = fl.cells[(i + di) * fl.nlon + j + dj];
+      if (!c || w <= 0) continue;
+      sw += w;
+      c.forEach(([cu, cv], h) => { FU[h] += w * (cu - 50) * fl.q; FV[h] += w * (cv - 50) * fl.q; });
+    }
+    if (sw < 1e-9) return null;
+    return [FU.map(x => x / sw), FV.map(x => x / sw)];
+  }
+
+  // a node's 13 spring values (kn) or null (land)
+  function flowNode(fl, i, j) {
+    const c = fl.cells[i * fl.nlon + j];
+    return c ? c.map(([cu, cv]) => [(cu - 50) * fl.q, (cv - 50) * fl.q]) : null;
+  }
+
+  function flowSpring(ref) {
+    const H = n => Math.round(((ref.hc[n] || [0])[0]) * 1e4) / 1e4;
+    return 2 * (H('M2') + H('S2'));
+  }
+
+  const dayCache = new Map();
+  function events(ref, n) {
+    const key = ref.name + '|' + n;
+    if (!dayCache.has(key)) dayCache.set(key, day(ref, n).events);
+    return dayCache.get(key);
+  }
+
+  // the next (d = 1) or previous (d = -1) High Water after / before the event m of day n: [n, m]
+  function flowStep(ref, n, m, d) {
+    const ev = events(ref, n);
+    const hw = ev.map((e, k) => k).filter(k => ev[k].kind > 0 && (d > 0 ? k > m : (m < 0 || k < m)));
+    if (hw.length) return [n, d > 0 ? hw[0] : hw[hw.length - 1]];
+    const ev2 = events(ref, n + d);
+    const hw2 = ev2.map((e, k) => k).filter(k => ev2[k].kind > 0);
+    return [n + d, d > 0 ? hw2[0] : hw2[hw2.length - 1]];
+  }
+
+  // the High Water of day n nearest the hour target (more than 6.2 h away: the next or previous day's): [n, m]
+  function flowPick(ref, n, target) {
+    const ev = events(ref, n);
+    const hw = ev.map((e, k) => k).filter(k => ev[k].kind > 0);
+    if (!hw.length) return flowStep(ref, n, -1, 1);
+    if (target - ev[hw[hw.length - 1]].t > 6.2) return flowStep(ref, n, hw[hw.length - 1], 1);
+    if (ev[hw[0]].t - target > 6.2) return flowStep(ref, n, hw[0], -1);
+    let best = hw[0];
+    for (const m of hw) if (Math.abs(ev[m].t - target) < Math.abs(ev[best].t - target)) best = m;
+    return [n, best];
+  }
+
+  // the High Water m of day n: {t, h, range, f}: f = range / the mean spring range (1 without a low water)
+  function flowCycle(ref, n, m) {
+    const ev = events(ref, n);
+    const t = ev[m].t, h = ev[m].value;
+    const lows = [m - 1, m + 1].filter(k => k >= 0 && k < ev.length && ev[k].kind < 0).map(k => ev[k].value);
+    if (!lows.length) return { t, h, range: 0, f: 1 };
+    const range = h - lows.reduce((a, b) => a + b, 0) / lows.length;
+    return { t, h, range, f: range / flowSpring(ref) };
+  }
+
+  // the 13 rows HW-6 ... HW+6: [u, v] = f x the atlas + the wind's current
+  function flowRows(cell, f, wdir, wkn) {
+    const wu = WFAC * (wkn || 0) * Math.sin((wdir + 180 + WDEF) * D2R);
+    const wv = WFAC * (wkn || 0) * Math.cos((wdir + 180 + WDEF) * D2R);
+    return cell[0].map((u, k) => [f * u + wu, f * cell[1][k] + wv]);
+  }
+
+  // the stream at off hours from High Water (-6 ... 6): straight between the hours
+  function flowNow(rows, off) {
+    const k = Math.min(Math.floor(off + 6), 11), s = off + 6 - k;
+    const [u0, v0] = rows[k], [u1, v1] = rows[k + 1];
+    return [u0 + (u1 - u0) * s, v0 + (v1 - v0) * s];
+  }
+
+  const setkn = (u, v) => [mod(Math.atan2(u, v) / D2R, 360), Math.hypot(u, v)];
+
+  root.T47 = { jdn, cal, dst, astro, basics, vector, comp, evalc, day, now, nm, SPEEDS,
+    flowCell, flowNode, flowSpring, flowStep, flowPick, flowCycle, flowRows, flowNow, setkn, WFAC, WDEF };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -5,7 +5,8 @@
                        angles, the nodal formulas' constants K: one source for the Python twin and the web engine
   web/data/public.js   the public stations: python/stations.py (NOAA, TICON-3) and python/streams.py (NOAA currents)
   web/data/private.js  your private stations, when python/stations_private.py (Aramco) and python/streams_private.py
-                       are there: git-ignored, never published (docs/ARAMCO.md)
+                       are there, and the stream atlas of FLOW47 (python/flow_private.py): git-ignored, never published
+                       (docs/ARAMCO.md, docs/FLOW.md)
 
 They are plain scripts (globalThis.T47CONS, T47PUBLIC, T47PRIVATE), so index.html works opened as a file (file://).
   python3 tools/make_web_data.py"""
@@ -58,9 +59,19 @@ def main():
         priv += regions(streams_private.REGIONS, True)
     except ImportError:
         pass
+    flow = None
+    try:
+        import flow_private
+        flow = flow_private.FLOW
+    except ImportError:
+        pass
     path = os.path.join(OUT, 'private.js')
-    if priv:
+    if priv or flow:
         write('private.js', 'T47PRIVATE', priv, 'PRIVATE stations (Aramco and others): never publish this file')
+        if flow:                                  # the tidal stream atlas of FLOW47 (docs/FLOW.md): private too
+            with open(path, 'a', encoding='utf-8') as fh:
+                fh.write('globalThis.T47FLOW = %s;\n' % json.dumps(flow, separators=(',', ':')))
+            print('  + the stream atlas (%s, reference %s)' % (flow.get('source', '?'), flow.get('ref')))
     elif os.path.exists(path):
         print('no private stations: %s left as it is' % os.path.relpath(path, ROOT))
     else:

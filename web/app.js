@@ -195,6 +195,7 @@
       S.pos = p; store.set('pos', $('pos').value);
       const b = nearest();
       if (b) select(b.ri, b.si, true);
+      if (globalThis.T47FLOWVIEW) T47FLOWVIEW.render();
     };
     $('pos').onkeydown = e => { if (e.key === 'Enter') $('nearest').click(); };
     $('loadpriv').onclick = () => $('privfile').click();
@@ -230,6 +231,8 @@
   const pos = store.get('pos');
   if (pos) { $('pos').value = pos; S.pos = parsePos(pos); }
   bind(); fillStations(); render();
+  // shared with flow.js
+  globalThis.T47APP = { $, store, hhmm, pad, fmtPos, parsePos, get regions() { return regions; }, S, DAYS };
   setInterval(() => { if (S.n === T47.now(station())[0]) render(); }, 60000);
   let rt = null;
   window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(render, 150); });

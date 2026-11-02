@@ -57,3 +57,7 @@
 - web/index.html + app.js: regions, stations, the day's curve (SVG sized to the screen), events, now, the nearest
   station to a position, a file picker for private.js; light and dark.
 - tests/test_web.py: 640 station-days against the twin: the same events within 0.01 s, curve 1E-14 m.
+- The Flow tab (web/flow.js): the twin's flow_* in tide47.js (flowCell, flowPick, flowStep, flowCycle, flowRows,
+  flowNow); the atlas from python/flow_private.py goes into the git-ignored private.js (T47FLOW). Table + map
+  (speed bands as the charts, arrows, the position, the stations). test_web.py 3: the same High Waters and atlas.
+- Credit: the app's title and footer link to github.com/valdesvj/tide47 and name the author.

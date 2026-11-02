@@ -44,14 +44,34 @@
   .next td { background: var(--chip); }
   footer { color: var(--soft); font-size: 12px; padding: 4px 16px 24px; max-width: 1100px; }
   .warn { color: var(--now); }
+  a { color: var(--accent); } a.home { color: inherit; text-decoration: none; }
+  .credit { margin-bottom: 4px; color: var(--ink); }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   label { color: var(--soft); font-size: 13px; }
+  .tabs { display: flex; gap: 4px; }
+  .tab { border-radius: 999px; padding: 4px 14px; }
+  .tab.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .flowctl { margin-bottom: 10px; }
+  .flowgrid { display: grid; grid-template-columns: minmax(300px, 1fr) 1.3fr; gap: 16px; align-items: start; }
+  .maphead { justify-content: center; margin-top: 8px; }
+  .maphead input { flex: 1; min-width: 120px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--soft); margin-top: 6px; }
+  .legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  td.arrow { width: 34px; text-align: center; }
+  tr.sel td { outline: 2px solid var(--accent); outline-offset: -2px; }
+  tr.click { cursor: pointer; }
+  input[type=number] { width: 4.6em; }
+  @media (max-width: 800px) { .flowgrid { grid-template-columns: 1fr; } }
   @media (max-width: 600px) { header h1 { width: 100%; } input[type=text] { width: 7.5em; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>Tide 47 <span>tides and tidal streams</span></h1>
+  <h1><a class="home" href="https://github.com/valdesvj/tide47" target="_blank" rel="noopener" title="Tide 47 on GitHub, by Victor Valdes">Tide 47</a> <span>tides and tidal streams</span></h1>
+  <div class="tabs" role="tablist">
+    <button id="tabTide" class="tab on" role="tab">Tide</button>
+    <button id="tabFlow" class="tab" role="tab" title="The tidal stream atlas (FLOW47)">Flow</button>
+  </div>
   <div class="controls">
     <select id="region" title="Region"></select>
     <select id="station" title="Station (↑ ↓)"></select>
@@ -69,7 +89,28 @@
   </div>
 </header>
 <main>
-  <section class="card">
+  <section class="card" id="flowcard" hidden>
+    <div class="row flowctl">
+      <button id="hwPrev" title="The High Water before">◀ HW</button>
+      <button id="hwNow" title="The High Water nearest now">Now</button>
+      <button id="hwNext" title="The High Water after">HW ▶</button>
+      <label for="wdir">Wind from</label><input id="wdir" type="number" min="0" max="360" step="10" value="0" title="degrees">°
+      <input id="wkn" type="number" min="0" max="60" step="1" value="0" title="knots"> kn
+    </div>
+    <div class="title"><h2 id="fname">—</h2><div class="date" id="fdate"></div></div>
+    <div class="meta" id="fmeta"></div>
+    <div class="chips" id="fchips"></div>
+    <div class="flowgrid">
+      <div><table id="ftable"></table><div class="meta" id="fnote"></div></div>
+      <div>
+        <div class="row maphead"><button id="hPrev">◀</button><b id="hlabel"></b><button id="hNext">▶</button>
+          <input id="hslider" type="range" min="0" max="12" step="1" value="6"></div>
+        <svg id="map" viewBox="0 0 600 600" role="img" aria-label="The atlas at the hour"></svg>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+  </section>
+  <section class="card" id="tidecard">
     <div class="title"><h2 id="name">—</h2><div class="date" id="dayname"></div></div>
     <div class="meta" id="meta"></div>
     <div class="chips" id="chips"></div>
@@ -79,13 +120,18 @@
 </main>
 <footer>
   <div id="datanote"></div>
-  <div>Harmonic predictions (Schureman), the engine of Tide 47 for the C47 (github.com/valdesvj/tide47). Data: NOAA
-    (public domain), TICON-3 (CC-BY 4.0); private stations stay on your computer. <b>Not for navigation.</b></div>
+  <div class="credit">Tide 47 by <b>Victor Valdes</b>, Master Mariner ·
+    <a href="https://github.com/valdesvj/tide47" target="_blank" rel="noopener">github.com/valdesvj/tide47</a> (the
+    C47 / R47 programs, this app, the engine and its tests) ·
+    <a href="https://github.com/valdesvj" target="_blank" rel="noopener">github.com/valdesvj</a> (the other 47 projects)</div>
+  <div>Harmonic predictions (Schureman), the same engine as Tide 47 on the C47. Data: NOAA (public domain), TICON-3
+    (CC-BY 4.0); private stations stay on your computer. <b>Not for navigation.</b></div>
 </footer>
 <script src="data/cons.js"></script>
 <script src="data/public.js"></script>
 <script src="data/private.js" onerror="this.remove()"></script>
 <script src="tide47.js"></script>
 <script src="app.js"></script>
+<script src="flow.js"></script>
 </body>
 </html>
